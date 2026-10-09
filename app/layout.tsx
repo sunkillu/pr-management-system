@@ -2,6 +2,9 @@ import "./globals.css";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
+import NotificationBell from "@/components/NotificationBell";
+import NotificationToast from "@/components/NotificationToast";
+import ScrollToAnchor from "@/components/ScrollToAnchor";
 
 export const metadata = {
   title: "PR媒体管理系统",
@@ -24,7 +27,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               email={user.email ?? ""}
               role={user.role ?? "VIEWER"}
             />
-            <main className="flex-1 min-w-0 p-6">{children}</main>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <header className="flex items-center justify-end border-b bg-white px-6 py-2">
+                <NotificationBell />
+              </header>
+              <main className="flex-1 min-w-0 p-6">{children}</main>
+            </div>
+            <NotificationToast />
+            <ScrollToAnchor />
           </div>
         ) : (
           <main>{children}</main>
