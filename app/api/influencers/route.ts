@@ -12,12 +12,17 @@ const { searchParams} = new URL(req.url);
 const q = searchParams.get("q")?? "";
 const platform = searchParams.get("platform");
 const status = searchParams.get("status");
+const type = searchParams.get("type");
+const coop = searchParams.get("coop");
 
 const list = await prisma.influencer.findMany({
 where: {
 ...(q? { name: { contains: q, mode: "insensitive" as const}}: {}),
 ...(platform? { platforms: { has: platform}}: {}),
 ...(status? { status: status as never}: {}),
+...(type? { influencerType: type as never}: {}),
+...(coop === "none"? { coopCount: 0}: {}),
+...(coop === "active"? { coopCount: { gt: 0}}: {}),
 },
 include: { registeredBy: { select: { name: true}}},
 orderBy: { updatedAt: "desc"},
@@ -35,6 +40,9 @@ if (!body.name?.trim()) {
 return NextResponse.json({ error: "达人姓名不能为空"}, { status: 400});
 }
 const platforms: string[] = Array.isArray(body.platforms)? body.platforms: [];
+const influencerType = ["KOL", "KOC", "AMATEUR", "MAKEUP_ARTIST"].includes(body.influencerType)
+? body.influencerType
+: null;
 const approverIds: string[] = Array.isArray(body.approverIds)
 ? Array.from(new Set(body.approverIds as string[]))
 : [];
@@ -54,6 +62,7 @@ const influencer = await prisma.$transaction(async (tx) => {
 const created = await tx.influencer.create({
 data: {
 name: body.name.trim(),
+influencerType,
 platforms,
 contactInfo: body.contactInfo || null,
 bio: body.bio || null,

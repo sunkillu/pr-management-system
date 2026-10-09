@@ -12,6 +12,8 @@ export default function CoopRequestActions({
   canResubmit,
   canRemind,
   title,
+  influencerType,
+  platforms,
 }: {
   id: string;
   status: string;
@@ -19,13 +21,15 @@ export default function CoopRequestActions({
   canResubmit: boolean;
   canRemind: boolean;
   title: string;
+  influencerType?: string | null;
+  platforms?: string[];
 }) {
   const router = useRouter();
-  const [dlg, setDlg] = useState<null | "approve" | "reject" | "resubmit" | "remind">(null);
+  const [dlg, setDlg] = useState<null | "approve" | "reject" | "resubmit" | "remind" | "addToLibrary">(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  async function call(url: string, body?: object) {
+  async function call(url: string, body?: object, afterOk?: () => void) {
     setBusy(true);
     setMsg("");
     const res = await fetch(url, {
@@ -40,7 +44,20 @@ export default function CoopRequestActions({
       setMsg(data.error || "操作失败");
       return;
     }
-    router.refresh();
+    if (afterOk) {
+      afterOk();
+    } else {
+      router.refresh();
+    }
+  }
+
+  function goAddToLibrary() {
+    const params = new URLSearchParams();
+    params.set("prefill", "1");
+    if (influencerType) params.set("ptype", influencerType);
+    if (platforms && platforms.length > 0) params.set("pplatforms", platforms.join(","));
+    setDlg(null);
+    router.push(`/influencers?${params.toString()}`);
   }
 
   return (
@@ -66,7 +83,23 @@ export default function CoopRequestActions({
           confirmText="通过"
           busy={busy}
           onClose={() => setDlg(null)}
-          onConfirm={() => call(`/api/coop-requests/${id}/approve`, { action: "APPROVE" })}
+          onConfirm={() =>
+            call(`/api/coop-requests/${id}/approve`, { action: "APPROVE" }, () =>
+              setDlg("addToLibrary")
+            )
+          }
+        />
+      )}
+      {dlg === "addToLibrary" && (
+        <ConfirmDialog
+          title="加入达人库"
+          message="需求已通过。是否将本次需求的达人加入达人库？跳转后补填姓名、联系方式即可保存。"
+          confirmText="去加入"
+          onClose={() => {
+            setDlg(null);
+            router.refresh();
+          }}
+          onConfirm={goAddToLibrary}
         />
       )}
       {dlg === "reject" && (
