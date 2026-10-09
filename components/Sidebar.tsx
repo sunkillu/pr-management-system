@@ -4,16 +4,23 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { roleLabels } from "@/lib/labels";
 
-type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER";
+type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER";
+
+const ALL = ["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as Role[];
 
 const nav: { href: string; label: string; roles: Role[] }[] = [
-  { href: "/", label: "首页仪表盘", roles: ["ADMIN", "OPERATOR", "FINANCE", "VIEWER"] },
-  { href: "/outlets", label: "媒体资源库", roles: ["ADMIN", "OPERATOR", "FINANCE", "VIEWER"] },
-  { href: "/contents", label: "内容管理", roles: ["ADMIN", "OPERATOR", "FINANCE", "VIEWER"] },
-  { href: "/campaigns", label: "项目排期", roles: ["ADMIN", "OPERATOR", "FINANCE", "VIEWER"] },
-  { href: "/payments", label: "打款审批", roles: ["ADMIN", "OPERATOR", "FINANCE", "VIEWER"] },
-  { href: "/invoices", label: "发票管理", roles: ["ADMIN", "OPERATOR", "FINANCE", "VIEWER"] },
-  { href: "/reports", label: "效果报表", roles: ["ADMIN", "OPERATOR", "FINANCE", "VIEWER"] },
+  { href: "/", label: "首页仪表盘", roles: ALL },
+  { href: "/outlets", label: "媒体资源库", roles: ALL },
+  { href: "/contents", label: "内容管理", roles: ALL },
+  { href: "/campaigns", label: "项目排期", roles: ALL },
+  { href: "/payments", label: "打款审批", roles: ALL },
+  { href: "/invoices", label: "发票管理", roles: ALL },
+  { href: "/influencers", label: "达人库", roles: ALL },
+  { href: "/makeup-artists", label: "化妆师库", roles: ALL },
+  { href: "/cooperations", label: "合作记录", roles: ALL },
+  { href: "/samples", label: "寄品管理", roles: ALL },
+  { href: "/coop-requests", label: "合作需求", roles: ALL },
+  { href: "/reports", label: "效果报表", roles: ALL },
   { href: "/users", label: "用户管理", roles: ["ADMIN"] },
 ];
 
