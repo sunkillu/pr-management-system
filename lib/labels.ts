@@ -5,6 +5,7 @@ export const roleLabels: Record<string, string> = {
   OPERATOR: "运营",
   FINANCE: "财务",
   VIEWER: "只读",
+  PR_MANAGER: "PR负责人",
 };
 
 export const outletTypeLabels: Record<string, string> = {
@@ -43,6 +44,7 @@ export const contentStatusLabels: Record<string, string> = {
   APPROVED: "已通过",
   PUBLISHED: "已发布",
   REJECTED: "已驳回",
+  VOIDED: "已作废",
 };
 
 export const campaignStatusLabels: Record<string, string> = {
@@ -57,6 +59,7 @@ export const paymentStatusLabels: Record<string, string> = {
   APPROVED: "待打款",
   PAID: "已打款",
   REJECTED: "已驳回",
+  VOIDED: "已作废",
 };
 
 export const approvalStageLabels: Record<string, string> = {
@@ -68,6 +71,23 @@ export const approvalStageLabels: Record<string, string> = {
 export const approvalActionLabels: Record<string, string> = {
   APPROVE: "通过",
   REJECT: "驳回",
+};
+
+export const docTypeLabels: Record<string, string> = {
+  CONTENT: "内容",
+  PAYMENT: "打款单",
+};
+
+export const logActionLabels: Record<string, string> = {
+  SUBMIT: "提交审批",
+  RESUBMIT: "重新提交",
+  APPROVE: "通过",
+  REJECT: "驳回",
+  PUBLISH: "标记已发布",
+  MARK_PAID: "标记已打款",
+  VOID: "作废",
+  LINK: "关联单据",
+  UNLINK: "解除关联",
 };
 
 export const invoiceTypeLabels: Record<string, string> = {
@@ -96,6 +116,7 @@ const badgeColors: Record<string, string> = {
   VERIFIED: "bg-green-100 text-green-800",
   REJECTED: "bg-red-100 text-red-800",
   INVALID: "bg-red-100 text-red-800",
+  VOIDED: "bg-gray-200 text-gray-600",
   ACTIVE: "bg-green-100 text-green-800",
   INACTIVE: "bg-gray-100 text-gray-500",
   PREPARING: "bg-gray-100 text-gray-700",
@@ -127,4 +148,56 @@ export function formatDateTime(v: unknown): string {
   const d = new Date(v as string);
   if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString("zh-CN", { hour12: false });
+}
+
+// ---------- 合作管理 ----------
+export const influencerStatusLabels: Record<string, string> = {
+  PENDING: "待审核",
+  APPROVED: "已通过",
+  REJECTED: "已驳回",
+};
+
+// 平台标签（多选，可扩展）
+export const PLATFORM_TAG_OPTIONS = [
+  { value: "XIAOHONGSHU", label: "小红书" },
+  { value: "DOUYIN", label: "抖音" },
+] as const;
+export const platformTagLabels: Record<string, string> = {
+  XIAOHONGSHU: "小红书",
+  DOUYIN: "抖音",
+};
+
+export const coopTypeLabels: Record<string, string> = {
+  INFLUENCER_POST: "达人挂车",
+  INFLUENCER_LIVE: "达播",
+  MAKEUP: "化妆师合作",
+};
+
+export const coopRequestStatusLabels: Record<string, string> = {
+  PENDING: "待审批",
+  APPROVED: "已通过",
+  REJECTED: "已驳回",
+};
+
+export const approverStatusLabels: Record<string, string> = {
+  PENDING: "待审批",
+  APPROVED: "已通过",
+  REJECTED: "已驳回",
+};
+
+export const sampleStatusLabels: Record<string, string> = {
+  SHIPPED: "已寄出",
+  SIGNED: "已签收",
+  RETURNED: "已归还",
+  WRITTEN_OFF: "已核销",
+};
+
+export const notifyTypeLabels: Record<string, string> = {
+  FEISHU: "飞书已发送",
+  MOCK: "Mock记录",
+};
+
+export function formatFee(v: unknown): string {
+  if (v == null || v === "") return "-";
+  return `¥${Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}`;
 }

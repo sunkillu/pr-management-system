@@ -11,6 +11,7 @@ export type UserInput = {
   email: string;
   password: string;
   role: string;
+  feishuUserId: string;
 };
 
 export default function UserForm({
@@ -26,6 +27,7 @@ export default function UserForm({
     email: initial?.email ?? "",
     password: "",
     role: initial?.role ?? "VIEWER",
+    feishuUserId: (initial as { feishuUserId?: string } | undefined)?.feishuUserId ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -46,6 +48,7 @@ export default function UserForm({
         role: form.role,
       };
       if (form.password) payload.password = form.password;
+      if (form.feishuUserId.trim()) payload.feishuUserId = form.feishuUserId.trim();
       const res = await fetch(url, {
         method: initial?.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,6 +98,11 @@ export default function UserForm({
             </select>
           </Field>
         </div>
+        <Field label="飞书 user_id" hint="用于飞书通知；不填则通知仅记 mock 记录">
+          <input className={inputCls} value={form.feishuUserId}
+            onChange={(e) => setForm({ ...form, feishuUserId: e.target.value })}
+            placeholder="如：ou_xxx" />
+        </Field>
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className={btnSecondary} onClick={onClose}>取消</button>
