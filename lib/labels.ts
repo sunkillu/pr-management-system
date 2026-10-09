@@ -173,6 +173,20 @@ export const coopTypeLabels: Record<string, string> = {
   MAKEUP: "化妆师合作",
 };
 
+// 达人类型（合作需求 / 达人库共用）
+export const INFLUENCER_TYPE_OPTIONS = [
+  { value: "KOL", label: "KOL" },
+  { value: "KOC", label: "KOC" },
+  { value: "AMATEUR", label: "素人" },
+  { value: "MAKEUP_ARTIST", label: "化妆师" },
+] as const;
+export const influencerTypeLabels: Record<string, string> = {
+  KOL: "KOL",
+  KOC: "KOC",
+  AMATEUR: "素人",
+  MAKEUP_ARTIST: "化妆师",
+};
+
 export const coopRequestStatusLabels: Record<string, string> = {
   PENDING: "待审批",
   APPROVED: "已通过",

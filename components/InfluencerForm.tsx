@@ -2,17 +2,26 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, labelCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { PLATFORM_TAG_OPTIONS, roleLabels } from "@/lib/labels";
+import { PLATFORM_TAG_OPTIONS, INFLUENCER_TYPE_OPTIONS, roleLabels } from "@/lib/labels";
 import Modal from "./Modal";
 
 type Approver = { id: string; name: string; email: string; role: string };
 
-export default function InfluencerForm() {
+// initial：从合作需求一键加入时预填 { influencerType, platforms }
+// autoOpen：带预填参数打开页面时自动弹出表单
+export default function InfluencerForm({
+  initial,
+  autoOpen,
+}: {
+  initial?: { influencerType?: string; platforms?: string[] };
+  autoOpen?: boolean;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!autoOpen);
   const [approvers, setApprovers] = useState<Approver[]>([]);
   const [name, setName] = useState("");
-  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [influencerType, setInfluencerType] = useState(initial?.influencerType ?? "");
+  const [platforms, setPlatforms] = useState<string[]>(initial?.platforms ?? []);
   const [contactInfo, setContactInfo] = useState("");
   const [bio, setBio] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -41,6 +50,7 @@ export default function InfluencerForm() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: name.trim(),
+        influencerType: influencerType || null,
         platforms,
         contactInfo: contactInfo.trim() || null,
         bio: bio.trim() || null,
@@ -51,7 +61,9 @@ export default function InfluencerForm() {
     setSaving(false);
     if (!res.ok) return setError(data.error || "提交失败");
     setOpen(false);
-    router.refresh();
+    // 预填模式（一键加入）保存后跳干净 URL，避免弹窗重复打开
+    if (autoOpen) router.push("/influencers");
+    else router.refresh();
   }
 
   return (
@@ -63,6 +75,14 @@ export default function InfluencerForm() {
         <Modal title="提报达人登记" onClose={() => setOpen(false)}>
           <Field label="达人姓名" required>
             <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="如：美妆老王" />
+          </Field>
+          <Field label="达人类型">
+            <select className={inputCls} value={influencerType} onChange={(e) => setInfluencerType(e.target.value)}>
+              <option value="">请选择</option>
+              {INFLUENCER_TYPE_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
           </Field>
           <Field label="平台标签（可多选）">
             <div className="flex flex-wrap gap-3">
