@@ -13,11 +13,13 @@ export default function PaymentActions({
   status,
   role,
   isRequester,
+  voucherCount = 0,
 }: {
   id: string;
   status: string;
   role: string;
   isRequester: boolean;
+  voucherCount?: number;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -99,7 +101,8 @@ export default function PaymentActions({
       )}
       {isFinance && status === "APPROVED" && (
         <button
-          disabled={busy}
+          disabled={busy || voucherCount === 0}
+          title={voucherCount === 0 ? "请先上传打款凭证" : undefined}
           onClick={() =>
             openConfirm({
               title: "标记已打款",
@@ -110,7 +113,7 @@ export default function PaymentActions({
           }
           className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          标记已打款
+          标记已打款{voucherCount === 0 ? "（需先上传凭证）" : ""}
         </button>
       )}
       {canResubmit && (

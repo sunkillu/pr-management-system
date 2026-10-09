@@ -46,7 +46,7 @@ export default async function PaymentsPage({
   const [payments, outlets, campaigns, contents] = await Promise.all([
     prisma.paymentRequest.findMany({
       where,
-      include: { outlet: true, campaign: true, requester: true },
+      include: { outlet: true, campaign: true, requester: true, _count: { select: { vouchers: true } } },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.mediaOutlet.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -137,7 +137,7 @@ export default async function PaymentsPage({
                           }
                         : undefined
                     }
-                    actionTarget={{ id: p.id, status: p.status, isRequester: p.requesterId === sessionUser.id }}
+                    actionTarget={{ id: p.id, status: p.status, isRequester: p.requesterId === sessionUser.id, voucherCount: p._count.vouchers }}
                     deleteId={canDelete ? p.id : undefined}
                   />
                 </td>

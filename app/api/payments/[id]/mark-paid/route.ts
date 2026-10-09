@@ -12,6 +12,11 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (existing.status !== "APPROVED") {
     return NextResponse.json({ error: "仅待打款的申请可标记已打款" }, { status: 400 });
   }
+  // 必须先上传打款凭证才能标记已打款
+  const voucherCount = await prisma.paymentVoucher.count({ where: { paymentRequestId: params.id } });
+  if (voucherCount === 0) {
+    return NextResponse.json({ error: "请先上传打款凭证，再标记已打款" }, { status: 400 });
+  }
   const [payment] = await prisma.$transaction(async (tx) => {
     const updated = await tx.paymentRequest.update({
       where: { id: params.id },

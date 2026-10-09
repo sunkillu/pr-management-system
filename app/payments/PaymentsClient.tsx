@@ -24,7 +24,7 @@ export default function PaymentsClient({
   contents: Opt[];
   editTarget?: PaymentInput & { id: string };
   deleteId?: string;
-  actionTarget?: { id: string; status: string; isRequester: boolean };
+  actionTarget?: { id: string; status: string; isRequester: boolean; voucherCount?: number };
   ticketPrefill?: TicketPrefill;
 }) {
   const [showCreate, setShowCreate] = useState(!!ticketPrefill);
@@ -67,7 +67,7 @@ export default function PaymentsClient({
           )}
         </>
       )}
-      {actionTarget && <PaymentActions id={actionTarget.id} status={actionTarget.status} role={role} isRequester={actionTarget.isRequester} />}
+      {actionTarget && <PaymentActions id={actionTarget.id} status={actionTarget.status} role={role} isRequester={actionTarget.isRequester} voucherCount={actionTarget.voucherCount} />}
       {deleteId && <DeleteButton url={`/api/payments/${deleteId}`} />}
     </span>
   );

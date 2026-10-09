@@ -34,6 +34,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
       content: true,
       requester: true,
       invoices: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
+      _count: { select: { vouchers: true } },
     },
   });
   if (!payment) notFound();
@@ -145,7 +146,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
                     }
                   : undefined
               }
-              actionTarget={{ id: payment.id, status: payment.status, isRequester }}
+              actionTarget={{ id: payment.id, status: payment.status, isRequester, voucherCount: payment._count.vouchers }}
             />
           </div>
         </div>
