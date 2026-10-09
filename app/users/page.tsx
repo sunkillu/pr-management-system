@@ -52,7 +52,7 @@ export default async function UsersPage() {
                 <td className={tdCls + " whitespace-nowrap"}>
                   <UsersClient
                     selfId={me.id}
-                    editTarget={{ id: u.id, name: u.name, email: u.email, password: "", role: u.role }}
+                    editTarget={{ id: u.id, name: u.name, email: u.email, password: "", role: u.role, feishuUserId: u.feishuUserId ?? "" }}
                     deleteId={u.id}
                   />
                 </td>
