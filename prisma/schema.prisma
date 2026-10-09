@@ -1,0 +1,264 @@
+// 电商公司公关/媒体管理系统 - 数据模型
+// v1 模块：媒体资源库 / 内容管理 / 项目排期 / 打款审批(两阶段) / 发票管理 / 效果报表 / 用户权限
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- 用户与角色 ----------
+// ADMIN 管理员：全部权限（业务数据增删改、内容审批、打款一审、财务二审/打款标记、用户管理）
+// OPERATOR 运营：业务数据增删改、内容提交审批、打款申请提交、发票上传/关联
+// FINANCE 财务：打款二审（财务审批通过/驳回）、标记已打款、发票核验；其余模块只读+导出
+// VIEWER 只读：查看 + 导出报表
+enum Role {
+  ADMIN
+  OPERATOR
+  FINANCE
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(VIEWER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedCampaigns    Campaign[]       @relation("CampaignOwner")
+  requestedPayments PaymentRequest[] @relation("PaymentRequester")
+  approvalRecords   ApprovalRecord[] @relation("RecordApprover")
+  uploadedInvoices  Invoice[]        @relation("InvoiceUploader")
+}
+
+// ---------- 1. 媒体资源库 ----------
+enum OutletType {
+  KOL    // 达人
+  KOC    // KOC
+  MEDIA  // 媒体
+  AGENCY // 机构
+  MCN    // MCN
+}
+
+enum Platform {
+  DOUYIN      // 抖音
+  XIAOHONGSHU // 小红书
+  WEIBO       // 微博
+  BILIBILI    // B站
+  WECHAT      // 微信公众号
+  OTHER       // 其他
+}
+
+enum OutletStatus {
+  ACTIVE   // 合作中
+  INACTIVE // 停用
+}
+
+model MediaOutlet {
+  id          String       @id @default(cuid())
+  name        String
+  type        OutletType
+  platform    Platform
+  followers   Int          @default(0) // 粉丝量
+  contactName String?
+  contactInfo String?
+  priceQuote  Decimal?     @db.Decimal(12, 2) // 报价（元）
+  rating      Float? // 评分 1-5
+  notes       String?      @db.Text
+  status      OutletStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  contents        Content[]
+  paymentRequests PaymentRequest[]
+}
+
+// ---------- 2. 内容管理 ----------
+// 审批流（单阶段）：草稿 DRAFT → 待审批 PENDING → 已通过 APPROVED → 已发布 PUBLISHED
+// 驳回 → REJECTED（带驳回理由）。仅 ADMIN 可审批通过/驳回。
+enum ContentType {
+  CAO_TEXT     // 种草文
+  PRESS        // 新闻稿
+  VIDEO_SCRIPT // 短视频脚本
+  POSTER       // 海报
+  OTHER        // 其他
+}
+
+enum ContentStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+model Content {
+  id           String        @id @default(cuid())
+  title        String
+  type         ContentType
+  body         String?       @db.Text // 正文 / 素材说明
+  version      Int           @default(1) // 每次编辑自动 +1
+  status       ContentStatus @default(DRAFT)
+  rejectReason String? // 驳回理由
+  outletId     String?
+  outlet       MediaOutlet?  @relation(fields: [outletId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  approvalRecords ApprovalRecord[]
+  campaigns       Campaign[]       @relation("CampaignContents")
+  reports         Report[]
+  paymentRequests PaymentRequest[]
+}
+
+// ---------- 3. 项目排期 ----------
+enum CampaignStatus {
+  PREPARING // 筹备
+  ONGOING   // 进行中
+  ENDED     // 已结束
+}
+
+model Campaign {
+  id            String         @id @default(cuid())
+  name          String
+  description   String?        @db.Text
+  startDate     DateTime?
+  endDate       DateTime?
+  status        CampaignStatus @default(PREPARING)
+  progressNotes String?        @db.Text // 进度备注
+  ownerId       String?
+  owner         User?          @relation("CampaignOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  contents        Content[]        @relation("CampaignContents")
+  reports         Report[]
+  paymentRequests PaymentRequest[]
+}
+
+// ---------- 4. 打款审批（两阶段） ----------
+// 流程：运营提交 → 待业务审批 PENDING_BIZ →(ADMIN 通过)→ 待财务审批 PENDING_FIN
+//      →(FINANCE 通过)→ 待打款 APPROVED →(FINANCE 标记)→ 已打款 PAID
+// 任一阶段可驳回 → 已驳回 REJECTED（带驳回理由）。
+// 发票为选填：无发票不阻塞提交、审批与打款。
+enum PaymentStatus {
+  PENDING_BIZ // 待业务审批
+  PENDING_FIN // 待财务审批
+  APPROVED    // 待打款（财务已通过）
+  PAID        // 已打款
+  REJECTED    // 已驳回
+}
+
+model PaymentRequest {
+  id           String        @id @default(cuid())
+  title        String
+  amount       Decimal       @db.Decimal(12, 2) // 金额（元）
+  payeeName    String // 收款方
+  payeeAccount String? // 收款账号
+  reason       String?       @db.Text // 申请事由
+  status       PaymentStatus @default(PENDING_BIZ)
+  rejectReason String? // 驳回理由
+
+  outletId   String?
+  outlet     MediaOutlet? @relation(fields: [outletId], references: [id], onDelete: SetNull)
+  campaignId String?
+  campaign   Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  contentId  String?
+  content    Content?     @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  requesterId String
+  requester   User   @relation("PaymentRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  approvalRecords ApprovalRecord[]
+  invoices        Invoice[]
+}
+
+// ---------- 审批记录（内容审批 & 打款两阶段共用） ----------
+enum ApprovalAction {
+  APPROVE // 通过
+  REJECT  // 驳回
+}
+
+enum ApprovalStage {
+  CONTENT // 内容审批（单阶段）
+  BIZ     // 打款一审：业务审批（ADMIN）
+  FIN     // 打款二审：财务审批（FINANCE）
+}
+
+model ApprovalRecord {
+  id         String        @id @default(cuid())
+  stage      ApprovalStage
+  action     ApprovalAction
+  comment    String?
+  approverId String
+  approver   User          @relation("RecordApprover", fields: [approverId], references: [id], onDelete: Restrict)
+
+  contentId        String?
+  content          Content?        @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  paymentRequestId String?
+  paymentRequest   PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// ---------- 5. 发票管理（选填，不阻塞打款流程） ----------
+// OPERATOR/ADMIN 可上传并关联到打款单；FINANCE（及 ADMIN）核验通过/标记异常；VIEWER 只读。
+// 发票文件存放在 public/uploads/invoices（生产环境建议迁移到阿里云 OSS，见 README）。
+enum InvoiceType {
+  SPECIAL_VAT // 增值税专票
+  NORMAL_VAT  // 增值税普票
+  E_INVOICE   // 电子发票
+  RECEIPT     // 收据
+}
+
+enum InvoiceStatus {
+  PENDING  // 待核验
+  VERIFIED // 已核验
+  INVALID  // 异常
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  invoiceNo      String // 发票号码
+  issuer         String // 开票方
+  amount         Decimal       @db.Decimal(12, 2) // 金额（元）
+  issueDate      DateTime      @db.Date // 开票日期
+  type           InvoiceType
+  fileUrl        String? // 发票文件访问路径，如 /uploads/invoices/xxx.pdf
+  fileName       String? // 原始文件名
+  note           String? // 备注（异常原因等）
+  status         InvoiceStatus @default(PENDING)
+  paymentRequestId String?
+  paymentRequest   PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
+  uploadedById   String
+  uploadedBy     User          @relation("InvoiceUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// ---------- 6. 效果报表 ----------
+model Report {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contentId   String?
+  content     Content? @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  impressions Int      @default(0) // 曝光
+  reads       Int      @default(0) // 阅读
+  likes       Int      @default(0) // 点赞
+  comments    Int      @default(0) // 评论
+  conversions Int      @default(0) // 转化
+  gmv         Decimal  @default(0) @db.Decimal(14, 2) // GMV（元）
+  recordDate  DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
