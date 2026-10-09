@@ -102,7 +102,7 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
               <span className="text-gray-400">无</span>
             )}
           </div>
-          <div className="mt-4">
+          <div className="mt-4" id="approval-section">
             <ContentsClient
               role={role}
               outlets={outlets}
