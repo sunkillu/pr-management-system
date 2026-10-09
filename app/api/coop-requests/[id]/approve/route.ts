@@ -4,9 +4,9 @@ import { requireRoles} from "@/lib/api-auth";
 import { writeLog} from "@/lib/approval-log";
 import { notifyUser} from "@/lib/feishu-notify";
 
-// 合作需求审批（或签）：任一审批人通过即通过；驳回需理由。ADMIN 可兜底。
+// 合作需求审批（或签）：任一管理员审批人通过即通过；驳回需理由。仅管理员可审批。
 export async function POST(req: NextRequest, { params}: { params: { id: string}}) {
-const auth = await requireRoles(["ADMIN", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN"]);
 if (!auth.ok) return auth.res;
 const body = await req.json();
 const action = body.action as "APPROVE" | "REJECT";
@@ -21,18 +21,6 @@ const request = await prisma.cooperationRequest.findUnique({ where: { id: params
 if (!request) return NextResponse.json({ error: "合作需求不存在"}, { status: 404});
 if (request.status!== "PENDING") {
 return NextResponse.json({ error: "仅待审批的需求可审批"}, { status: 400});
-}
-if (auth.role!== "ADMIN") {
-const assigned = await prisma.requestApprover.findUnique({
-where: {
-requestType_requestId_approverId: {
-requestType: "COOP_REQUEST",
-requestId: params.id,
-approverId: auth.userId,
-},
-},
-});
-if (!assigned) return NextResponse.json({ error: "你不是该需求的审批人"}, { status: 403});
 }
 
 const toStatus = action === "APPROVE"? "APPROVED": "REJECTED";
