@@ -118,7 +118,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
               作废理由：{payment.voidReason}
             </div>
           )}
-          <div className="mt-5 border-t pt-4">
+          <div className="mt-5 border-t pt-4" id="approval-section">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {["PENDING_BIZ", "PENDING_FIN"].includes(payment.status) &&
                 ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role) && (

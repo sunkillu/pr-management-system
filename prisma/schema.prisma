@@ -512,16 +512,28 @@ enum NotifyType {
   MOCK   // mock 模式 / 未配置凭证 / 用户未绑定飞书ID
 }
 
+enum NotifyKind {
+  APPROVAL_PENDING // 待审批
+  APPROVED         // 审批通过
+  REJECTED         // 驳回
+  REMIND           // 催办提醒
+  SYSTEM           // 系统消息
+}
+
 model NotificationLog {
   id          String     @id @default(cuid())
   type        NotifyType
+  kind        NotifyKind @default(SYSTEM)
+  title       String?
   receiverId  String?
   receiver    User?      @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: SetNull)
   content     String     @db.Text
   relatedType String? // 关联单据类型，如 INFLUENCER / COOP_REQUEST / PAYMENT
   relatedId   String? // 关联单据 id
+  isRead      Boolean    @default(false)
   note        String? // 备注（如 mock 原因）
   createdAt   DateTime   @default(now())
 
   @@index([relatedType, relatedId, createdAt])
+  @@index([receiverId, isRead, createdAt])
 }
