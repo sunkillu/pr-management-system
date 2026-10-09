@@ -8,6 +8,7 @@ import { btnPrimary } from "@/components/ui";
 type Row = {
   id: string;
   status: string;
+  isOwner: boolean;
   editTarget?: ContentInput & { id: string };
   deleteId?: string;
 };
@@ -50,7 +51,7 @@ export default function ContentsClient({
           )}
         </>
       )}
-      {role && <ContentActions id={row.id} status={row.status} role={role} />}
+      {role && <ContentActions id={row.id} status={row.status} role={role} isOwner={row.isOwner} />}
       {row.deleteId && <DeleteButton url={`/api/contents/${row.deleteId}`} />}
     </span>
   );
