@@ -22,7 +22,7 @@ return NextResponse.json({ error: "暂无待审批人"}, { status: 400});
 await notifyApprovers(
 pending.map((p) => p.approverId),
 `合作需求「${request.title}」待你审批，请尽快处理（${auth.userName}提醒）。`,
-{ type: "COOP_REQUEST", id: request.id, title: request.title}
+{ type: "COOP_REQUEST", id: request.id, title: "催办提醒", kind: "REMIND"}
 );
 return NextResponse.json({ ok: true, count: pending.length});
 }

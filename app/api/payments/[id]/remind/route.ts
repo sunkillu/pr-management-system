@@ -29,7 +29,7 @@ return NextResponse.json({ error: "暂无待审批人"}, { status: 400});
 await notifyApprovers(
 approvers.map((a) => a.id),
 `打款申请「${payment.title}」待审批，请尽快处理（${auth.userName}提醒）。`,
-{ type: "PAYMENT", id: payment.id, title: payment.title}
+{ type: "PAYMENT", id: payment.id, title: "催办提醒", kind: "REMIND" }
 );
 return NextResponse.json({ ok: true, count: approvers.length});
 }

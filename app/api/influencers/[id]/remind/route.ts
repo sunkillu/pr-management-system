@@ -22,7 +22,7 @@ return NextResponse.json({ error: "暂无待审批人"}, { status: 400});
 await notifyApprovers(
 pending.map((p) => p.approverId),
 `达人登记「${influencer.name}」待你审批，请尽快处理（${auth.userName}提醒）。`,
-{ type: "INFLUENCER", id: influencer.id, title: influencer.name}
+{ type: "INFLUENCER", id: influencer.id, title: "催办提醒", kind: "REMIND"}
 );
 return NextResponse.json({ ok: true, count: pending.length});
 }
