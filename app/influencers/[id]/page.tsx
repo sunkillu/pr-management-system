@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui";
 import {
   influencerStatusLabels,
+  influencerTypeLabels,
   platformTagLabels,
   approverStatusLabels,
   notifyTypeLabels,
@@ -81,9 +82,21 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <div className="mb-3 flex items-center gap-3">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(influencer.status)}`}>
                 {influencerStatusLabels[influencer.status]}
+              </span>
+              {influencer.coopCount === 0 ? (
+                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-300">
+                  未合作
+                </span>
+              ) : (
+                <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                  合作中
+                </span>
+              )}
+              <span className="text-sm text-gray-500">
+                达人类型：{influencer.influencerType ? influencerTypeLabels[influencer.influencerType] ?? influencer.influencerType : "-"}
               </span>
               <span className="text-sm text-gray-500">
                 平台：{influencer.platforms.length > 0

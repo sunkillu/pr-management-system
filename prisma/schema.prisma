@@ -338,6 +338,14 @@ model Report {
 // ---------- 7. 合作管理 ----------
 // 达人登记流程：运营提报 → 待审核 PENDING（多选审批人，或签）→ 已通过 APPROVED → 可用于合作
 // 任一审批人驳回 → 已驳回 REJECTED（带理由），提交人可修改后重新提交。
+// 达人类型（合作需求 / 达人库共用）
+enum InfluencerType {
+  KOL          // KOL
+  KOC          // KOC
+  AMATEUR      // 素人
+  MAKEUP_ARTIST // 化妆师
+}
+
 enum InfluencerStatus {
   PENDING  // 待审核
   APPROVED // 已通过
@@ -349,6 +357,7 @@ enum InfluencerStatus {
 model Influencer {
   id           String           @id @default(cuid())
   name         String // 达人姓名/昵称
+  influencerType InfluencerType? // 达人类型（KOL/KOC/素人/化妆师）
   platforms    String[] // 平台标签多选，如 ["XIAOHONGSHU","DOUYIN"]
   contactInfo  String?
   bio          String?          @db.Text // 简介
@@ -451,6 +460,8 @@ model CooperationRequest {
   id           String            @id @default(cuid())
   title        String
   reqType      String // 需求类型（自由文本，如：达播合作/图文种草/线下活动）
+  influencerType InfluencerType? // 达人类型（KOL/KOC/素人/化妆师）
+  platforms    String[]          @default([]) // 平台多选：小红书/抖音
   description  String            @db.Text
   attachments  Json? // 附件 [{fileUrl, fileName}]
   status       CoopRequestStatus @default(PENDING)
