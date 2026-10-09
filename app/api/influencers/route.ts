@@ -83,7 +83,7 @@ return created;
 await notifyApprovers(
 approverIds,
 `${auth.userName}提报了达人「${influencer.name}」，请审批。`,
-{ type: "INFLUENCER", id: influencer.id, title: influencer.name}
+{ type: "INFLUENCER", id: influencer.id, title: "达人登记待审批", kind: "APPROVAL_PENDING"}
 );
 
 return NextResponse.json(influencer, { status: 201});

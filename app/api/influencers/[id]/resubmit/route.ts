@@ -78,7 +78,7 @@ return u;
 await notifyApprovers(
 approverIds,
 `「${updated.name}」修改后重新提交，请审批。`,
-{ type: "INFLUENCER", id: updated.id, title: updated.name}
+{ type: "INFLUENCER", id: updated.id, title: "达人登记重新提交", kind: "APPROVAL_PENDING"}
 );
 
 return NextResponse.json(updated);

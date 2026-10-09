@@ -1,15 +1,16 @@
 import { prisma } from "./prisma";
-import type { NotifyType } from "@prisma/client";
+import type { NotifyKind, NotifyType } from "@prisma/client";
 
-// 飞书通知（stub 策略，参考 media-asset-console）：
-// - 未配置 FEISHU_APP_ID / FEISHU_APP_SECRET → mock 模式，只写 NotificationLog，不真实发送
-// - 已配置但用户未绑定 feishuUserId → mock 记录并注明原因
-// - 已配置且已绑定 → 走飞书 open API 真实发送，失败则降级记 mock
-// zhang 后面自己接真实凭证时，只需填环境变量，无需改代码。
+// 站内通知（用户要求：飞书推送暂不启用，通知只走网页内 toast + 铃铛）。
+// notifyUser / notifyApprovers 只写 NotificationLog，不调飞书 API。
+// 后续如需启用飞书推送，将 FEISHU_ENABLED 设为 true 并配置凭证即可，无需改调用方。
 
 const APP_ID = process.env.FEISHU_APP_ID ?? "";
 const APP_SECRET = process.env.FEISHU_APP_SECRET ?? "";
 const mockMode = !APP_ID || !APP_SECRET;
+
+/** 飞书真实推送总开关（用户明确暂不启用） */
+const FEISHU_ENABLED = false;
 
 let tenantToken: { token: string; expireAt: number } | null = null;
 
@@ -53,7 +54,7 @@ async function sendFeishuText(feishuUserId: string, text: string): Promise<void>
   if (data.code !== 0) throw new Error(`飞书消息发送失败: ${data.msg}`);
 }
 
-export type RelatedRef = { type: string; id: string; title?: string };
+export type RelatedRef = { type: string; id: string; title?: string; kind?: NotifyKind };
 
 /**
  * 通知单个用户。真实发送与 mock 都会写一条 NotificationLog。
@@ -69,6 +70,8 @@ export async function notifyUser(
 
   if (!user) {
     note = "用户不存在，仅记录";
+  } else if (!FEISHU_ENABLED) {
+    note = "站内通知：飞书推送暂未启用，仅网页内展示";
   } else if (mockMode) {
     note = "mock 模式：未配置飞书应用凭证，未真实发送";
   } else if (!user.feishuUserId) {
@@ -85,6 +88,8 @@ export async function notifyUser(
   await prisma.notificationLog.create({
     data: {
       type,
+      kind: related?.kind ?? "SYSTEM",
+      title: related?.title ?? null,
       receiverId: userId,
       content: text,
       relatedType: related?.type ?? null,

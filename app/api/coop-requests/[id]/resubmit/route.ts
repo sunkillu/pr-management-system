@@ -77,7 +77,7 @@ return u;
 await notifyApprovers(
 approverIds,
 `「${updated.title}」修改后重新提交，请审批。`,
-{ type: "COOP_REQUEST", id: updated.id, title: updated.title}
+{ type: "COOP_REQUEST", id: updated.id, title: "合作需求重新提交", kind: "APPROVAL_PENDING"}
 );
 
 return NextResponse.json(updated);
