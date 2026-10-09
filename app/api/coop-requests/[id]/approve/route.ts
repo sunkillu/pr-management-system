@@ -76,7 +76,7 @@ return u;
 await notifyUser(
 request.submitterId,
 `「${request.title}」${action === "APPROVE"? "审批通过。": `被驳回，理由：${body.comment.trim()}`}`,
-{ type: "COOP_REQUEST", id: request.id, title: request.title}
+{ type: "COOP_REQUEST", id: request.id, title: "合作需求审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
 );
 
 return NextResponse.json(updated);

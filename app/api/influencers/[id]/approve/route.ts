@@ -82,8 +82,8 @@ return u;
 
 await notifyUser(
 influencer.registeredById,
-`「${influencer.name}」${action === "APPROVE"? "审批通过，可用于合作。": `被驳回，理由：${body.comment.trim()}`}`,
-{ type: "INFLUENCER", id: influencer.id, title: influencer.name}
+`「${influencer.name}」${action === "APPROVE" ? "审批通过，可用于合作。" : `被驳回，理由：${body.comment.trim()}`}`,
+{ type: "INFLUENCER", id: influencer.id, title: "达人登记审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
 );
 
 return NextResponse.json(updated);

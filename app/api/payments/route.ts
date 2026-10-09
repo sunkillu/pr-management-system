@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   await notifyApprovers(
     bizApprovers.map((a) => a.id),
     `【打款申请待审批】${auth.userName}提交了打款申请「${payment.title}」（¥${payment.amount}），请进行业务审批。`,
-    { type: "PAYMENT", id: payment.id, title: payment.title }
+    { type: "PAYMENT", id: payment.id, title: "打款申请待审批", kind: "APPROVAL_PENDING" }
   );
 
   return NextResponse.json(payment, { status: 201 });

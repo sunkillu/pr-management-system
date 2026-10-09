@@ -80,7 +80,7 @@ return created;
 await notifyApprovers(
 approverIds,
 `${auth.userName}提交了合作需求「${request.title}」，请审批。`,
-{ type: "COOP_REQUEST", id: request.id, title: request.title}
+{ type: "COOP_REQUEST", id: request.id, title: "合作需求待审批", kind: "APPROVAL_PENDING"}
 );
 
 return NextResponse.json(request, { status: 201});
