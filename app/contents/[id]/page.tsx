@@ -8,26 +8,36 @@ import {
   contentTypeLabels,
   contentStatusLabels,
   badgeClass,
-  approvalStageLabels,
-  approvalActionLabels,
-  formatDateTime,
 } from "@/lib/labels";
+import { getLinksWithCounterparts } from "@/lib/approval-links";
+import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
+import ApprovalLinks from "@/components/ApprovalLinks";
 import ContentsClient from "../ContentsClient";
 
 export default async function ContentDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as unknown as { role: string }).role;
+  const sessionUser = session?.user as unknown as { id: string; role: string };
+  const role = sessionUser.role;
   const canWrite = role === "ADMIN" || role === "OPERATOR";
 
   const content = await prisma.content.findUnique({
     where: { id: params.id },
     include: {
       outlet: true,
-      approvalRecords: { include: { approver: true }, orderBy: { createdAt: "desc" } },
       campaigns: { select: { id: true, name: true } },
     },
   });
   if (!content) notFound();
+
+  const logs = await prisma.approvalLog.findMany({
+    where: { docType: "CONTENT", docId: content.id },
+    include: { actor: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const links = await getLinksWithCounterparts("CONTENT", content.id);
+  const isOwner = !!content.createdById && content.createdById === sessionUser.id;
+  const canEditLinks = role !== "VIEWER";
 
   const outlets = canWrite
     ? await prisma.mediaOutlet.findMany({
@@ -36,6 +46,16 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
         orderBy: { name: "asc" },
       })
     : [];
+
+  const timeline: TimelineItem[] = logs.map((l) => ({
+    id: l.id,
+    action: l.action,
+    actorName: l.actor.name,
+    createdAt: l.createdAt,
+    note: l.note,
+    fromStatusLabel: l.fromStatus ? contentStatusLabels[l.fromStatus] ?? l.fromStatus : null,
+    toStatusLabel: l.toStatus ? contentStatusLabels[l.toStatus] ?? l.toStatus : null,
+  }));
 
   return (
     <div>
@@ -62,6 +82,11 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
               驳回理由：{content.rejectReason}
             </div>
           )}
+          {content.status === "VOIDED" && content.voidReason && (
+            <div className="mb-3 rounded bg-gray-100 p-3 text-sm text-gray-600">
+              作废理由：{content.voidReason}
+            </div>
+          )}
           <div className="whitespace-pre-wrap text-sm leading-relaxed">
             {content.body || <span className="text-gray-400">暂无正文</span>}
           </div>
@@ -84,6 +109,7 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
               row={{
                 id: content.id,
                 status: content.status,
+                isOwner,
                 editTarget:
                   canWrite && (content.status === "DRAFT" || content.status === "REJECTED")
                     ? {
@@ -99,31 +125,19 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
           </div>
         </div>
 
-        <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-          <h3 className="mb-3 font-semibold">审批记录</h3>
-          {content.approvalRecords.length === 0 && (
-            <p className="text-sm text-gray-400">暂无审批记录</p>
-          )}
-          <ol className="space-y-3">
-            {content.approvalRecords.map((r) => (
-              <li key={r.id} className="border-l-2 border-gray-200 pl-3 text-sm">
-                <div>
-                  <span className="font-medium">{approvalStageLabels[r.stage]}</span>
-                  <span
-                    className={`ml-2 rounded px-1.5 py-0.5 text-xs ${
-                      r.action === "APPROVE" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {approvalActionLabels[r.action]}
-                  </span>
-                </div>
-                <div className="text-gray-500">
-                  {r.approver.name} · {formatDateTime(r.createdAt)}
-                </div>
-                {r.comment && <div className="mt-1 text-gray-700">意见：{r.comment}</div>}
-              </li>
-            ))}
-          </ol>
+        <div className="space-y-4">
+          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+            <h3 className="mb-3 font-semibold">操作历史</h3>
+            <ApprovalTimeline items={timeline} />
+          </div>
+          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+            <ApprovalLinks
+              docType="CONTENT"
+              docId={content.id}
+              initialLinks={links.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() }))}
+              canEdit={canEditLinks}
+            />
+          </div>
         </div>
       </div>
     </div>

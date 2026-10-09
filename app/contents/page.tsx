@@ -12,7 +12,8 @@ export default async function ContentsPage({
   searchParams: { q?: string; type?: string; status?: string };
 }) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as unknown as { role: string }).role;
+  const sessionUser = session?.user as unknown as { id: string; role: string };
+  const role = sessionUser.role;
   const canWrite = role === "ADMIN" || role === "OPERATOR";
 
   const where: Record<string, unknown> = {};
@@ -100,6 +101,7 @@ export default async function ContentsPage({
                     row={{
                       id: c.id,
                       status: c.status,
+                      isOwner: !!c.createdById && c.createdById === sessionUser.id,
                       editTarget:
                         canWrite && (c.status === "DRAFT" || c.status === "REJECTED")
                           ? {

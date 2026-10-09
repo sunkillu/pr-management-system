@@ -12,7 +12,8 @@ export default async function PaymentsPage({
   searchParams: { q?: string; status?: string };
 }) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as unknown as { role: string }).role;
+  const sessionUser = session?.user as unknown as { id: string; role: string };
+  const role = sessionUser.role;
   const canSubmit = role === "ADMIN" || role === "OPERATOR";
   const canDelete = role === "ADMIN" || role === "OPERATOR";
 
@@ -114,7 +115,7 @@ export default async function PaymentsPage({
                           }
                         : undefined
                     }
-                    actionTarget={{ id: p.id, status: p.status }}
+                    actionTarget={{ id: p.id, status: p.status, isRequester: p.requesterId === sessionUser.id }}
                     deleteId={canDelete ? p.id : undefined}
                   />
                 </td>
