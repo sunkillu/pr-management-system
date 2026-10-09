@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (!body.password || String(body.password).length < 6) {
     return NextResponse.json({ error: "密码至少 6 位" }, { status: 400 });
   }
-  if (!["ADMIN", "OPERATOR", "FINANCE", "VIEWER"].includes(body.role)) {
+  if (!["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"].includes(body.role)) {
     return NextResponse.json({ error: "角色非法" }, { status: 400 });
   }
   const exists = await prisma.user.findUnique({ where: { email } });
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       email,
       passwordHash: await bcrypt.hash(String(body.password), 10),
       role: body.role,
+      feishuUserId: body.feishuUserId?.trim() || null,
     },
     select: { id: true, name: true, email: true, role: true, createdAt: true },
   });
