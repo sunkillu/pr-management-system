@@ -7,20 +7,24 @@ import { PageHeader } from "@/components/ui";
 import {
   paymentStatusLabels,
   badgeClass,
-  approvalStageLabels,
-  approvalActionLabels,
   invoiceStatusLabels,
   invoiceTypeLabels,
   formatMoney,
   formatDate,
   formatDateTime,
 } from "@/lib/labels";
+import { getLinksWithCounterparts } from "@/lib/approval-links";
+import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
+import ApprovalLinks from "@/components/ApprovalLinks";
+import { PaymentVoucherSection, PaymentRemindButton } from "@/components/PaymentVouchers";
 import PaymentsClient from "../PaymentsClient";
 
 export default async function PaymentDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as unknown as { role: string }).role;
+  const sessionUser = session?.user as unknown as { id: string; role: string };
+  const role = sessionUser.role;
   const canSubmit = role === "ADMIN" || role === "OPERATOR";
+  const canUploadVoucher = ["ADMIN", "OPERATOR", "FINANCE"].includes(role);
 
   const payment = await prisma.paymentRequest.findUnique({
     where: { id: params.id },
@@ -29,17 +33,36 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
       campaign: true,
       content: true,
       requester: true,
-      approvalRecords: { include: { approver: true }, orderBy: { createdAt: "asc" } },
       invoices: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!payment) notFound();
+
+  const logs = await prisma.approvalLog.findMany({
+    where: { docType: "PAYMENT", docId: payment.id },
+    include: { actor: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const links = await getLinksWithCounterparts("PAYMENT", payment.id);
+  const isRequester = payment.requesterId === sessionUser.id;
+  const canEditLinks = role !== "VIEWER";
 
   const [outlets, campaigns, contents] = await Promise.all([
     prisma.mediaOutlet.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.campaign.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.content.findMany({ select: { id: true, title: true }, orderBy: { updatedAt: "desc" }, take: 200 }),
   ]);
+
+  const timeline: TimelineItem[] = logs.map((l) => ({
+    id: l.id,
+    action: l.action,
+    actorName: l.actor.name,
+    createdAt: l.createdAt,
+    note: l.note,
+    fromStatusLabel: l.fromStatus ? paymentStatusLabels[l.fromStatus] ?? l.fromStatus : null,
+    toStatusLabel: l.toStatus ? paymentStatusLabels[l.toStatus] ?? l.toStatus : null,
+  }));
 
   const info: [string, React.ReactNode][] = [
     ["金额", `${formatMoney(payment.amount)} 元`],
@@ -90,7 +113,18 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
               驳回理由：{payment.rejectReason}
             </div>
           )}
+          {payment.status === "VOIDED" && payment.voidReason && (
+            <div className="mt-4 rounded bg-gray-100 p-3 text-sm text-gray-600">
+              作废理由：{payment.voidReason}
+            </div>
+          )}
           <div className="mt-5 border-t pt-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {["PENDING_BIZ", "PENDING_FIN"].includes(payment.status) &&
+                ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role) && (
+                  <PaymentRemindButton paymentId={payment.id} />
+                )}
+            </div>
             <PaymentsClient
               role={role}
               outlets={outlets}
@@ -111,37 +145,29 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
                     }
                   : undefined
               }
-              actionTarget={{ id: payment.id, status: payment.status }}
+              actionTarget={{ id: payment.id, status: payment.status, isRequester }}
             />
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">审批记录</h3>
-            {payment.approvalRecords.length === 0 && (
-              <p className="text-sm text-gray-400">暂无审批记录</p>
-            )}
-            <ol className="space-y-3">
-              {payment.approvalRecords.map((r) => (
-                <li key={r.id} className="border-l-2 border-gray-200 pl-3 text-sm">
-                  <div>
-                    <span className="font-medium">{approvalStageLabels[r.stage]}</span>
-                    <span
-                      className={`ml-2 rounded px-1.5 py-0.5 text-xs ${
-                        r.action === "APPROVE" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {approvalActionLabels[r.action]}
-                    </span>
-                  </div>
-                  <div className="text-gray-500">
-                    {r.approver.name} · {formatDateTime(r.createdAt)}
-                  </div>
-                  {r.comment && <div className="mt-1 text-gray-700">意见：{r.comment}</div>}
-                </li>
-              ))}
-            </ol>
+            <h3 className="mb-3 font-semibold">操作历史</h3>
+            <ApprovalTimeline items={timeline} />
+          </div>
+
+          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+            <ApprovalLinks
+              docType="PAYMENT"
+              docId={payment.id}
+              initialLinks={links.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() }))}
+              canEdit={canEditLinks}
+            />
+          </div>
+
+          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+            <h3 className="mb-3 font-semibold">打款凭证</h3>
+            <PaymentVoucherSection paymentId={payment.id} canUpload={canUploadVoucher} />
           </div>
 
           <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">

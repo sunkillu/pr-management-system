@@ -20,6 +20,7 @@ enum Role {
   OPERATOR
   FINANCE
   VIEWER
+  PR_MANAGER // PR负责人：合作板块（达人/化妆师/合作记录/寄品/合作需求）的审批与管理
 }
 
 model User {
@@ -28,6 +29,7 @@ model User {
   name         String
   passwordHash String
   role         Role     @default(VIEWER)
+  feishuUserId String? // 飞书 user_id（用于飞书通知；未绑定则通知走 mock 记录）
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -35,6 +37,16 @@ model User {
   requestedPayments PaymentRequest[] @relation("PaymentRequester")
   approvalRecords   ApprovalRecord[] @relation("RecordApprover")
   uploadedInvoices  Invoice[]        @relation("InvoiceUploader")
+  createdContents   Content[]        @relation("ContentCreator")
+  approvalLogs      ApprovalLog[]    @relation("LogActor")
+  createdLinks      ApprovalLink[]   @relation("LinkCreator")
+  registeredInfluencers Influencer[] @relation("InfluencerRegistrar")
+  createdCooperations  CooperationRecord[] @relation("CooperationCreator")
+  createdSamples    SampleShipment[] @relation("SampleCreator")
+  submittedRequests CooperationRequest[] @relation("RequestSubmitter")
+  assignedApprovals RequestApprover[] @relation("AssignedApprover")
+  uploadedVouchers  PaymentVoucher[] @relation("VoucherUploader")
+  receivedNotifications NotificationLog[] @relation("NotificationReceiver")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -96,6 +108,7 @@ enum ContentStatus {
   APPROVED
   PUBLISHED
   REJECTED
+  VOIDED // 已作废：不可再流转，只能查看
 }
 
 model Content {
@@ -106,8 +119,11 @@ model Content {
   version      Int           @default(1) // 每次编辑自动 +1
   status       ContentStatus @default(DRAFT)
   rejectReason String? // 驳回理由
+  voidReason   String? // 作废理由
   outletId     String?
   outlet       MediaOutlet?  @relation(fields: [outletId], references: [id], onDelete: SetNull)
+  createdById  String? // 创建人（用于重新提交权限判定）
+  createdBy    User?         @relation("ContentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -153,6 +169,7 @@ enum PaymentStatus {
   APPROVED    // 待打款（财务已通过）
   PAID        // 已打款
   REJECTED    // 已驳回
+  VOIDED      // 已作废：不可再流转，只能查看
 }
 
 model PaymentRequest {
@@ -164,6 +181,7 @@ model PaymentRequest {
   reason       String?       @db.Text // 申请事由
   status       PaymentStatus @default(PENDING_BIZ)
   rejectReason String? // 驳回理由
+  voidReason   String? // 作废理由
 
   outletId   String?
   outlet     MediaOutlet? @relation(fields: [outletId], references: [id], onDelete: SetNull)
@@ -179,6 +197,7 @@ model PaymentRequest {
   updatedAt       DateTime         @updatedAt
   approvalRecords ApprovalRecord[]
   invoices        Invoice[]
+  vouchers        PaymentVoucher[]
 }
 
 // ---------- 审批记录（内容审批 & 打款两阶段共用） ----------
@@ -207,6 +226,59 @@ model ApprovalRecord {
   paymentRequest   PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+}
+
+// ---------- 审批操作日志（所有单据状态变更留痕） ----------
+// 单据类型：内容审批单 / 打款单
+enum DocType {
+  CONTENT
+  PAYMENT
+  INFLUENCER   // 达人登记单
+  COOP_REQUEST // 合作需求单
+}
+
+enum LogAction {
+  SUBMIT    // 提交审批
+  RESUBMIT  // 重新提交（被驳回后）
+  APPROVE   // 通过
+  REJECT    // 驳回
+  PUBLISH   // 标记已发布（内容）
+  MARK_PAID // 标记已打款（打款单）
+  VOID      // 作废
+  LINK      // 关联单据
+  UNLINK    // 解除关联
+}
+
+model ApprovalLog {
+  id         String    @id @default(cuid())
+  docType    DocType
+  docId      String // 单据 id（Content / PaymentRequest）
+  action     LogAction
+  fromStatus String? // 变更前状态
+  toStatus   String? // 变更后状态
+  note       String?   @db.Text // 理由 / 修改说明 / 备注
+  actorId    String
+  actor      User      @relation("LogActor", fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt  DateTime  @default(now())
+
+  @@index([docType, docId, createdAt])
+}
+
+// ---------- 审批单关联（多对多：内容单 ↔ 打款单、打款单 ↔ 打款单等任意组合） ----------
+// 关联无方向：创建时按 (docType, docId) 字典序 canonical 化，保证 A-B 与 B-A 为同一条记录
+model ApprovalLink {
+  id          String   @id @default(cuid())
+  fromType    DocType
+  fromId      String
+  toType      DocType
+  toId        String
+  createdById String
+  createdBy   User     @relation("LinkCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  @@unique([fromType, fromId, toType, toId])
+  @@index([fromType, fromId])
+  @@index([toType, toId])
 }
 
 // ---------- 5. 发票管理（选填，不阻塞打款流程） ----------
@@ -261,4 +333,195 @@ model Report {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ---------- 7. 合作管理 ----------
+// 达人登记流程：运营提报 → 待审核 PENDING（多选审批人，或签）→ 已通过 APPROVED → 可用于合作
+// 任一审批人驳回 → 已驳回 REJECTED（带理由），提交人可修改后重新提交。
+enum InfluencerStatus {
+  PENDING  // 待审核
+  APPROVED // 已通过
+  REJECTED // 已驳回
+}
+
+// 平台标签（多选，存 String[]，可扩展）。当前业务：小红书 / 抖音。
+// 前端常量 PLATFORM_TAG_OPTIONS 维护可选项。
+model Influencer {
+  id           String           @id @default(cuid())
+  name         String // 达人姓名/昵称
+  platforms    String[] // 平台标签多选，如 ["XIAOHONGSHU","DOUYIN"]
+  contactInfo  String?
+  bio          String?          @db.Text // 简介
+  status       InfluencerStatus @default(PENDING)
+  rejectReason String? // 驳回理由
+  coopCount    Int              @default(0) // 合作次数（由合作记录自动累计）
+  totalFee     Decimal          @default(0) @db.Decimal(12, 2) // 累计合作费用（自动累计）
+
+  registeredById String
+  registeredBy   User   @relation("InfluencerRegistrar", fields: [registeredById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cooperationRecords CooperationRecord[]
+  sampleShipments    SampleShipment[]
+
+  @@index([status])
+}
+
+model MakeupArtist {
+  id          String   @id @default(cuid())
+  name        String
+  contactInfo String?
+  isLongTerm  Boolean  @default(false) // 是否长期合作
+  onboardDate DateTime? @db.Date // 入库日期（长期合作必填）
+  notes       String?  @db.Text
+  coopCount   Int      @default(0)
+  totalFee    Decimal  @default(0) @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cooperationRecords CooperationRecord[]
+}
+
+// 合作类型：达人挂车 / 达播 / 化妆师合作
+enum CoopType {
+  INFLUENCER_POST  // 达人挂车
+  INFLUENCER_LIVE // 达播
+  MAKEUP          // 化妆师合作
+}
+
+model CooperationRecord {
+  id      String   @id @default(cuid())
+  type    CoopType
+  fee     Decimal  @db.Decimal(12, 2) // 本次合作费用
+  coopDate DateTime @db.Date // 合作日期
+  note    String?  @db.Text
+
+  influencerId String?
+  influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
+  makeupArtistId String?
+  makeupArtist   MakeupArtist? @relation(fields: [makeupArtistId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("CooperationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([coopDate])
+}
+
+// ---------- 审批人多选（达人登记 / 合作需求，或签：任一审批人通过即通过） ----------
+enum RequestType {
+  INFLUENCER
+  COOP_REQUEST
+}
+
+enum ApproverStatus {
+  PENDING  // 待审批
+  APPROVED // 已通过
+  REJECTED // 已驳回
+}
+
+model RequestApprover {
+  id          String         @id @default(cuid())
+  requestType RequestType
+  requestId   String
+  approverId  String
+  approver    User           @relation("AssignedApprover", fields: [approverId], references: [id], onDelete: Restrict)
+  status      ApproverStatus @default(PENDING)
+  decidedAt   DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@unique([requestType, requestId, approverId])
+  @@index([requestType, requestId])
+}
+
+// ---------- 8. 合作需求 ----------
+// 流程：提交（多选审批人）→ 待审批 PENDING → 已通过 APPROVED / 已驳回 REJECTED（可重提）
+enum CoopRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CooperationRequest {
+  id           String            @id @default(cuid())
+  title        String
+  reqType      String // 需求类型（自由文本，如：达播合作/图文种草/线下活动）
+  description  String            @db.Text
+  attachments  Json? // 附件 [{fileUrl, fileName}]
+  status       CoopRequestStatus @default(PENDING)
+  rejectReason String?
+
+  submitterId String
+  submitter   User   @relation("RequestSubmitter", fields: [submitterId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ---------- 9. 打款凭证（多附件，本地存储，沿用发票上传方式） ----------
+model PaymentVoucher {
+  id               String         @id @default(cuid())
+  paymentRequestId String
+  paymentRequest   PaymentRequest @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+  fileUrl          String // 如 /uploads/vouchers/xxx.pdf
+  fileName         String // 原始文件名
+  uploadedById     String
+  uploadedBy       User           @relation("VoucherUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt        DateTime       @default(now())
+
+  @@index([paymentRequestId])
+}
+
+// ---------- 10. 寄品管理 ----------
+enum SampleStatus {
+  SHIPPED     // 已寄出
+  SIGNED      // 已签收
+  RETURNED    // 已归还
+  WRITTEN_OFF // 已核销
+}
+
+model SampleShipment {
+  id           String       @id @default(cuid())
+  influencerId String?
+  influencer   Influencer?  @relation(fields: [influencerId], references: [id], onDelete: SetNull)
+  productName  String // 产品名称
+  quantity     Int          @default(1)
+  trackingNo   String? // 快递单号
+  shippedDate  DateTime?    @db.Date
+  status       SampleStatus @default(SHIPPED)
+
+  createdById String
+  createdBy   User   @relation("SampleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ---------- 11. 飞书通知记录（真实发送与 mock 均记一条） ----------
+enum NotifyType {
+  FEISHU // 真实发送成功
+  MOCK   // mock 模式 / 未配置凭证 / 用户未绑定飞书ID
+}
+
+model NotificationLog {
+  id          String     @id @default(cuid())
+  type        NotifyType
+  receiverId  String?
+  receiver    User?      @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: SetNull)
+  content     String     @db.Text
+  relatedType String? // 关联单据类型，如 INFLUENCER / COOP_REQUEST / PAYMENT
+  relatedId   String? // 关联单据 id
+  note        String? // 备注（如 mock 原因）
+  createdAt   DateTime   @default(now())
+
+  @@index([relatedType, relatedId, createdAt])
 }

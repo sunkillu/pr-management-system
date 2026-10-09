@@ -48,6 +48,16 @@ async function main() {
       role: "VIEWER",
     },
   });
+  await prisma.user.upsert({
+    where: { email: "pr@example.com" },
+    update: {},
+    create: {
+      email: "pr@example.com",
+      name: "PR负责人",
+      passwordHash: await password("pr123"),
+      role: "PR_MANAGER",
+    },
+  });
   console.log("用户 OK");
 
   // ---------- 媒体资源 ----------
