@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import PaymentForm, { PaymentInput } from "@/components/PaymentForm";
+import PaymentForm, { PaymentInput, TicketPrefill } from "@/components/PaymentForm";
 import PaymentActions from "@/components/PaymentActions";
 import DeleteButton from "@/components/DeleteButton";
 import { btnPrimary } from "@/components/ui";
@@ -16,6 +16,7 @@ export default function PaymentsClient({
   editTarget,
   deleteId,
   actionTarget,
+  ticketPrefill,
 }: {
   role: string;
   outlets: Opt[];
@@ -24,8 +25,9 @@ export default function PaymentsClient({
   editTarget?: PaymentInput & { id: string };
   deleteId?: string;
   actionTarget?: { id: string; status: string; isRequester: boolean };
+  ticketPrefill?: TicketPrefill;
 }) {
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(!!ticketPrefill);
   const [showEdit, setShowEdit] = useState(false);
 
   if (!editTarget && !deleteId && !actionTarget) {
@@ -35,7 +37,13 @@ export default function PaymentsClient({
           新建打款申请
         </button>
         {showCreate && (
-          <PaymentForm outlets={outlets} campaigns={campaigns} contents={contents} onClose={() => setShowCreate(false)} />
+          <PaymentForm
+            outlets={outlets}
+            campaigns={campaigns}
+            contents={contents}
+            ticketPrefill={ticketPrefill}
+            onClose={() => setShowCreate(false)}
+          />
         )}
       </>
     );

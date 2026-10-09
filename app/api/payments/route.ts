@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
         outletId: body.outletId || null,
         campaignId: body.campaignId || null,
         contentId: body.contentId || null,
+        ticketId: body.ticketId || null,
         requesterId: auth.userId,
         status: "PENDING_BIZ",
       },
@@ -37,6 +38,25 @@ export async function POST(req: NextRequest) {
       fromStatus: null,
       toStatus: "PENDING_BIZ",
     });
+    // 关联合作工单：工单进入结算中
+    if (body.ticketId) {
+      const ticket = await tx.cooperationTicket.findUnique({ where: { id: body.ticketId } });
+      if (ticket && ticket.status === "COMPLETED") {
+        await tx.cooperationTicket.update({
+          where: { id: ticket.id },
+          data: { status: "SETTLING" },
+        });
+        await writeLog(tx, {
+          docType: "TICKET",
+          docId: ticket.id,
+          action: "SUBMIT",
+          actorId: auth.userId,
+          fromStatus: "COMPLETED",
+          toStatus: "SETTLING",
+          note: `生成打款单「${created.title}」`,
+        });
+      }
+    }
     return [created];
   });
 

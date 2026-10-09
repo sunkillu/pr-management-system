@@ -17,7 +17,7 @@ const nav: { href: string; label: string; roles: Role[] }[] = [
   { href: "/invoices", label: "发票管理", roles: ALL },
   { href: "/influencers", label: "达人库", roles: ALL },
   { href: "/makeup-artists", label: "化妆师库", roles: ALL },
-  { href: "/cooperations", label: "合作记录", roles: ALL },
+  { href: "/tickets", label: "合作工单", roles: ALL },
   { href: "/samples", label: "寄品管理", roles: ALL },
   { href: "/coop-requests", label: "合作需求", roles: ALL },
   { href: "/reports", label: "效果报表", roles: ALL },
