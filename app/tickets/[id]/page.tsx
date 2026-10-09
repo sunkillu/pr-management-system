@@ -131,6 +131,25 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               {ticket.note && (
                 <div className="col-span-2"><dt className="text-gray-500">备注</dt><dd className="whitespace-pre-wrap">{ticket.note}</dd></div>
               )}
+              {Array.isArray(ticket.attachments) && ticket.attachments.length > 0 && (
+                <div className="col-span-2">
+                  <dt className="text-gray-500">插图 / 附件</dt>
+                  <dd className="mt-1 flex flex-wrap gap-2">
+                    {(ticket.attachments as { fileUrl: string; fileName: string }[]).map((a, i) =>
+                      /\.(jpe?g|png|webp|gif)$/i.test(a.fileName) ? (
+                        <a key={i} href={a.fileUrl} target="_blank" title={a.fileName}>
+                          <img src={a.fileUrl} alt={a.fileName} className="h-24 w-24 rounded border border-gray-200 object-cover hover:ring-2 hover:ring-blue-300" />
+                        </a>
+                      ) : (
+                        <a key={i} href={a.fileUrl} target="_blank"
+                          className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-blue-600 hover:underline">
+                          {a.fileName}
+                        </a>
+                      )
+                    )}
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
 

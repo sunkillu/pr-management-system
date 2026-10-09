@@ -595,6 +595,7 @@ model CooperationTicket {
   rejectReason String? // 驳回理由
   voidReason   String? // 作废理由
   escalatedAt DateTime? // 超时升级标记（防重复升级）
+  attachments Json? // 附件/插图 [{fileUrl, fileName}]
 
   influencerId String?
   influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)

@@ -87,6 +87,10 @@ return NextResponse.json({ error: "审批人必须为 PR负责人 或 管理员"
 
 const baseDate = body.startDate? new Date(body.startDate): new Date();
 const nodes = buildNodesForTicket(type, baseDate);
+// 附件/插图：[{fileUrl, fileName}]，简单校验结构
+const attachments = Array.isArray(body.attachments)
+  ? body.attachments.filter((a: unknown) => a && typeof (a as { fileUrl?: unknown }).fileUrl === "string").slice(0, 20)
+  : undefined;
 
 const ticket = await prisma.$transaction(async (tx) => {
 const created = await tx.cooperationTicket.create({
@@ -102,6 +106,7 @@ status: submit? "PENDING_APPROVAL": "DRAFT",
 influencerId,
 makeupArtistId,
 creatorId: auth.userId,
+attachments: attachments ?? undefined,
 nodes: { create: nodes},
 },
 });
