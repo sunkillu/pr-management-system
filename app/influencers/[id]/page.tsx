@@ -108,7 +108,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 <div className="whitespace-pre-wrap">{influencer.bio}</div>
               </div>
             )}
-            <div className="mt-4 border-t pt-3">
+            <div className="mt-4 border-t pt-3" id="approval-section">
               <InfluencerActions
                 id={influencer.id}
                 status={influencer.status}

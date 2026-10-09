@@ -103,7 +103,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                 </ul>
               </div>
             )}
-            <div className="mt-4 border-t pt-3">
+            <div className="mt-4 border-t pt-3" id="approval-section">
               <CoopRequestActions
                 id={request.id}
                 status={request.status}
