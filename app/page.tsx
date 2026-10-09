@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui";
 import { formatMoney, paymentStatusLabels, badgeClass } from "@/lib/labels";
 
-type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER";
+type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);

@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "./auth";
 
-export type RoleName = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER";
+export type RoleName = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER";
 
 type OkResult = { ok: true; role: RoleName; userId: string; userName: string };
 type ErrResult = { ok: false; res: NextResponse };
