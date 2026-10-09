@@ -27,9 +27,17 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
     include: {
       registeredBy: { select: { id: true, name: true } },
       cooperationRecords: { orderBy: { coopDate: "desc" }, take: 20 },
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: { reviewer: { select: { name: true } }, ticket: { select: { id: true, title: true } } },
+      },
     },
   });
   if (!influencer) notFound();
+  const avgRating = influencer.reviews.length > 0
+    ? (influencer.reviews.reduce((s, r) => s + r.rating, 0) / influencer.reviews.length).toFixed(1)
+    : null;
 
   const approvers = await prisma.requestApprover.findMany({
     where: { requestType: "INFLUENCER", requestId: params.id },
@@ -146,6 +154,31 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
               ))}
               {approvers.length === 0 && <li className="text-gray-400">暂无</li>}
             </ul>
+          </div>
+
+          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+            <h3 className="mb-3 font-semibold">
+              合作评价（近20条）
+              {avgRating && <span className="ml-2 text-sm font-normal text-yellow-600">★ 平均 {avgRating} 分</span>}
+            </h3>
+            {influencer.reviews.length === 0 ? (
+              <p className="text-sm text-gray-400">暂无评价</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {influencer.reviews.map((r) => (
+                  <li key={r.id} className="rounded bg-gray-50 p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-yellow-500">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                      <span className="text-xs text-gray-500">{r.reviewer.name} · {r.createdAt.toISOString().slice(0, 10)}</span>
+                    </div>
+                    {r.comment && <p className="mt-1 whitespace-pre-wrap">{r.comment}</p>}
+                    <Link href={`/tickets/${r.ticket.id}`} className="text-xs text-blue-600 hover:underline">
+                      {r.ticket.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">

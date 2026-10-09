@@ -47,6 +47,10 @@ model User {
   assignedApprovals RequestApprover[] @relation("AssignedApprover")
   uploadedVouchers  PaymentVoucher[] @relation("VoucherUploader")
   receivedNotifications NotificationLog[] @relation("NotificationReceiver")
+  createdTickets    CooperationTicket[] @relation("TicketCreator")
+  ticketComments    TicketComment[] @relation("CommentAuthor")
+  cooperationReviews CooperationReview[] @relation("ReviewAuthor")
+  completedNodes    TicketNode[] @relation("NodeCompleter")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -193,6 +197,9 @@ model PaymentRequest {
   requesterId String
   requester   User   @relation("PaymentRequester", fields: [requesterId], references: [id], onDelete: Restrict)
 
+  ticketId String? // 关联合作工单（一键生成打款单）
+  ticket   CooperationTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   approvalRecords ApprovalRecord[]
@@ -235,6 +242,7 @@ enum DocType {
   PAYMENT
   INFLUENCER   // 达人登记单
   COOP_REQUEST // 合作需求单
+  TICKET       // 合作工单
 }
 
 enum LogAction {
@@ -363,6 +371,7 @@ model Influencer {
   bio          String?          @db.Text // 简介
   status       InfluencerStatus @default(PENDING)
   rejectReason String? // 驳回理由
+  escalatedAt DateTime? // 审批超时升级标记
   coopCount    Int              @default(0) // 合作次数（由合作记录自动累计）
   totalFee     Decimal          @default(0) @db.Decimal(12, 2) // 累计合作费用（自动累计）
 
@@ -374,6 +383,8 @@ model Influencer {
 
   cooperationRecords CooperationRecord[]
   sampleShipments    SampleShipment[]
+  tickets            CooperationTicket[]
+  reviews            CooperationReview[]
 
   @@index([status])
 }
@@ -392,6 +403,9 @@ model MakeupArtist {
   updatedAt DateTime @updatedAt
 
   cooperationRecords CooperationRecord[]
+
+  tickets            CooperationTicket[]
+  reviews            CooperationReview[]
 }
 
 // 合作类型：达人挂车 / 达播 / 化妆师合作
@@ -422,10 +436,11 @@ model CooperationRecord {
   @@index([coopDate])
 }
 
-// ---------- 审批人多选（达人登记 / 合作需求，或签：任一审批人通过即通过） ----------
+// ---------- 审批人多选（达人登记 / 合作需求 / 合作工单，或签：任一审批人通过即通过） ----------
 enum RequestType {
   INFLUENCER
   COOP_REQUEST
+  TICKET // 合作工单
 }
 
 enum ApproverStatus {
@@ -466,6 +481,7 @@ model CooperationRequest {
   attachments  Json? // 附件 [{fileUrl, fileName}]
   status       CoopRequestStatus @default(PENDING)
   rejectReason String?
+  escalatedAt DateTime? // 审批超时升级标记
 
   submitterId String
   submitter   User   @relation("RequestSubmitter", fields: [submitterId], references: [id], onDelete: Restrict)
@@ -528,6 +544,7 @@ enum NotifyKind {
   APPROVED         // 审批通过
   REJECTED         // 驳回
   REMIND           // 催办提醒
+  ESCALATE         // 超时升级
   SYSTEM           // 系统消息
 }
 
@@ -547,4 +564,103 @@ model NotificationLog {
 
   @@index([relatedType, relatedId, createdAt])
   @@index([receiverId, isRead, createdAt])
+}
+
+// ---------- 12. 合作工单 ----------
+// 状态机：DRAFT 草稿 → PENDING_APPROVAL 待审批 → APPROVED 已通过(待执行) → IN_PROGRESS 执行中
+//        → COMPLETED 已完成 → SETTLING 结算中 → SETTLED 已结算
+// 另有 REJECTED（驳回，可重提）、VOIDED（已作废）
+enum TicketStatus {
+  DRAFT            // 草稿
+  PENDING_APPROVAL // 待审批
+  APPROVED         // 已通过（待执行）
+  IN_PROGRESS      // 执行中
+  COMPLETED        // 已完成
+  SETTLING         // 结算中
+  SETTLED          // 已结算
+  REJECTED         // 已驳回
+  VOIDED           // 已作废
+}
+
+model CooperationTicket {
+  id          String       @id @default(cuid())
+  title       String
+  type        CoopType
+  budgetFee   Decimal      @db.Decimal(12, 2) // 预算费用
+  actualFee   Decimal?     @db.Decimal(12, 2) // 实际费用（结算用）
+  startDate   DateTime?    @db.Date // 档期开始
+  endDate     DateTime?    @db.Date // 档期结束
+  note        String?      @db.Text
+  status      TicketStatus @default(DRAFT)
+  rejectReason String? // 驳回理由
+  voidReason   String? // 作废理由
+  escalatedAt DateTime? // 超时升级标记（防重复升级）
+
+  influencerId String?
+  influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
+  makeupArtistId String?
+  makeupArtist   MakeupArtist? @relation(fields: [makeupArtistId], references: [id], onDelete: SetNull)
+
+  creatorId String
+  creator   User   @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+
+  nodes    TicketNode[]
+  comments TicketComment[]
+  reviews  CooperationReview[]
+  paymentRequests PaymentRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([creatorId])
+}
+
+// 进度节点：按合作类型自动生成模板，可手动标记完成
+model TicketNode {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  name        String
+  sort        Int      @default(0)
+  expectedAt  DateTime? @db.Date // 预期完成时间
+  completedAt DateTime? // 完成时间（null = 未完成）
+  completedById String?
+  completedBy   User?   @relation("NodeCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  notifiedAt  DateTime? // 节点超时提醒标记（防重复提醒）
+
+  @@index([ticketId, sort])
+}
+
+// 合作评价：工单完成后 PR 给合作对象打分，沉淀到达人/化妆师档案
+model CooperationReview {
+  id         String   @id @default(cuid())
+  ticketId   String   @unique
+  ticket     CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  influencerId String?
+  influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
+  makeupArtistId String?
+  makeupArtist   MakeupArtist? @relation(fields: [makeupArtistId], references: [id], onDelete: SetNull)
+  rating     Int // 1-5 星
+  comment    String?  @db.Text
+  reviewerId String
+  reviewer   User     @relation("ReviewAuthor", fields: [reviewerId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now())
+
+  @@index([influencerId])
+  @@index([makeupArtistId])
+}
+
+// 工单内评论：支持 @ 用户，被@者收到站内通知
+model TicketComment {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  content     String   @db.Text
+  mentionedIds String[] @default([]) // 被@的用户 id
+  createdAt   DateTime @default(now())
+
+  @@index([ticketId, createdAt])
 }
