@@ -14,6 +14,15 @@ export type PaymentInput = {
   outletId: string;
   campaignId: string;
   contentId: string;
+  ticketId?: string | null;
+};
+
+export type TicketPrefill = {
+  ticketId: string;
+  ticketTitle: string;
+  amount: string;
+  payeeName: string;
+  reason: string;
 };
 
 type Opt = { id: string; name?: string; title?: string };
@@ -23,24 +32,27 @@ export default function PaymentForm({
   outlets,
   campaigns,
   contents,
+  ticketPrefill,
   onClose,
 }: {
   initial?: Partial<PaymentInput> & { id?: string };
   outlets: Opt[];
   campaigns: Opt[];
   contents: Opt[];
+  ticketPrefill?: TicketPrefill;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<PaymentInput>({
-    title: initial?.title ?? "",
-    amount: initial?.amount ?? "",
-    payeeName: initial?.payeeName ?? "",
+    title: initial?.title ?? ticketPrefill?.ticketTitle ?? "",
+    amount: initial?.amount ?? ticketPrefill?.amount ?? "",
+    payeeName: initial?.payeeName ?? ticketPrefill?.payeeName ?? "",
     payeeAccount: initial?.payeeAccount ?? "",
-    reason: initial?.reason ?? "",
+    reason: initial?.reason ?? ticketPrefill?.reason ?? "",
     outletId: initial?.outletId ?? "",
     campaignId: initial?.campaignId ?? "",
     contentId: initial?.contentId ?? "",
+    ticketId: ticketPrefill?.ticketId ?? null,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -66,6 +78,7 @@ export default function PaymentForm({
           outletId: form.outletId || null,
           campaignId: form.campaignId || null,
           contentId: form.contentId || null,
+          ticketId: form.ticketId || null,
         }),
       });
       if (!res.ok) {
@@ -138,6 +151,11 @@ export default function PaymentForm({
         <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
           发票为选填：提交、审批、打款均不需要发票；如有发票可在「发票管理」中上传并关联。
         </p>
+        {ticketPrefill && (
+          <p className="mb-3 rounded bg-purple-50 p-2 text-xs text-purple-800">
+            关联合作工单：{ticketPrefill.ticketTitle}（提交后工单进入「结算中」）
+          </p>
+        )}
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className={btnSecondary} onClick={onClose}>取消</button>

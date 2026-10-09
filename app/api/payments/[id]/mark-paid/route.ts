@@ -25,6 +25,38 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       fromStatus: "APPROVED",
       toStatus: "PAID",
     });
+    // 关联合作工单：已打款 → 工单已结算，并累计合作次数/费用
+    if (existing.ticketId) {
+      const ticket = await tx.cooperationTicket.findUnique({ where: { id: existing.ticketId } });
+      if (ticket && ["SETTLING", "COMPLETED"].includes(ticket.status)) {
+        const fee = Number(ticket.actualFee ?? ticket.budgetFee);
+        await tx.cooperationTicket.update({
+          where: { id: ticket.id },
+          data: { status: "SETTLED" },
+        });
+        await writeLog(tx, {
+          docType: "TICKET",
+          docId: ticket.id,
+          action: "MARK_PAID",
+          actorId: auth.userId,
+          fromStatus: ticket.status,
+          toStatus: "SETTLED",
+          note: `打款单「${updated.title}」已打款`,
+        });
+        if (ticket.influencerId) {
+          await tx.influencer.update({
+            where: { id: ticket.influencerId },
+            data: { coopCount: { increment: 1 }, totalFee: { increment: fee } },
+          });
+        }
+        if (ticket.makeupArtistId) {
+          await tx.makeupArtist.update({
+            where: { id: ticket.makeupArtistId },
+            data: { coopCount: { increment: 1 }, totalFee: { increment: fee } },
+          });
+        }
+      }
+    }
     return [updated];
   });
   return NextResponse.json(payment);

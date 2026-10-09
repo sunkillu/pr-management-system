@@ -36,6 +36,7 @@ export default async function InfluencersPage({
     include: {
       registeredBy: { select: { name: true } },
       cooperationRecords: { orderBy: { coopDate: "desc" }, take: 1, select: { fee: true } },
+      reviews: { select: { rating: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -97,6 +98,7 @@ export default async function InfluencersPage({
               <th className={thCls}>合作次数</th>
               <th className={thCls}>最近合作金额</th>
               <th className={thCls}>累计费用</th>
+              <th className={thCls}>平均评价</th>
               <th className={thCls}>审核状态</th>
               <th className={thCls}>登记人</th>
             </tr>
@@ -131,6 +133,15 @@ export default async function InfluencersPage({
                   {r.cooperationRecords.length > 0 ? formatFee(r.cooperationRecords[0].fee) : "-"}
                 </td>
                 <td className={tdCls}>{formatFee(r.totalFee)}</td>
+                <td className={tdCls}>
+                  {r.reviews.length > 0 ? (
+                    <span className="text-yellow-600">
+                      ★ {(r.reviews.reduce((s, x) => s + x.rating, 0) / r.reviews.length).toFixed(1)}
+                    </span>
+                  ) : (
+                    "-"
+                  )}
+                </td>
                 <td className={tdCls}>
                   <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(r.status)}`}>
                     {influencerStatusLabels[r.status]}

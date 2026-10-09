@@ -20,8 +20,11 @@ export default async function MakeupArtistsPage({
       ...(searchParams.q ? { name: { contains: searchParams.q, mode: "insensitive" } } : {}),
       ...(searchParams.longTerm === "1" ? { isLongTerm: true } : {}),
     },
+    include: { reviews: { select: { rating: true } } },
     orderBy: { updatedAt: "desc" },
   });
+  const avgOf = (rs: { rating: number }[]) =>
+    rs.length > 0 ? (rs.reduce((s, r) => s + r.rating, 0) / rs.length).toFixed(1) : null;
 
   return (
     <div>
@@ -55,6 +58,7 @@ export default async function MakeupArtistsPage({
               <th className={thCls}>入库日期</th>
               <th className={thCls}>合作次数</th>
               <th className={thCls}>累计费用</th>
+              <th className={thCls}>平均评价</th>
               <th className={thCls}>备注</th>
               {canWrite && <th className={thCls}>操作</th>}
             </tr>
@@ -72,6 +76,9 @@ export default async function MakeupArtistsPage({
                 <td className={tdCls}>{r.onboardDate ? r.onboardDate.toISOString().slice(0, 10) : "-"}</td>
                 <td className={tdCls}>{r.coopCount}</td>
                 <td className={tdCls}>{formatFee(r.totalFee)}</td>
+                <td className={tdCls}>
+                  {(() => { const a = avgOf(r.reviews); return a ? <span className="text-yellow-600">★ {a}</span> : "-"; })()}
+                </td>
                 <td className={tdCls}>{r.notes ?? "-"}</td>
                 {canWrite && (
                   <td className={tdCls + " whitespace-nowrap"}>

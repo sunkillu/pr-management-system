@@ -117,6 +117,11 @@ const badgeColors: Record<string, string> = {
   REJECTED: "bg-red-100 text-red-800",
   INVALID: "bg-red-100 text-red-800",
   VOIDED: "bg-gray-200 text-gray-600",
+  PENDING_APPROVAL: "bg-yellow-100 text-yellow-800",
+  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  COMPLETED: "bg-green-100 text-green-800",
+  SETTLING: "bg-orange-100 text-orange-800",
+  SETTLED: "bg-green-100 text-green-800",
   ACTIVE: "bg-green-100 text-green-800",
   INACTIVE: "bg-gray-100 text-gray-500",
   PREPARING: "bg-gray-100 text-gray-700",
@@ -171,6 +176,19 @@ export const coopTypeLabels: Record<string, string> = {
   INFLUENCER_POST: "达人挂车",
   INFLUENCER_LIVE: "达播",
   MAKEUP: "化妆师合作",
+};
+
+// 合作工单状态
+export const ticketStatusLabels: Record<string, string> = {
+  DRAFT: "草稿",
+  PENDING_APPROVAL: "待审批",
+  APPROVED: "已通过（待执行）",
+  IN_PROGRESS: "执行中",
+  COMPLETED: "已完成",
+  SETTLING: "结算中",
+  SETTLED: "已结算",
+  REJECTED: "已驳回",
+  VOIDED: "已作废",
 };
 
 // 达人类型（合作需求 / 达人库共用）

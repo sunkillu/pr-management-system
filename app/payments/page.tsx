@@ -5,11 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader, thCls, tdCls } from "@/components/ui";
 import { paymentStatusLabels, badgeClass, formatMoney, formatDate } from "@/lib/labels";
 import PaymentsClient from "./PaymentsClient";
+import type { TicketPrefill } from "@/components/PaymentForm";
 
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string };
+  searchParams: { q?: string; status?: string; newTicket?: string };
 }) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
@@ -20,6 +21,27 @@ export default async function PaymentsPage({
   const where: Record<string, unknown> = {};
   if (searchParams.q) where.title = { contains: searchParams.q, mode: "insensitive" };
   if (searchParams.status) where.status = searchParams.status;
+
+  // 工单一键生成打款单：预填收款方/金额/事由
+  let ticketPrefill: TicketPrefill | undefined;
+  if (searchParams.newTicket && canSubmit) {
+    const ticket = await prisma.cooperationTicket.findUnique({
+      where: { id: searchParams.newTicket },
+      include: {
+        influencer: { select: { name: true } },
+        makeupArtist: { select: { name: true } },
+      },
+    });
+    if (ticket && ticket.status === "COMPLETED") {
+      ticketPrefill = {
+        ticketId: ticket.id,
+        ticketTitle: `合作工单结算-${ticket.title}`,
+        amount: String(ticket.actualFee ?? ticket.budgetFee),
+        payeeName: ticket.influencer?.name ?? ticket.makeupArtist?.name ?? "",
+        reason: `合作工单「${ticket.title}」结算`,
+      };
+    }
+  }
 
   const [payments, outlets, campaigns, contents] = await Promise.all([
     prisma.paymentRequest.findMany({
@@ -39,7 +61,7 @@ export default async function PaymentsPage({
         desc="两阶段审批：运营提交 → 管理员业务审批 → 财务审批 → 财务标记已打款。发票为选填，不阻塞流程。"
         action={
           canSubmit ? (
-            <PaymentsClient role={role} outlets={outlets} campaigns={campaigns} contents={contents} />
+            <PaymentsClient role={role} outlets={outlets} campaigns={campaigns} contents={contents} ticketPrefill={ticketPrefill} />
           ) : undefined
         }
       />
