@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels } from "@/lib/labels";
+import { roleLabels, INFLUENCER_TYPE_OPTIONS, PLATFORM_TAG_OPTIONS } from "@/lib/labels";
 import Modal from "./Modal";
 
 type Approver = { id: string; name: string; email: string; role: string };
@@ -14,6 +14,8 @@ export default function CoopRequestForm() {
   const [approvers, setApprovers] = useState<Approver[]>([]);
   const [title, setTitle] = useState("");
   const [reqType, setReqType] = useState("");
+  const [influencerType, setInfluencerType] = useState("");
+  const [platforms, setPlatforms] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -23,7 +25,8 @@ export default function CoopRequestForm() {
 
   useEffect(() => {
     if (open) {
-      fetch("/api/approvers")
+      // 合作需求审批人仅限管理员
+      fetch("/api/approvers?roles=ADMIN")
         .then((r) => r.json())
         .then((d) => setApprovers(Array.isArray(d) ? d : []))
         .catch(() => setApprovers([]));
@@ -59,6 +62,8 @@ export default function CoopRequestForm() {
       body: JSON.stringify({
         title: title.trim(),
         reqType: reqType.trim() || "通用合作",
+        influencerType: influencerType || null,
+        platforms,
         description: description.trim(),
         attachments,
         approverIds: selected,
@@ -88,6 +93,28 @@ export default function CoopRequestForm() {
               onChange={(e) => setReqType(e.target.value)}
               placeholder="如：达播合作 / 图文种草 / 线下活动"
             />
+          </Field>
+          <Field label="达人类型">
+            <select className={inputCls} value={influencerType} onChange={(e) => setInfluencerType(e.target.value)}>
+              <option value="">请选择</option>
+              {INFLUENCER_TYPE_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="合作平台（可多选）">
+            <div className="flex flex-wrap gap-3">
+              {PLATFORM_TAG_OPTIONS.map((p) => (
+                <label key={p.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes(p.value)}
+                    onChange={() => setPlatforms(toggle(platforms, p.value))}
+                  />
+                  {p.label}
+                </label>
+              ))}
+            </div>
           </Field>
           <Field label="详细描述" required>
             <textarea className={inputCls} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
@@ -120,7 +147,7 @@ export default function CoopRequestForm() {
               ))}
             </ul>
           </Field>
-          <Field label="审批人（多选，任一通过即通过）" required>
+          <Field label="审批人（多选，仅管理员，任一通过即通过）" required>
             <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
               {approvers.map((a) => (
                 <label key={a.id} className="flex items-center gap-2 text-sm">

@@ -10,9 +10,12 @@ import {
   notifyTypeLabels,
   badgeClass,
   formatDateTime,
+  influencerTypeLabels,
+  platformTagLabels,
 } from "@/lib/labels";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import CoopRequestActions from "@/components/CoopRequestActions";
+import AddToInfluencerButton from "@/components/AddToInfluencerButton";
 
 export default async function CoopRequestDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -42,9 +45,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
     take: 20,
   });
 
-  const isAssigned = approvers.some((a) => a.approverId === me.id && a.status === "PENDING");
-  const canApprove =
-    request.status === "PENDING" && (role === "ADMIN" || (role === "PR_MANAGER" && isAssigned));
+  const canApprove = request.status === "PENDING" && role === "ADMIN";
   const canResubmit =
     request.status === "REJECTED" && (role === "ADMIN" || request.submitterId === me.id);
   const canRemind =
@@ -77,9 +78,15 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <div className="mb-3 flex items-center gap-3">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(request.status)}`}>
                 {coopRequestStatusLabels[request.status]}
+              </span>
+              <span className="text-sm text-gray-500">
+                达人类型：{request.influencerType ? influencerTypeLabels[request.influencerType] ?? request.influencerType : "-"}
+              </span>
+              <span className="text-sm text-gray-500">
+                平台：{request.platforms.length > 0 ? request.platforms.map((p) => platformTagLabels[p] ?? p).join("、") : "-"}
               </span>
               <span className="text-sm text-gray-500">提交人：{request.submitter?.name ?? "-"}</span>
             </div>
@@ -104,14 +111,24 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
               </div>
             )}
             <div className="mt-4 border-t pt-3" id="approval-section">
-              <CoopRequestActions
-                id={request.id}
-                status={request.status}
-                canApprove={canApprove}
-                canResubmit={canResubmit}
-                canRemind={canRemind}
-                title={request.title}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <CoopRequestActions
+                  id={request.id}
+                  status={request.status}
+                  canApprove={canApprove}
+                  canResubmit={canResubmit}
+                  canRemind={canRemind}
+                  title={request.title}
+                  influencerType={request.influencerType}
+                  platforms={request.platforms}
+                />
+                {request.status === "APPROVED" && (
+                  <AddToInfluencerButton
+                    influencerType={request.influencerType}
+                    platforms={request.platforms}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
