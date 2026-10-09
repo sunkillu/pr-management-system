@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { writeLog } from "@/lib/approval-log";
 
-// 标记已打款：财务（管理员兜底也有权限）。待打款 → 已打款。
+// 标记已打款：财务（管理员兜底也有权限）。待打款 → 已打款，写入操作日志。
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireRoles(["ADMIN", "FINANCE"]);
   if (!auth.ok) return auth.res;
@@ -11,9 +12,20 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (existing.status !== "APPROVED") {
     return NextResponse.json({ error: "仅待打款的申请可标记已打款" }, { status: 400 });
   }
-  const payment = await prisma.paymentRequest.update({
-    where: { id: params.id },
-    data: { status: "PAID" },
+  const [payment] = await prisma.$transaction(async (tx) => {
+    const updated = await tx.paymentRequest.update({
+      where: { id: params.id },
+      data: { status: "PAID" },
+    });
+    await writeLog(tx, {
+      docType: "PAYMENT",
+      docId: params.id,
+      action: "MARK_PAID",
+      actorId: auth.userId,
+      fromStatus: "APPROVED",
+      toStatus: "PAID",
+    });
+    return [updated];
   });
   return NextResponse.json(payment);
 }

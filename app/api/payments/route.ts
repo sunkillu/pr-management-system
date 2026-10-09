@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { writeLog } from "@/lib/approval-log";
+import { notifyApprovers } from "@/lib/feishu-notify";
 
-// 提交打款申请：运营 / 管理员，初始状态为待业务审批
+// 提交打款申请：运营 / 管理员，初始状态为待业务审批，写入操作日志
 export async function POST(req: NextRequest) {
   const auth = await requireRoles(["ADMIN", "OPERATOR"]);
   if (!auth.ok) return auth.res;
@@ -12,19 +14,42 @@ export async function POST(req: NextRequest) {
   if (!amount || amount <= 0) return NextResponse.json({ error: "金额必须大于 0" }, { status: 400 });
   if (!body.payeeName?.trim()) return NextResponse.json({ error: "收款方不能为空" }, { status: 400 });
 
-  const payment = await prisma.paymentRequest.create({
-    data: {
-      title: body.title.trim(),
-      amount: body.amount,
-      payeeName: body.payeeName.trim(),
-      payeeAccount: body.payeeAccount || null,
-      reason: body.reason || null,
-      outletId: body.outletId || null,
-      campaignId: body.campaignId || null,
-      contentId: body.contentId || null,
-      requesterId: auth.userId,
-      status: "PENDING_BIZ",
-    },
+  const [payment] = await prisma.$transaction(async (tx) => {
+    const created = await tx.paymentRequest.create({
+      data: {
+        title: body.title.trim(),
+        amount: body.amount,
+        payeeName: body.payeeName.trim(),
+        payeeAccount: body.payeeAccount || null,
+        reason: body.reason || null,
+        outletId: body.outletId || null,
+        campaignId: body.campaignId || null,
+        contentId: body.contentId || null,
+        requesterId: auth.userId,
+        status: "PENDING_BIZ",
+      },
+    });
+    await writeLog(tx, {
+      docType: "PAYMENT",
+      docId: created.id,
+      action: "SUBMIT",
+      actorId: auth.userId,
+      fromStatus: null,
+      toStatus: "PENDING_BIZ",
+    });
+    return [created];
   });
+
+  // 飞书通知业务审批人（管理员）
+  const bizApprovers = await prisma.user.findMany({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+  await notifyApprovers(
+    bizApprovers.map((a) => a.id),
+    `【打款申请待审批】${auth.userName}提交了打款申请「${payment.title}」（¥${payment.amount}），请进行业务审批。`,
+    { type: "PAYMENT", id: payment.id, title: payment.title }
+  );
+
   return NextResponse.json(payment, { status: 201 });
 }

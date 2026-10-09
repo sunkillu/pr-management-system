@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { writeLog } from "@/lib/approval-log";
 
-// 内容审批：仅管理员。通过 → 已通过；驳回 → 已驳回（需理由），并写入审批记录
+// 内容审批：仅管理员。通过 → 已通过；驳回 → 已驳回（需理由），并写入审批记录与操作日志
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireRoles(["ADMIN"]);
   if (!auth.ok) return auth.res;
@@ -20,15 +21,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "仅待审批的内容可审批" }, { status: 400 });
   }
 
-  const [content] = await prisma.$transaction([
-    prisma.content.update({
+  const toStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
+  const [content] = await prisma.$transaction(async (tx) => {
+    const updated = await tx.content.update({
       where: { id: params.id },
       data: {
-        status: action === "APPROVE" ? "APPROVED" : "REJECTED",
+        status: toStatus,
         rejectReason: action === "REJECT" ? body.comment.trim() : null,
       },
-    }),
-    prisma.approvalRecord.create({
+    });
+    await tx.approvalRecord.create({
       data: {
         stage: "CONTENT",
         action,
@@ -36,7 +38,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         approverId: auth.userId,
         contentId: params.id,
       },
-    }),
-  ]);
+    });
+    await writeLog(tx, {
+      docType: "CONTENT",
+      docId: params.id,
+      action,
+      actorId: auth.userId,
+      fromStatus: "PENDING",
+      toStatus,
+      note: body.comment?.trim() || null,
+    });
+    return [updated];
+  });
   return NextResponse.json(content);
 }
