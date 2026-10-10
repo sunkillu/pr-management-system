@@ -44,7 +44,7 @@ export default function InvoiceActions({ id, status, role }: { id: string; statu
     <span>
       <button
         onClick={() => { setShow(true); setNote(""); setError(""); }}
-        className="text-sm text-blue-600 hover:underline"
+        className="text-sm text-[#0071e3] hover:underline"
       >
         核验
       </button>

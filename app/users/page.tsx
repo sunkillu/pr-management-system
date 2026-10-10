@@ -12,7 +12,7 @@ export default async function UsersPage() {
   // 仅管理员可访问
   if (me?.role !== "ADMIN") {
     return (
-      <div className="rounded-lg bg-white p-8 text-center shadow-sm ring-1 ring-gray-200">
+      <div className="bg-white rounded-2xl p-8 text-center">
         <p className="text-lg font-medium">无权限</p>
         <p className="mt-2 text-sm text-gray-500">用户管理仅管理员可访问。</p>
       </div>
@@ -28,7 +28,7 @@ export default async function UsersPage() {
         desc="管理登录账号与角色：管理员 / 运营 / 财务 / 只读"
         action={<UsersClient />}
       />
-      <div className="overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+      <div className="overflow-x-auto bg-white rounded-2xl">
         <table className="w-full">
           <thead>
             <tr>

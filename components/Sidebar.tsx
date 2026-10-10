@@ -49,8 +49,8 @@ export default function Sidebar({
             <Link
               key={n.href}
               href={n.href}
-              className={`block rounded px-3 py-2 text-sm ${
-                active ? "bg-blue-600 text-white" : "hover:bg-gray-800"
+              className={`block rounded-[10px] px-3 py-2 text-sm transition-colors ${
+                active ? "bg-[#0071e3] text-white" : "text-gray-300 hover:bg-white/10"
               }`}
             >
               {n.label}

@@ -98,14 +98,14 @@ export default function TicketComments({
       )}
       <div className="space-y-3">
         {comments.map((c) => (
-          <div key={c.id} className="rounded-lg bg-gray-50 p-3">
+          <div key={c.id} className="rounded-lg bg-[#f5f5f7] p-3">
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span className="font-medium text-gray-800">{c.author.name}</span>
               <span>{formatDateTime(c.createdAt)}</span>
             </div>
             <p className="mt-1 whitespace-pre-wrap text-sm">{c.content}</p>
             {c.mentionedIds.length > 0 && (
-              <p className="mt-1 text-xs text-blue-600">@ {mentionedNames(c.mentionedIds).join("、")}</p>
+              <p className="mt-1 text-xs text-[#0071e3]">@ {mentionedNames(c.mentionedIds).join("、")}</p>
             )}
           </div>
         ))}

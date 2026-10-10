@@ -26,7 +26,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
+      <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-[0_8px_40px_rgba(0,0,0,0.08)]">
         <h1 className="text-xl font-bold">PR媒体管理系统</h1>
         <p className="mt-1 text-sm text-gray-500">请使用公司邮箱账号登录</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -37,7 +37,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
               placeholder="admin@example.com"
             />
           </div>
@@ -48,7 +48,7 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
               placeholder="请输入密码"
             />
           </div>
@@ -56,7 +56,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded bg-blue-600 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded bg-[#0071e3] py-2 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
           >
             {busy ? "登录中…" : "登录"}
           </button>

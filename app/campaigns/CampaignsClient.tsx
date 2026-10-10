@@ -30,7 +30,7 @@ export default function CampaignsClient({
       <span className="space-x-3">
         {editTarget && (
           <>
-            <button onClick={() => setShowEdit(true)} className="text-sm text-blue-600 hover:underline">
+            <button onClick={() => setShowEdit(true)} className="text-sm text-[#0071e3] hover:underline">
               编辑
             </button>
             {showEdit && (
