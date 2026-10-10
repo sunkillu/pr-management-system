@@ -32,9 +32,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!executionSummary) {
     return NextResponse.json({ error: "标记完成必须填写执行总结" }, { status: 400 });
   }
+  // PR 二次确认打款金额
+  if (body.amountConfirmed !== true) {
+    return NextResponse.json({ error: "请确认以上金额为最终打款金额" }, { status: 400 });
+  }
 
   const finalFee = body.actualFee ? body.actualFee : ticket.actualFee;
   const payeeName = ticket.influencer?.name ?? ticket.makeupArtist?.name ?? "";
+
+  // 打款金额管控：实际费用不能超过预算，超了需管理员特批
+  const effectiveFee = Number(finalFee ?? ticket.budgetFee);
+  const budget = Number(ticket.budgetFee);
+  if (effectiveFee > budget && !ticket.budgetOverridden) {
+    const over = (effectiveFee - budget).toFixed(2);
+    return NextResponse.json(
+      { error: `实际费用超出预算 ${over} 元，请作废重提或请管理员特批`, overBudget: true },
+      { status: 400 }
+    );
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
     const u = await tx.cooperationTicket.update({

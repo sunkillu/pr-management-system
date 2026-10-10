@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
-const TERMINAL = ["VOIDED", "SETTLED"];
+const TERMINAL = ["VOIDED", "SETTLED", "FOLLOW_UP"];
 const STATUS = ["TODO", "DOING", "DONE"] as const;
 
 async function getSubtask(ticketId: string, subtaskId: string) {

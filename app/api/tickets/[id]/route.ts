@@ -60,6 +60,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.startDate !== undefined) data.startDate = body.startDate ? new Date(body.startDate) : null;
   if (body.endDate !== undefined) data.endDate = body.endDate ? new Date(body.endDate) : null;
   if (body.note !== undefined) data.note = body.note?.trim() || null;
+  if (body.platform !== undefined && ["XIAOHONGSHU", "DOUYIN"].includes(body.platform)) data.platform = body.platform;
+  if (body.homepageId !== undefined) data.homepageId = String(body.homepageId ?? "").trim() || null;
+  if (body.style !== undefined) data.style = String(body.style ?? "").trim() || null;
+  if (body.contentDirection !== undefined) data.contentDirection = String(body.contentDirection ?? "").trim() || null;
+  if (body.coopCategory !== undefined) data.coopCategory = String(body.coopCategory ?? "").trim() || null;
+  if (body.priceNote !== undefined) data.priceNote = String(body.priceNote ?? "").trim() || null;
+  if (body.contentNote !== undefined) data.contentNote = String(body.contentNote ?? "").trim() || null;
   if (body.influencerId !== undefined) data.influencerId = body.influencerId || null;
   if (body.makeupArtistId !== undefined) data.makeupArtistId = body.makeupArtistId || null;
 

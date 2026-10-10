@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
-const TERMINAL = ["VOIDED", "SETTLED"];
+const TERMINAL = ["VOIDED", "SETTLED", "FOLLOW_UP"];
 
 // 子任务列表
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
