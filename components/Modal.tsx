@@ -29,7 +29,7 @@ export default function Modal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800" aria-label="关闭">
+          <button onClick={onClose} className="rounded-full p-1 text-xl leading-none text-gray-400 transition-colors hover:bg-[#f5f5f7] hover:text-gray-700" aria-label="关闭">
             ✕
           </button>
         </div>

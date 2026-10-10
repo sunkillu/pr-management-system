@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Apple 风格全局细节 */
+::selection {
+  background: rgba(0, 113, 227, 0.18);
+}
+
+/* 细滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d2d2d7;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b8b8be;
+}
+
+/* 键盘 focus 可见光圈 */
+:focus-visible {
+  outline: 2px solid rgba(0, 113, 227, 0.5);
+  outline-offset: 2px;
+}
+
+/* tab 下划线指示器过渡 */
+.tab-link {
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+/* 数字等宽，避免进度数字跳动 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

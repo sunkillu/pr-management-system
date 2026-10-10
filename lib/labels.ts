@@ -47,6 +47,13 @@ export const contentStatusLabels: Record<string, string> = {
   VOIDED: "已作废",
 };
 
+// 子任务状态
+export const subtaskStatusLabels: Record<string, string> = {
+  TODO: "待办",
+  DOING: "进行中",
+  DONE: "已完成",
+};
+
 export const campaignStatusLabels: Record<string, string> = {
   PREPARING: "筹备",
   ONGOING: "进行中",
@@ -130,7 +137,8 @@ const badgeColors: Record<string, string> = {
 };
 
 export function badgeClass(status: string): string {
-  return badgeColors[status] ?? "bg-gray-100 text-gray-700";
+  // 胶囊徽章：柔和底色 + 极细内描边，更精致
+  return `${badgeColors[status] ?? "bg-gray-100 text-gray-700"} ring-1 ring-inset ring-black/[0.04]`;
 }
 
 // 金额格式化（分 → 元显示，保留两位）
@@ -179,8 +187,7 @@ export const coopTypeLabels: Record<string, string> = {
 };
 
 // 合作工单状态
-export const ticketStatusLabels: Record<string, string> = {
-  DRAFT: "草稿",
+export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
   PENDING_APPROVAL: "待审批",
   APPROVED: "已通过（待执行）",
   IN_PROGRESS: "执行中",

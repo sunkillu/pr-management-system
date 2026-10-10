@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { thCls, tdCls } from "@/components/ui";
+import { thCls, tdCls, btnPrimary } from "@/components/ui";
 import { badgeClass, formatFee } from "@/lib/labels";
 import MakeupArtistForm from "@/components/MakeupArtistForm";
 
@@ -52,7 +52,7 @@ export default async function MakeupArtistList({
           <input type="checkbox" name="longTerm" value="1" defaultChecked={searchParams.longTerm === "1"} />
           仅长期合作
         </label>
-        <button className="rounded bg-gray-800 px-4 py-2 text-sm text-white">筛选</button>
+        <button className={btnPrimary}>筛选</button>
       </form>
 
       <div className="overflow-x-auto bg-white rounded-2xl">

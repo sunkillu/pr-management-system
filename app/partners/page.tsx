@@ -28,7 +28,7 @@ export default function PartnersPage({
           <Link
             key={t.key}
             href={`/partners?tab=${t.key}`}
-            className={`-mb-px px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`tab-link -mb-px px-4 py-2.5 text-sm font-medium ${
               tab === t.key
                 ? "border-b-2 border-[#0071e3] text-[#0071e3]"
                 : "text-gray-500 hover:text-gray-800"

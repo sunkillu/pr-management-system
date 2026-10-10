@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls } from "@/components/ui";
+import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import {
   coopRequestStatusLabels,
   badgeClass,
@@ -66,7 +66,7 @@ export default async function CoopRequestsPage({
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className="rounded bg-gray-800 px-4 py-2 text-sm text-white">筛选</button>
+        <button className={btnPrimary}>筛选</button>
       </form>
 
       <div className="overflow-x-auto bg-white rounded-2xl">

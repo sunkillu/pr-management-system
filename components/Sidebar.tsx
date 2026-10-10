@@ -158,7 +158,7 @@ export default function Sidebar({
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="mt-3 block w-full rounded border border-gray-600 px-3 py-1.5 text-center hover:bg-gray-800"
+          className="mt-3 block w-full rounded-[10px] border border-gray-600 px-3 py-1.5 text-center transition-colors hover:border-gray-500 hover:bg-gray-800 active:bg-gray-700"
         >
           退出登录
         </button>
