@@ -111,7 +111,7 @@ export default function PaymentActions({
               run: () => call(`/api/payments/${id}/mark-paid`),
             })
           }
-          className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-[#0071e3] px-3 py-1 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
         >
           标记已打款{voucherCount === 0 ? "（需先上传凭证）" : ""}
         </button>
@@ -131,7 +131,7 @@ export default function PaymentActions({
               run: (reason) => call(`/api/payments/${id}/resubmit`, { note: reason }),
             })
           }
-          className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-[#0071e3] px-3 py-1 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
         >
           重新提交
         </button>
@@ -211,7 +211,7 @@ function DecisionDialog({
         审批意见 <span className="text-xs text-gray-400">（通过可留空，驳回必填）</span>
       </label>
       <textarea
-        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
         rows={4}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
@@ -239,7 +239,7 @@ function DecisionDialog({
           {busy ? "处理中…" : "驳回"}
         </button>
         <button
-          className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
           disabled={busy}
           onClick={() => onApprove(reason.trim())}
         >

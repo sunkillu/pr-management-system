@@ -155,7 +155,7 @@ export default function TicketForm({
                       </a>
                     ) : (
                       <a href={a.fileUrl} target="_blank" title={a.fileName}
-                        className="flex h-full w-full items-center justify-center bg-gray-50 px-1 text-center text-[10px] text-blue-600">
+                        className="flex h-full w-full items-center justify-center bg-[#f5f5f7] px-1 text-center text-[10px] text-[#0071e3]">
                         {a.fileName}
                       </a>
                     )}

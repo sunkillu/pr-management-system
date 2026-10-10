@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Section, InfoRow } from "@/components/ui";
 import {
   influencerStatusLabels,
   influencerTypeLabels,
@@ -81,15 +81,15 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
         title={influencer.name}
         desc={`达人登记 · ${influencerStatusLabels[influencer.status]}`}
         action={
-          <Link href="/influencers" className="text-sm text-blue-600 hover:underline">
+          <Link href="/influencers" className="text-sm text-[#0071e3] hover:underline">
             ← 返回达人库
           </Link>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="bg-white rounded-2xl lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
+          <Section>
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(influencer.status)}`}>
                 {influencerStatusLabels[influencer.status]}
@@ -117,11 +117,11 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 驳回理由：{influencer.rejectReason}
               </div>
             )}
-            <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div><dt className="text-gray-500">联系方式</dt><dd>{influencer.contactInfo ?? "-"}</dd></div>
-              <div><dt className="text-gray-500">登记人</dt><dd>{influencer.registeredBy?.name ?? "-"}</dd></div>
-              <div><dt className="text-gray-500">合作次数</dt><dd>{influencer.coopCount}</dd></div>
-              <div><dt className="text-gray-500">累计合作费用</dt><dd>{formatFee(influencer.totalFee)}</dd></div>
+            <dl>
+              <InfoRow label="联系方式">{influencer.contactInfo ?? "-"}</InfoRow>
+              <InfoRow label="登记人">{influencer.registeredBy?.name ?? "-"}</InfoRow>
+              <InfoRow label="合作次数">{influencer.coopCount}</InfoRow>
+              <InfoRow label="累计合作费用">{formatFee(influencer.totalFee)}</InfoRow>
             </dl>
             {influencer.bio && (
               <div className="mt-3 text-sm">
@@ -129,7 +129,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 <div className="whitespace-pre-wrap">{influencer.bio}</div>
               </div>
             )}
-            <div className="mt-4 border-t pt-3" id="approval-section">
+            <div className="mt-4 border-t border-[#e5e5e5] pt-4" id="approval-section">
               <InfluencerActions
                 id={influencer.id}
                 status={influencer.status}
@@ -139,10 +139,9 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 name={influencer.name}
               />
             </div>
-          </div>
+          </Section>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">审批人（或签：任一通过即通过）</h3>
+          <Section title="审批人（或签：任一通过即通过）">
             <ul className="space-y-2 text-sm">
               {approvers.map((a) => (
                 <li key={a.id} className="flex items-center justify-between">
@@ -154,35 +153,31 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
               ))}
               {approvers.length === 0 && <li className="text-gray-400">暂无</li>}
             </ul>
-          </div>
+          </Section>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">
-              合作评价（近20条）
-              {avgRating && <span className="ml-2 text-sm font-normal text-yellow-600">★ 平均 {avgRating} 分</span>}
-            </h3>
+          <Section title="合作评价（近20条）">
+            {avgRating && <p className="mb-3 text-sm text-yellow-600">★ 平均 {avgRating} 分</p>}
             {influencer.reviews.length === 0 ? (
               <p className="text-sm text-gray-400">暂无评价</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {influencer.reviews.map((r) => (
-                  <li key={r.id} className="rounded bg-gray-50 p-2">
+                  <li key={r.id} className="rounded bg-[#f5f5f7] p-2">
                     <div className="flex items-center justify-between">
                       <span className="text-yellow-500">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
                       <span className="text-xs text-gray-500">{r.reviewer.name} · {r.createdAt.toISOString().slice(0, 10)}</span>
                     </div>
                     {r.comment && <p className="mt-1 whitespace-pre-wrap">{r.comment}</p>}
-                    <Link href={`/tickets/${r.ticket.id}`} className="text-xs text-blue-600 hover:underline">
+                    <Link href={`/tickets/${r.ticket.id}`} className="text-xs text-[#0071e3] hover:underline">
                       {r.ticket.title}
                     </Link>
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+          </Section>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">合作记录（近20条）</h3>
+          <Section title="合作记录（近20条）">
             {influencer.cooperationRecords.length === 0 ? (
               <p className="text-sm text-gray-400">暂无合作记录</p>
             ) : (
@@ -195,16 +190,14 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 ))}
               </ul>
             )}
-          </div>
+          </Section>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">操作历史</h3>
+        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+          <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
-          </div>
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">通知记录</h3>
+          </Section>
+          <Section title="通知记录">
             {notifications.length === 0 ? (
               <p className="text-sm text-gray-400">暂无通知</p>
             ) : (
@@ -218,7 +211,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 ))}
               </ul>
             )}
-          </div>
+          </Section>
         </div>
       </div>
     </div>

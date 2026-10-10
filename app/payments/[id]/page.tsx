@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Section, InfoRow } from "@/components/ui";
 import {
   paymentStatusLabels,
   badgeClass,
@@ -82,25 +82,22 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
         title={payment.title}
         desc="打款申请详情"
         action={
-          <Link href="/payments" className="text-sm text-blue-600 hover:underline">
+          <Link href="/payments" className="text-sm text-[#0071e3] hover:underline">
             ← 返回列表
           </Link>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="bg-white rounded-2xl p-6 lg:col-span-2 h-fit">
           <div className="mb-4">
             <span className={`rounded px-2 py-1 text-sm ${badgeClass(payment.status)}`}>
               {paymentStatusLabels[payment.status]}
             </span>
           </div>
-          <dl className="grid grid-cols-2 gap-3 text-sm">
+          <dl>
             {info.map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-gray-500">{k}</dt>
-                <dd className="mt-0.5 font-medium">{v}</dd>
-              </div>
+              <InfoRow key={k} label={k}><span className="font-medium">{v}</span></InfoRow>
             ))}
           </dl>
           {payment.reason && (
@@ -151,30 +148,28 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">操作历史</h3>
+        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+          <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
-          </div>
+          </Section>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+          <Section>
             <ApprovalLinks
               docType="PAYMENT"
               docId={payment.id}
               initialLinks={links.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() }))}
               canEdit={canEditLinks}
             />
-          </div>
+          </Section>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">打款凭证</h3>
+          <Section title="打款凭证">
             <PaymentVoucherSection paymentId={payment.id} canUpload={canUploadVoucher} />
-          </div>
+          </Section>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+          <Section>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-semibold">关联发票（选填）</h3>
-              <Link href="/invoices" className="text-sm text-blue-600 hover:underline">
+              <Link href="/invoices" className="text-sm text-[#0071e3] hover:underline">
                 去上传
               </Link>
             </div>
@@ -195,7 +190,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
                       开票 {formatDate(inv.issueDate)}
                     </div>
                     {inv.fileUrl && (
-                      <a href={inv.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                      <a href={inv.fileUrl} target="_blank" rel="noreferrer" className="text-[#0071e3] hover:underline">
                         查看发票文件
                       </a>
                     )}
@@ -203,7 +198,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
                 ))}
               </ul>
             )}
-          </div>
+          </Section>
         </div>
       </div>
     </div>

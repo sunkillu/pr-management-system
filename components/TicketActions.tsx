@@ -87,7 +87,7 @@ export default function TicketActions({
   // 开始执行
   if (ticket.status === "APPROVED" && (isCreator || isAdmin)) {
     btns.push(
-      <button key="start" className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+      <button key="start" className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed]"
         onClick={() => ask("开始执行", "确认开始执行该合作吗？", async () => {
           if (await call(`/api/tickets/${ticket.id}/start`, {})) refresh();
         })}>开始执行</button>
@@ -110,7 +110,7 @@ export default function TicketActions({
   // 重提
   if (ticket.status === "REJECTED" && (isCreator || isAdmin)) {
     btns.push(
-      <button key="resubmit" className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+      <button key="resubmit" className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed]"
         onClick={() => ask("重新提交", "确认重新提交审批吗？将通知原审批人。", async () => {
           if (await call(`/api/tickets/${ticket.id}/resubmit`, {})) refresh();
         })}>重新提交</button>

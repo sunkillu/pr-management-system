@@ -59,7 +59,7 @@ export function PaymentVoucherSection({ paymentId, canUpload }: { paymentId: str
         <ul className="space-y-2 text-sm">
           {list.map((v) => (
             <li key={v.id} className="rounded border border-gray-200 p-2">
-              <a href={v.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+              <a href={v.fileUrl} target="_blank" rel="noreferrer" className="text-[#0071e3] hover:underline">
                 {v.fileName}
               </a>
               <div className="text-xs text-gray-500">

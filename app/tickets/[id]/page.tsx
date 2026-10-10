@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Section, InfoRow } from "@/components/ui";
 import {
   ticketStatusLabels,
   coopTypeLabels,
@@ -97,7 +97,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         title={ticket.title}
         desc={`${coopTypeLabels[ticket.type]} · ${ticketStatusLabels[ticket.status]}`}
         action={
-          <Link href="/tickets" className="text-sm text-blue-600 hover:underline">
+          <Link href="/tickets" className="text-sm text-[#0071e3] hover:underline">
             ← 返回合作工单
           </Link>
         }
@@ -109,53 +109,52 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+        <div className="bg-white rounded-2xl lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           {/* 基本信息 */}
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-medium">基本信息</h3>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <div><dt className="text-gray-500">合作对象</dt><dd className="font-medium">
-                {partnerHref ? <Link href={partnerHref} className="text-blue-600 hover:underline">{partnerName}</Link> : partnerName}
-              </dd></div>
-              <div><dt className="text-gray-500">合作类型</dt><dd>{coopTypeLabels[ticket.type]}</dd></div>
-              <div><dt className="text-gray-500">预算费用</dt><dd>¥{formatMoney(ticket.budgetFee)}</dd></div>
-              <div><dt className="text-gray-500">实际费用</dt><dd>{ticket.actualFee ? `¥${formatMoney(ticket.actualFee)}` : "-"}</dd></div>
-              <div><dt className="text-gray-500">档期</dt><dd>{ticket.startDate ? formatDate(ticket.startDate) : "-"} ~ {ticket.endDate ? formatDate(ticket.endDate) : "-"}</dd></div>
-              <div><dt className="text-gray-500">发起人</dt><dd>{ticket.creator.name}</dd></div>
+          <Section title="基本信息">
+            <dl>
+              <InfoRow label="合作对象">
+                <span className="font-medium">
+                  {partnerHref ? <Link href={partnerHref} className="text-[#0071e3] hover:underline">{partnerName}</Link> : partnerName}
+                </span>
+              </InfoRow>
+              <InfoRow label="合作类型">{coopTypeLabels[ticket.type]}</InfoRow>
+              <InfoRow label="预算费用">¥{formatMoney(ticket.budgetFee)}</InfoRow>
+              <InfoRow label="实际费用">{ticket.actualFee ? `¥${formatMoney(ticket.actualFee)}` : "-"}</InfoRow>
+              <InfoRow label="档期">{ticket.startDate ? formatDate(ticket.startDate) : "-"} ~ {ticket.endDate ? formatDate(ticket.endDate) : "-"}</InfoRow>
+              <InfoRow label="发起人">{ticket.creator.name}</InfoRow>
               {ticket.rejectReason && (
-                <div className="col-span-2"><dt className="text-gray-500">驳回理由</dt><dd className="text-red-600">{ticket.rejectReason}</dd></div>
+                <InfoRow label="驳回理由" wide><span className="text-red-600">{ticket.rejectReason}</span></InfoRow>
               )}
               {ticket.voidReason && (
-                <div className="col-span-2"><dt className="text-gray-500">作废理由</dt><dd className="text-gray-600">{ticket.voidReason}</dd></div>
+                <InfoRow label="作废理由" wide><span className="text-gray-600">{ticket.voidReason}</span></InfoRow>
               )}
               {ticket.note && (
-                <div className="col-span-2"><dt className="text-gray-500">备注</dt><dd className="whitespace-pre-wrap">{ticket.note}</dd></div>
+                <InfoRow label="备注" wide><span className="whitespace-pre-wrap">{ticket.note}</span></InfoRow>
               )}
               {Array.isArray(ticket.attachments) && ticket.attachments.length > 0 && (
-                <div className="col-span-2">
-                  <dt className="text-gray-500">插图 / 附件</dt>
-                  <dd className="mt-1 flex flex-wrap gap-2">
+                <InfoRow label="插图 / 附件" wide>
+                  <span className="flex flex-wrap gap-2">
                     {(ticket.attachments as { fileUrl: string; fileName: string }[]).map((a, i) =>
                       /\.(jpe?g|png|webp|gif)$/i.test(a.fileName) ? (
                         <a key={i} href={a.fileUrl} target="_blank" title={a.fileName}>
-                          <img src={a.fileUrl} alt={a.fileName} className="h-24 w-24 rounded border border-gray-200 object-cover hover:ring-2 hover:ring-blue-300" />
+                          <img src={a.fileUrl} alt={a.fileName} className="h-24 w-24 rounded-[10px] border border-[#e5e5e5] object-cover" />
                         </a>
                       ) : (
                         <a key={i} href={a.fileUrl} target="_blank"
-                          className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-blue-600 hover:underline">
+                          className="rounded-[10px] border border-[#e5e5e5] bg-[#f5f5f7] px-3 py-2 text-sm text-[#0071e3] hover:underline">
                           {a.fileName}
                         </a>
                       )
                     )}
-                  </dd>
-                </div>
+                  </span>
+                </InfoRow>
               )}
             </dl>
-          </div>
+          </Section>
 
           {/* 进度节点 */}
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-medium">进度节点</h3>
+          <Section title="进度节点">
             <TicketNodes
               ticketId={ticket.id}
               nodes={ticket.nodes.map((n) => ({
@@ -168,11 +167,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               }))}
               canUpdate={canUpdateNodes}
             />
-          </div>
+          </Section>
 
           {/* 审批区 */}
-          <div id="approval-section" className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-medium">审批</h3>
+          <Section id="approval-section" title="审批">
             {approvers.length > 0 ? (
               <div className="mb-3 flex flex-wrap gap-2">
                 {approvers.map((a) => (
@@ -185,29 +183,27 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               <p className="mb-3 text-sm text-gray-400">草稿状态，尚未提交审批</p>
             )}
             <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee }} userId={me.id} role={role} />
-          </div>
+          </Section>
 
           {/* 关联打款单 */}
           {ticket.paymentRequests.length > 0 && (
-            <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-              <h3 className="mb-3 font-medium">关联打款单</h3>
+            <Section title="关联打款单">
               <div className="space-y-2">
                 {ticket.paymentRequests.map((p) => (
                   <div key={p.id} className="flex items-center justify-between text-sm">
-                    <Link href={`/payments/${p.id}`} className="text-blue-600 hover:underline">{p.title}</Link>
+                    <Link href={`/payments/${p.id}`} className="text-[#0071e3] hover:underline">{p.title}</Link>
                     <span>¥{formatMoney(p.amount)}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Section>
           )}
 
           {/* 合作评价 */}
           {ticket.reviews.length > 0 && (
-            <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-              <h3 className="mb-3 font-medium">合作评价</h3>
+            <Section title="合作评价">
               {ticket.reviews.map((r) => (
-                <div key={r.id} className="rounded bg-gray-50 p-3 text-sm">
+                <div key={r.id} className="rounded bg-[#f5f5f7] p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-yellow-400">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
                     <span className="text-xs text-gray-500">{r.reviewer.name} · {formatDateTime(r.createdAt)}</span>
@@ -215,12 +211,11 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   {r.comment && <p className="mt-1 whitespace-pre-wrap">{r.comment}</p>}
                 </div>
               ))}
-            </div>
+            </Section>
           )}
 
           {/* 评论区 */}
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-medium">评论（{comments.length}）</h3>
+          <Section title="评论（{comments.length}）">
             <TicketComments
               ticketId={ticket.id}
               initial={comments.map((c) => ({
@@ -234,22 +229,20 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               canWrite={canWriteComment}
               currentUserId={me.id}
             />
-          </div>
+          </Section>
         </div>
 
-        <div className="space-y-4">
+        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
           {/* 操作历史 */}
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-medium">操作历史</h3>
+          <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
-          </div>
+          </Section>
           {/* 通知记录 */}
           {notifications.length > 0 && (
-            <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-              <h3 className="mb-3 font-medium">通知记录</h3>
+            <Section title="通知记录">
               <div className="space-y-2 text-xs">
                 {notifications.map((n) => (
-                  <div key={n.id} className="rounded bg-gray-50 p-2">
+                  <div key={n.id} className="rounded bg-[#f5f5f7] p-2">
                     <div className="flex justify-between text-gray-500">
                       <span>{n.receiver?.name ?? "未知"}</span>
                       <span>{formatDateTime(n.createdAt)}</span>
@@ -258,7 +251,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   </div>
                 ))}
               </div>
-            </div>
+            </Section>
           )}
         </div>
       </div>
