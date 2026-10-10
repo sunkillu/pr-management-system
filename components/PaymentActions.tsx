@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
+import { btnPrimarySm, btnDangerSm, btnDanger } from "./ui";
 
 // 打款两阶段审批操作按钮
 // 一审（业务审批）：ADMIN；二审（财务审批）/ 标记已打款：FINANCE（ADMIN 兜底也有权限）
@@ -82,7 +83,7 @@ export default function PaymentActions({
             setError("");
             setDecision({ url: `/api/payments/${id}/approve-biz`, title: "业务审批" });
           }}
-          className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+          className={btnPrimarySm}
         >
           业务审批
         </button>
@@ -94,7 +95,7 @@ export default function PaymentActions({
             setError("");
             setDecision({ url: `/api/payments/${id}/approve-fin`, title: "财务审批" });
           }}
-          className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+          className={btnPrimarySm}
         >
           财务审批
         </button>
@@ -151,7 +152,7 @@ export default function PaymentActions({
               run: (reason) => call(`/api/payments/${id}/void`, { reason }),
             })
           }
-          className="rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
+          className={btnDangerSm}
         >
           作废
         </button>
@@ -226,7 +227,7 @@ function DecisionDialog({
           取消
         </button>
         <button
-          className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+          className={btnDanger}
           disabled={busy}
           onClick={() => {
             if (!reason.trim()) {

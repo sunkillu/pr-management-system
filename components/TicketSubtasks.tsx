@@ -1,0 +1,219 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { subtaskStatusLabels, formatDate } from "@/lib/labels";
+import { inputCls, btnPrimary } from "./ui";
+
+type Subtask = {
+  id: string;
+  title: string;
+  status: "TODO" | "DOING" | "DONE";
+  assigneeId: string | null;
+  assignee: { id: string; name: string } | null;
+  dueDate: string | null;
+  sortOrder: number;
+};
+
+const NEXT_STATUS: Record<Subtask["status"], Subtask["status"]> = {
+  TODO: "DOING",
+  DOING: "DONE",
+  DONE: "TODO",
+};
+
+const statusPill: Record<Subtask["status"], string> = {
+  TODO: "bg-gray-100 text-gray-600",
+  DOING: "bg-blue-100 text-blue-700",
+  DONE: "bg-green-100 text-green-700",
+};
+
+export default function TicketSubtasks({
+  ticketId,
+  initial,
+  users,
+  canManage,
+}: {
+  ticketId: string;
+  initial: Subtask[];
+  users: { id: string; name: string }[];
+  canManage: boolean;
+}) {
+  const router = useRouter();
+  const [items, setItems] = useState<Subtask[]>(initial);
+  const [newTitle, setNewTitle] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const done = items.filter((s) => s.status === "DONE").length;
+  const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
+
+  async function call(url: string, method: string, body?: Record<string, unknown>) {
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error || "操作失败");
+      return null;
+    }
+    return data;
+  }
+
+  async function refreshList() {
+    const data = await call(`/api/tickets/${ticketId}/subtasks`, "GET");
+    if (data) setItems(data);
+    router.refresh();
+  }
+
+  async function add() {
+    const title = newTitle.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    const created = await call(`/api/tickets/${ticketId}/subtasks`, "POST", { title });
+    setBusy(false);
+    if (created) {
+      setNewTitle("");
+      setItems((prev) => [...prev, created]);
+      router.refresh();
+    }
+  }
+
+  async function patch(id: string, body: Record<string, unknown>) {
+    const updated = await call(`/api/tickets/${ticketId}/subtasks/${id}`, "PATCH", body);
+    if (updated) {
+      setItems((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      router.refresh();
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm("确定删除这个子任务吗？")) return;
+    const ok = await call(`/api/tickets/${ticketId}/subtasks/${id}`, "DELETE");
+    if (ok) {
+      setItems((prev) => prev.filter((s) => s.id !== id));
+      router.refresh();
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div>
+      {/* 进度条 */}
+      <div className="mb-3 flex items-center gap-3">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e5e5e5]">
+          <div
+            className="h-full rounded-full bg-[#0071e3] transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="text-xs text-gray-500">
+          {done}/{items.length} · {pct}%
+        </span>
+      </div>
+
+      {/* 清单 */}
+      <div className="space-y-2">
+        {items.map((s) => {
+          const overdue = s.status !== "DONE" && s.dueDate && s.dueDate < today;
+          return (
+            <div
+              key={s.id}
+              className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 transition-colors ${
+                overdue ? "border-red-300 bg-red-50" : "border-[#e5e5e5] bg-white hover:border-gray-300"
+              }`}
+            >
+              {canManage ? (
+                <input
+                  type="checkbox"
+                  checked={s.status === "DONE"}
+                  onChange={() => patch(s.id, { status: s.status === "DONE" ? "TODO" : "DONE" })}
+                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#0071e3]"
+                  title="勾选完成 / 取消完成"
+                />
+              ) : (
+                <span className={`text-sm ${s.status === "DONE" ? "text-green-600" : "text-gray-300"}`}>
+                  {s.status === "DONE" ? "✓" : "○"}
+                </span>
+              )}
+              <span
+                className={`flex-1 text-sm ${s.status === "DONE" ? "text-gray-400 line-through" : "text-gray-800"}`}
+              >
+                {s.title}
+              </span>
+              {overdue && (
+                <span className="rounded bg-red-600 px-1.5 py-0.5 text-xs text-white">已超时</span>
+              )}
+              {canManage ? (
+                <button
+                  onClick={() => patch(s.id, { status: NEXT_STATUS[s.status] })}
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium transition-all hover:opacity-80 active:scale-95 ${statusPill[s.status]}`}
+                  title="点击切换状态"
+                >
+                  {subtaskStatusLabels[s.status]}
+                </button>
+              ) : (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusPill[s.status]}`}>
+                  {subtaskStatusLabels[s.status]}
+                </span>
+              )}
+              {canManage ? (
+                <>
+                  <select
+                    value={s.assigneeId ?? ""}
+                    onChange={(e) => patch(s.id, { assigneeId: e.target.value || null })}
+                    className="max-w-[96px] rounded-lg border border-gray-300 px-1 py-1 text-xs transition-colors focus:border-[#0071e3] focus:outline-none"
+                    title="负责人"
+                  >
+                    <option value="">未指派</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={s.dueDate ? s.dueDate.slice(0, 10) : ""}
+                    onChange={(e) => patch(s.id, { dueDate: e.target.value || null })}
+                    className="w-[128px] rounded-lg border border-gray-300 px-1 py-1 text-xs transition-colors focus:border-[#0071e3] focus:outline-none"
+                    title="截止日期"
+                  />
+                  <button
+                    onClick={() => remove(s.id)}
+                    className="rounded-md px-1.5 py-0.5 text-base leading-none text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600"
+                    title="删除"
+                  >
+                    ×
+                  </button>
+                </>
+              ) : (
+                <>
+                  {s.assignee && <span className="text-xs text-gray-500">{s.assignee.name}</span>}
+                  {s.dueDate && <span className="text-xs text-gray-500">{formatDate(s.dueDate)}</span>}
+                </>
+              )}
+            </div>
+          );
+        })}
+        {items.length === 0 && (
+          <p className="rounded-[10px] border border-dashed border-[#e5e5e5] py-4 text-center text-sm text-gray-400">暂无子任务，可将执行工作拆解为对接 / 拍摄 / 剪辑 / 发布等</p>
+        )}
+      </div>
+
+      {/* 新增 */}
+      {canManage && (
+        <div className="mt-3 flex gap-2">
+          <input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder="新增子任务，如：达人寄样确认"
+            className={inputCls}
+          />
+          <button onClick={add} disabled={busy || !newTitle.trim()} className={btnPrimary}>
+            添加
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

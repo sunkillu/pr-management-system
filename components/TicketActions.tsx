@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfirmDialog from "./ConfirmDialog";
 import Modal from "./Modal";
-import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
+import { inputCls, btnPrimary, btnSecondary, btnDanger, Field } from "./ui";
 
 type Ticket = {
   id: string;
@@ -11,6 +11,7 @@ type Ticket = {
   status: string;
   creatorId: string;
   actualFee?: unknown;
+  incompleteSubtasks?: number;
 };
 
 export default function TicketActions({
@@ -30,6 +31,7 @@ export default function TicketActions({
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showVoidBox, setShowVoidBox] = useState(false);
   const [showCompleteBox, setShowCompleteBox] = useState(false);
+  const [confirmIncomplete, setConfirmIncomplete] = useState(false);
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [actualFee, setActualFee] = useState("");
@@ -70,11 +72,11 @@ export default function TicketActions({
   // 审批区（待审批）
   if (ticket.status === "PENDING_APPROVAL" && canApprove) {
     btns.push(
-      <button key="approve" className="rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+      <button key="approve" className={btnPrimary}
         onClick={() => setShowApproveBox(true)}>通过</button>
     );
     btns.push(
-      <button key="reject" className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+      <button key="reject" className={btnDanger}
         onClick={() => setShowRejectBox(true)}>驳回</button>
     );
     btns.push(
@@ -96,7 +98,7 @@ export default function TicketActions({
   // 标记完成（含评价）
   if (ticket.status === "IN_PROGRESS" && (isCreator || isAdmin)) {
     btns.push(
-      <button key="complete" className="rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+      <button key="complete" className={btnPrimary}
         onClick={() => setShowCompleteBox(true)}>标记完成</button>
     );
   }
@@ -160,7 +162,7 @@ export default function TicketActions({
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">
             <button className={btnSecondary} onClick={() => setShowRejectBox(false)}>取消</button>
-            <button className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700" disabled={busy}
+            <button className={btnDanger} disabled={busy}
               onClick={async () => {
                 if (!comment.trim()) { setError("驳回必须填写理由"); return; }
                 if (await call(`/api/tickets/${ticket.id}/approve`, { action: "REJECT", comment })) {
@@ -179,7 +181,7 @@ export default function TicketActions({
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">
             <button className={btnSecondary} onClick={() => setShowVoidBox(false)}>取消</button>
-            <button className="rounded bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700" disabled={busy}
+            <button className={btnDanger} disabled={busy}
               onClick={async () => {
                 if (!reason.trim()) { setError("作废必须填写理由"); return; }
                 if (await call(`/api/tickets/${ticket.id}/void`, { reason })) {
@@ -212,13 +214,29 @@ export default function TicketActions({
           <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
             确认后将自动生成打款单并提交业务审批，无需手动操作。
           </p>
+          {(ticket.incompleteSubtasks ?? 0) > 0 && (
+            <div className="mb-3 rounded-[10px] border border-amber-300 bg-amber-50 p-3">
+              <p className="text-sm font-medium text-amber-800">
+                还有 {ticket.incompleteSubtasks} 个子任务未完成，确定要标记完成吗？
+              </p>
+              <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-amber-700">
+                <input
+                  type="checkbox"
+                  checked={confirmIncomplete}
+                  onChange={(e) => setConfirmIncomplete(e.target.checked)}
+                  className="h-4 w-4 accent-amber-600"
+                />
+                我确认子任务未完成仍标记完成
+              </label>
+            </div>
+          )}
           <div className="flex justify-end gap-2">
-            <button className={btnSecondary} onClick={() => setShowCompleteBox(false)}>取消</button>
-            <button className={btnPrimary} disabled={busy}
+            <button className={btnSecondary} onClick={() => { setShowCompleteBox(false); setConfirmIncomplete(false); }}>取消</button>
+            <button className={btnPrimary} disabled={busy || ((ticket.incompleteSubtasks ?? 0) > 0 && !confirmIncomplete)}
               onClick={async () => {
                 if (await call(`/api/tickets/${ticket.id}/complete`, {
                   rating, reviewComment, actualFee: actualFee || null,
-                })) { setShowCompleteBox(false); refresh(); }
+                })) { setShowCompleteBox(false); setConfirmIncomplete(false); refresh(); }
               }}>确认完成</button>
           </div>
         </Modal>

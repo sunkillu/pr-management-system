@@ -17,6 +17,7 @@ import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import TicketActions from "@/components/TicketActions";
 import TicketNodes from "@/components/TicketNodes";
+import TicketSubtasks from "@/components/TicketSubtasks";
 import TicketComments from "@/components/TicketComments";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
@@ -33,6 +34,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       nodes: {
         orderBy: { sort: "asc" },
         include: { completedBy: { select: { name: true } } },
+      },
+      subtasks: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        include: { assignee: { select: { id: true, name: true } } },
       },
       reviews: { include: { reviewer: { select: { name: true } } } },
       paymentRequests: {
@@ -90,6 +95,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   const canUpdateNodes = ["APPROVED", "IN_PROGRESS"].includes(ticket.status) &&
     ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
   const canWriteComment = ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+  const canManageSubtasks =
+    ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role) &&
+    !["VOIDED", "SETTLED"].includes(ticket.status);
+  const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
     <div>
@@ -169,6 +178,24 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             />
           </Section>
 
+          {/* 子任务 */}
+          <Section title={`子任务（${ticket.subtasks.filter((s) => s.status === "DONE").length}/${ticket.subtasks.length}）`}>
+            <TicketSubtasks
+              ticketId={ticket.id}
+              initial={ticket.subtasks.map((s) => ({
+                id: s.id,
+                title: s.title,
+                status: s.status,
+                assigneeId: s.assigneeId,
+                assignee: s.assignee,
+                dueDate: s.dueDate ? s.dueDate.toISOString() : null,
+                sortOrder: s.sortOrder,
+              }))}
+              users={users}
+              canManage={canManageSubtasks}
+            />
+          </Section>
+
           {/* 审批区 */}
           <Section id="approval-section" title="审批">
             {approvers.length > 0 ? (
@@ -182,7 +209,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             ) : (
               <p className="mb-3 text-sm text-gray-400">草稿状态，尚未提交审批</p>
             )}
-            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee }} userId={me.id} role={role} />
+            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} />
           </Section>
 
           {/* 关联打款单 */}

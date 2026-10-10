@@ -51,6 +51,7 @@ model User {
   ticketComments    TicketComment[] @relation("CommentAuthor")
   cooperationReviews CooperationReview[] @relation("ReviewAuthor")
   completedNodes    TicketNode[] @relation("NodeCompleter")
+  assignedSubtasks  TicketSubtask[] @relation("SubtaskAssignee")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -606,6 +607,7 @@ model CooperationTicket {
   creator   User   @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Restrict)
 
   nodes    TicketNode[]
+  subtasks TicketSubtask[]
   comments TicketComment[]
   reviews  CooperationReview[]
   paymentRequests PaymentRequest[]
@@ -631,6 +633,29 @@ model TicketNode {
   notifiedAt  DateTime? // 节点超时提醒标记（防重复提醒）
 
   @@index([ticketId, sort])
+}
+
+// 子任务状态：Jira 式追踪
+enum SubtaskStatus {
+  TODO
+  DOING
+  DONE
+}
+
+// 工单子任务：执行阶段可拆解的待办事项，支持负责人/截止日期/进度追踪
+model TicketSubtask {
+  id          String        @id @default(cuid())
+  ticketId    String
+  ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  title       String
+  status      SubtaskStatus @default(TODO)
+  assigneeId  String?
+  assignee    User?         @relation("SubtaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueDate     DateTime?     @db.Date
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+
+  @@index([ticketId, sortOrder])
 }
 
 // 合作评价：工单完成后 PR 给合作对象打分，沉淀到达人/化妆师档案

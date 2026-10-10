@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfirmDialog from "./ConfirmDialog";
+import { btnPrimarySm, btnDangerSm } from "./ui";
 
 // 内容状态流转按钮：提交审批 / 重新提交 / 通过 / 驳回 / 标记已发布 / 作废
 // 所有操作均经二次确认弹窗；驳回/作废必填理由
@@ -118,7 +119,7 @@ export default function ContentActions({
                   }),
               })
             }
-            className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+            className={btnPrimarySm}
           >
             通过
           </button>
@@ -137,7 +138,7 @@ export default function ContentActions({
                   call(`/api/contents/${id}/approve`, { action: "REJECT", comment: reason }),
               })
             }
-            className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+            className={btnDangerSm}
           >
             驳回
           </button>
@@ -155,7 +156,7 @@ export default function ContentActions({
               run: () => call(`/api/contents/${id}/publish`),
             })
           }
-          className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+          className={btnPrimarySm}
         >
           标记已发布
         </button>
@@ -176,7 +177,7 @@ export default function ContentActions({
               run: (reason) => call(`/api/contents/${id}/void`, { reason }),
             })
           }
-          className="rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
+          className={btnDangerSm}
         >
           作废
         </button>
