@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Section} from "@/components/ui";
 import {
   contentTypeLabels,
   contentStatusLabels,
@@ -63,14 +63,14 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
         title={content.title}
         desc={`${contentTypeLabels[content.type]} · v${content.version}`}
         action={
-          <Link href="/contents" className="text-sm text-blue-600 hover:underline">
+          <Link href="/contents" className="text-sm text-[#0071e3] hover:underline">
             ← 返回列表
           </Link>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="bg-white rounded-2xl p-6 lg:col-span-2 h-fit">
           <div className="mb-3 flex items-center gap-3">
             <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(content.status)}`}>
               {contentStatusLabels[content.status]}
@@ -94,7 +94,7 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
             <span className="text-gray-500">关联项目：</span>
             {content.campaigns.length > 0 ? (
               content.campaigns.map((c) => (
-                <Link key={c.id} href={`/campaigns?`} className="mr-2 text-blue-600 hover:underline">
+                <Link key={c.id} href={`/campaigns?`} className="mr-2 text-[#0071e3] hover:underline">
                   {c.name}
                 </Link>
               ))
@@ -125,19 +125,18 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">操作历史</h3>
+        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+          <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
-          </div>
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+          </Section>
+          <Section>
             <ApprovalLinks
               docType="CONTENT"
               docId={content.id}
               initialLinks={links.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() }))}
               canEdit={canEditLinks}
             />
-          </div>
+          </Section>
         </div>
       </div>
     </div>

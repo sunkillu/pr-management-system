@@ -112,7 +112,7 @@ export default function NotificationToast() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 w-80 animate-[slideIn_0.25s_ease-out] rounded-lg bg-white p-4 shadow-xl ring-1 ring-gray-200">
+    <div className="fixed bottom-5 right-5 z-50 w-80 animate-[slideIn_0.25s_ease-out] rounded-2xl bg-white p-4 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm font-semibold text-gray-900">
           {current.title ?? "新通知"}
@@ -144,7 +144,7 @@ export default function NotificationToast() {
         {approveUrl && (
           <button
             onClick={goApprove}
-            className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+            className="rounded bg-[#0071e3] px-3 py-1 text-sm text-white hover:bg-[#0077ed]"
           >
             去审批
           </button>

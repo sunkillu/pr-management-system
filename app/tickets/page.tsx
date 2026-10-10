@@ -72,7 +72,7 @@ export default async function TicketsPage({
         <button className="rounded bg-gray-800 px-4 py-2 text-sm text-white">筛选</button>
       </form>
 
-      <div className="overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+      <div className="overflow-x-auto bg-white rounded-2xl">
         <table className="w-full">
           <thead>
             <tr>
@@ -91,7 +91,7 @@ export default async function TicketsPage({
               return (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className={tdCls + " font-medium"}>
-                    <Link href={`/tickets/${t.id}`} className="text-blue-600 hover:underline">
+                    <Link href={`/tickets/${t.id}`} className="text-[#0071e3] hover:underline">
                       {t.title}
                     </Link>
                     {overdue && (

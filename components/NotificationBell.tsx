@@ -118,11 +118,11 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg bg-white shadow-xl ring-1 ring-gray-200">
+        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl bg-white shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
           <div className="flex items-center justify-between border-b px-4 py-2">
             <span className="text-sm font-semibold">通知</span>
             {unread > 0 && (
-              <button onClick={markAll} className="text-xs text-blue-600 hover:underline">
+              <button onClick={markAll} className="text-xs text-[#0071e3] hover:underline">
                 全部标已读
               </button>
             )}
@@ -159,7 +159,7 @@ export default function NotificationBell() {
                         e.stopPropagation();
                         openItem(n, true);
                       }}
-                      className="rounded bg-blue-600 px-2 py-0.5 text-[11px] text-white hover:bg-blue-700"
+                      className="rounded bg-[#0071e3] px-2 py-0.5 text-[11px] text-white hover:bg-[#0077ed]"
                     >
                       去审批
                     </button>
