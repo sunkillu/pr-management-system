@@ -129,12 +129,9 @@ export default function TicketBoard({
                   return (
                     <div key={t.id} className={`rounded-xl bg-white p-3 ring-1 ring-[#f0f0f0] ${cardHoverCls}`}>
                       <div className="flex items-start justify-between gap-2">
-                        <Link
-                          href={`/tickets/${t.id}`}
-                          className="flex-1 text-sm font-medium text-gray-900 transition-colors hover:text-[#0071e3]"
-                        >
+                        <div className="flex-1 text-sm font-medium text-gray-900">
                           {t.title}
-                        </Link>
+                        </div>
                         {t.overdue && (
                           <span className="shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
                             超时
@@ -142,7 +139,12 @@ export default function TicketBoard({
                         )}
                       </div>
                       <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
-                        <div className="font-mono">{t.ticketNo}</div>
+                        <Link
+                          href={`/tickets/${t.id}`}
+                          className="font-mono text-[#0071e3] hover:underline"
+                        >
+                          {t.ticketNo}
+                        </Link>
                         <div>{partner} · {coopTypeLabels[t.type] ?? t.type}</div>
                         <div>¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
                       </div>

@@ -179,11 +179,13 @@ export default async function TicketsPage({
               const overdue = t.status === "PENDING_APPROVAL" && t.updatedAt < cutoff;
               return (
                 <tr key={t.id} className="hover:bg-gray-50">
-                  <td className={tdCls + " whitespace-nowrap font-mono text-xs text-gray-500"}>{t.ticketNo}</td>
-                  <td className={tdCls + " font-medium"}>
+                  <td className={tdCls + " whitespace-nowrap font-mono text-xs"}>
                     <Link href={`/tickets/${t.id}`} className="text-[#0071e3] hover:underline">
-                      {t.title}
+                      {t.ticketNo}
                     </Link>
+                  </td>
+                  <td className={tdCls + " font-medium"}>
+                    {t.title}
                     {overdue && (
                       <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-xs text-white">已超时</span>
                     )}
