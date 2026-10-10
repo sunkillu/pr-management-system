@@ -21,7 +21,7 @@ export default function AddToInfluencerButton({
     if (influencerType) params.set("ptype", influencerType);
     if (platforms.length > 0) params.set("pplatforms", platforms.join(","));
     setConfirm(false);
-    router.push(`/influencers?${params.toString()}`);
+    router.push(`/partners?tab=influencer&${params.toString()}`);
   }
 
   return (

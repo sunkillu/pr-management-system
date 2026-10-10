@@ -62,7 +62,7 @@ export default function InfluencerForm({
     if (!res.ok) return setError(data.error || "提交失败");
     setOpen(false);
     // 预填模式（一键加入）保存后跳干净 URL，避免弹窗重复打开
-    if (autoOpen) router.push("/influencers");
+    if (autoOpen) router.push("/partners?tab=influencer");
     else router.refresh();
   }
 

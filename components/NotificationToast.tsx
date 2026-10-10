@@ -18,7 +18,7 @@ const AUTO_DISMISS_MS = 8_000;
 function relatedUrl(n: Notice): string | null {
   if (!n.relatedType || !n.relatedId) return null;
   const map: Record<string, string> = {
-    INFLUENCER: "/influencers",
+    INFLUENCER: "/partners?tab=influencer",
     COOP_REQUEST: "/coop-requests",
     PAYMENT: "/payments",
     CONTENT: "/contents",

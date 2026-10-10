@@ -53,7 +53,7 @@ export default async function DashboardPage() {
     : [];
 
   const stats = [
-    { label: "媒体资源数", value: String(outletCount), href: "/outlets" },
+    { label: "媒体资源数", value: String(outletCount), href: "/partners?tab=outlet" },
     { label: "待审批内容", value: String(pendingContents), href: "/contents?status=PENDING" },
     { label: "进行中项目", value: String(activeCampaigns), href: "/campaigns?status=ONGOING" },
     {
@@ -168,7 +168,7 @@ export default async function DashboardPage() {
 
       <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {[
-          { href: "/outlets", t: "媒体资源库", d: "维护达人 / KOC / 媒体 / 机构资源" },
+          { href: "/partners?tab=outlet", t: "媒体资源库", d: "维护达人 / KOC / 媒体 / 机构资源" },
           { href: "/contents", t: "内容管理", d: "种草文、新闻稿的版本与审批流" },
           { href: "/campaigns", t: "项目排期", d: "大促、新品项目的排期与进度" },
           { href: "/payments", t: "打款审批", d: "两阶段审批：业务 → 财务 → 打款" },

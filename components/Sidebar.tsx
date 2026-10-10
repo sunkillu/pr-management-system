@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { roleLabels } from "@/lib/labels";
 
@@ -8,21 +9,64 @@ type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER";
 
 const ALL = ["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as Role[];
 
-const nav: { href: string; label: string; roles: Role[] }[] = [
-  { href: "/", label: "首页仪表盘", roles: ALL },
-  { href: "/outlets", label: "媒体资源库", roles: ALL },
-  { href: "/contents", label: "内容管理", roles: ALL },
-  { href: "/campaigns", label: "项目排期", roles: ALL },
-  { href: "/payments", label: "打款审批", roles: ALL },
-  { href: "/invoices", label: "发票管理", roles: ALL },
-  { href: "/influencers", label: "达人库", roles: ALL },
-  { href: "/makeup-artists", label: "化妆师库", roles: ALL },
-  { href: "/tickets", label: "合作工单", roles: ALL },
-  { href: "/samples", label: "寄品管理", roles: ALL },
-  { href: "/coop-requests", label: "合作需求", roles: ALL },
-  { href: "/reports", label: "效果报表", roles: ALL },
-  { href: "/users", label: "用户管理", roles: ["ADMIN"] },
+type NavItem = { href: string; label: string; roles: Role[]; match?: string[] };
+type NavGroup = { key: string; label: string; items: NavItem[] };
+type NavEntry =
+  | { type: "link"; item: NavItem }
+  | { type: "group"; group: NavGroup };
+
+const entries: NavEntry[] = [
+  { type: "link", item: { href: "/", label: "首页仪表盘", roles: ALL } },
+  {
+    type: "group",
+    group: {
+      key: "content-coop",
+      label: "内容与合作",
+      items: [
+        { href: "/contents", label: "内容管理", roles: ALL },
+        {
+          href: "/partners",
+          label: "合作资源",
+          roles: ALL,
+          match: ["/partners", "/influencers", "/makeup-artists", "/outlets"],
+        },
+        { href: "/tickets", label: "合作工单", roles: ALL },
+        { href: "/coop-requests", label: "合作需求", roles: ALL },
+        { href: "/samples", label: "寄品管理", roles: ALL },
+      ],
+    },
+  },
+  {
+    type: "group",
+    group: {
+      key: "project",
+      label: "项目",
+      items: [
+        { href: "/campaigns", label: "项目排期", roles: ALL },
+        { href: "/reports", label: "效果报表", roles: ALL },
+      ],
+    },
+  },
+  {
+    type: "group",
+    group: {
+      key: "finance",
+      label: "财务",
+      items: [
+        { href: "/payments", label: "打款审批", roles: ALL },
+        { href: "/invoices", label: "发票管理", roles: ALL },
+      ],
+    },
+  },
+  { type: "link", item: { href: "/users", label: "用户管理", roles: ["ADMIN"] } },
 ];
+
+function isActive(pathname: string, item: NavItem): boolean {
+  const prefixes = item.match ?? [item.href];
+  return prefixes.some(
+    (p) => pathname === p || (p !== "/" && pathname.startsWith(p + "/"))
+  );
+}
 
 export default function Sidebar({
   userName,
@@ -34,7 +78,26 @@ export default function Sidebar({
   role: Role;
 }) {
   const pathname = usePathname();
-  const items = nav.filter((n) => n.roles.includes(role));
+
+  // 当前页面所在分组自动展开
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const e of entries) {
+      if (e.type === "group") {
+        init[e.group.key] = e.group.items.some(
+          (i) => i.roles.includes(role) && isActive(pathname, i)
+        );
+      }
+    }
+    return init;
+  });
+
+  const toggle = (key: string) => setOpen((o) => ({ ...o, [key]: !o[key] }));
+
+  const linkCls = (active: boolean) =>
+    `block rounded-[10px] px-3 py-2 text-sm transition-colors ${
+      active ? "bg-[#0071e3] text-white" : "text-gray-300 hover:bg-white/10"
+    }`;
 
   return (
     <aside className="flex w-56 shrink-0 flex-col bg-gray-900 text-gray-200">
@@ -42,19 +105,48 @@ export default function Sidebar({
         <div className="text-base font-bold text-white">PR媒体管理系统</div>
         <div className="mt-1 text-xs text-gray-400">电商公司 · v1</div>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {items.map((n) => {
-          const active = pathname === n.href || (n.href !== "/" && pathname.startsWith(n.href));
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        {entries.map((e) => {
+          if (e.type === "link") {
+            const item = e.item;
+            if (!item.roles.includes(role)) return null;
+            const active = isActive(pathname, item);
+            return (
+              <Link key={item.href} href={item.href} className={linkCls(active)}>
+                {item.label}
+              </Link>
+            );
+          }
+          const g = e.group;
+          const items = g.items.filter((i) => i.roles.includes(role));
+          if (items.length === 0) return null;
+          const expanded = !!open[g.key];
+          const hasActive = items.some((i) => isActive(pathname, i));
           return (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={`block rounded-[10px] px-3 py-2 text-sm transition-colors ${
-                active ? "bg-[#0071e3] text-white" : "text-gray-300 hover:bg-white/10"
-              }`}
-            >
-              {n.label}
-            </Link>
+            <div key={g.key}>
+              <button
+                onClick={() => toggle(g.key)}
+                className={`flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left transition-colors ${
+                  hasActive ? "text-white" : "text-gray-400 hover:bg-white/10 hover:text-gray-200"
+                }`}
+              >
+                <span className="text-xs font-medium tracking-wide">{g.label}</span>
+                <span
+                  className={`text-xs text-gray-500 transition-transform ${expanded ? "rotate-180" : ""}`}
+                >
+                  ▾
+                </span>
+              </button>
+              {expanded && (
+                <div className="ml-3 space-y-1 border-l border-gray-700 pl-3 pt-1">
+                  {items.map((i) => (
+                    <Link key={i.href} href={i.href} className={linkCls(isActive(pathname, i))}>
+                      {i.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

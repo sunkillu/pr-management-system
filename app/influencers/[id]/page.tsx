@@ -81,7 +81,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
         title={influencer.name}
         desc={`达人登记 · ${influencerStatusLabels[influencer.status]}`}
         action={
-          <Link href="/influencers" className="text-sm text-[#0071e3] hover:underline">
+          <Link href="/partners?tab=influencer" className="text-sm text-[#0071e3] hover:underline">
             ← 返回达人库
           </Link>
         }

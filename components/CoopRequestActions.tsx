@@ -57,7 +57,7 @@ export default function CoopRequestActions({
     if (influencerType) params.set("ptype", influencerType);
     if (platforms && platforms.length > 0) params.set("pplatforms", platforms.join(","));
     setDlg(null);
-    router.push(`/influencers?${params.toString()}`);
+    router.push(`/partners?tab=influencer&${params.toString()}`);
   }
 
   return (
