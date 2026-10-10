@@ -28,6 +28,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!rating || rating < 1 || rating > 5) {
     return NextResponse.json({ error: "请给出 1-5 星评价" }, { status: 400 });
   }
+  const executionSummary = String(body.executionSummary ?? "").trim();
+  if (!executionSummary) {
+    return NextResponse.json({ error: "标记完成必须填写执行总结" }, { status: 400 });
+  }
 
   const finalFee = body.actualFee ? body.actualFee : ticket.actualFee;
   const payeeName = ticket.influencer?.name ?? ticket.makeupArtist?.name ?? "";
@@ -57,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       actorId: auth.userId,
       fromStatus: "IN_PROGRESS",
       toStatus: "COMPLETED",
-      note: `标记完成，评价 ${rating} 星`,
+      note: `标记完成，评价 ${rating} 星；执行总结：${executionSummary}`,
     });
     // 自动生成打款单（待业务审批），工单进入结算中
     const payment = await tx.paymentRequest.create({

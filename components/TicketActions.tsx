@@ -31,6 +31,9 @@ export default function TicketActions({
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showVoidBox, setShowVoidBox] = useState(false);
   const [showCompleteBox, setShowCompleteBox] = useState(false);
+  const [showStartBox, setShowStartBox] = useState(false);
+  const [startNote, setStartNote] = useState("");
+  const [executionSummary, setExecutionSummary] = useState("");
   const [confirmIncomplete, setConfirmIncomplete] = useState(false);
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -86,13 +89,11 @@ export default function TicketActions({
         })}>提醒审批人</button>
     );
   }
-  // 开始执行
+  // 开始执行（弹窗必填推进说明）
   if (ticket.status === "APPROVED" && (isCreator || isAdmin)) {
     btns.push(
       <button key="start" className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed]"
-        onClick={() => ask("开始执行", "确认开始执行该合作吗？", async () => {
-          if (await call(`/api/tickets/${ticket.id}/start`, {})) refresh();
-        })}>开始执行</button>
+        onClick={() => { setStartNote(""); setShowStartBox(true); }}>开始执行</button>
     );
   }
   // 标记完成（含评价）
@@ -154,6 +155,26 @@ export default function TicketActions({
         </Modal>
       )}
 
+      {showStartBox && (
+        <Modal title="开始执行" onClose={() => setShowStartBox(false)}>
+          <Field label="推进说明" required hint="如：已对接达人，约定X月X日拍摄">
+            <textarea className={inputCls} rows={3} value={startNote} onChange={(e) => setStartNote(e.target.value)}
+              placeholder="请填写本次推进的说明" />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowStartBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy}
+              onClick={async () => {
+                if (!startNote.trim()) { setError("开始执行必须填写推进说明"); return; }
+                if (await call(`/api/tickets/${ticket.id}/start`, { note: startNote.trim() })) {
+                  setShowStartBox(false); refresh();
+                }
+              }}>确认开始执行</button>
+          </div>
+        </Modal>
+      )}
+
       {showRejectBox && (
         <Modal title="驳回工单" onClose={() => setShowRejectBox(false)}>
           <Field label="驳回理由" required>
@@ -207,7 +228,11 @@ export default function TicketActions({
               ))}
             </div>
           </Field>
-          <Field label="评价内容" hint="将沉淀到合作对象档案，供下次合作参考">
+          <Field label="执行总结" required hint="对事的说明：合作实际执行情况、交付内容、异常等">
+            <textarea className={inputCls} rows={3} value={executionSummary} onChange={(e) => setExecutionSummary(e.target.value)}
+              placeholder="请填写执行总结" />
+          </Field>
+          <Field label="评价内容" hint="对人的评价：将沉淀到合作对象档案，供下次合作参考">
             <textarea className={inputCls} rows={3} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
@@ -234,9 +259,10 @@ export default function TicketActions({
             <button className={btnSecondary} onClick={() => { setShowCompleteBox(false); setConfirmIncomplete(false); }}>取消</button>
             <button className={btnPrimary} disabled={busy || ((ticket.incompleteSubtasks ?? 0) > 0 && !confirmIncomplete)}
               onClick={async () => {
+                if (!executionSummary.trim()) { setError("标记完成必须填写执行总结"); return; }
                 if (await call(`/api/tickets/${ticket.id}/complete`, {
-                  rating, reviewComment, actualFee: actualFee || null,
-                })) { setShowCompleteBox(false); setConfirmIncomplete(false); refresh(); }
+                  rating, reviewComment, executionSummary: executionSummary.trim(), actualFee: actualFee || null,
+                })) { setShowCompleteBox(false); setConfirmIncomplete(false); setExecutionSummary(""); refresh(); }
               }}>确认完成</button>
           </div>
         </Modal>

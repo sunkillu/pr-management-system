@@ -260,8 +260,8 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         </div>
 
         <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
-          {/* 操作历史 */}
-          <Section title="操作历史">
+          {/* 推进记录 */}
+          <Section title="推进记录">
             <ApprovalTimeline items={timeline} />
           </Section>
           {/* 通知记录 */}

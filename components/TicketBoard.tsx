@@ -167,7 +167,11 @@ export default function TicketBoard({
                         {t.status === "APPROVED" && canStart && (
                           <button
                             disabled={busyId === t.id}
-                            onClick={() => postAction(t.id, `/api/tickets/${t.id}/start`)}
+                            onClick={() => {
+                              const note = prompt("请输入推进说明（必填）：");
+                              if (!note || !note.trim()) return;
+                              postAction(t.id, `/api/tickets/${t.id}/start`, { note: note.trim() });
+                            }}
                             className={btnPrimarySm}
                           >
                             开始执行
