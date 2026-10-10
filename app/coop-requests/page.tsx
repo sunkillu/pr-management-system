@@ -20,7 +20,7 @@ export default async function CoopRequestsPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
-  const canWrite = ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+  const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
   const list = await prisma.cooperationRequest.findMany({
     where: {

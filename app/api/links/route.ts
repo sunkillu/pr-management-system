@@ -9,7 +9,7 @@ import type { DocType } from "@prisma/client";
 // 关联无方向，创建时 canonical 化去重；关联操作写入双方历史记录
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER"]);
   if (!auth.ok) return auth.res;
   const { searchParams } = new URL(req.url);
   const docType = searchParams.get("docType") as DocType | null;
@@ -29,7 +29,7 @@ async function assertDocExists(type: DocType, id: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE"]);
+  const auth = await requireRoles(["ADMIN", "PR", "FINANCE"]);
   if (!auth.ok) return auth.res;
   const body = await req.json().catch(() => ({}));
   const { fromType, fromId, toType, toId } = body as {

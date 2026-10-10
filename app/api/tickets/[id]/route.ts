@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
-const ALL_ROLES = ["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
-const WRITE_ROLES = ["ADMIN", "OPERATOR", "PR_MANAGER"] as const;
+const ALL_ROLES = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
+const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
 // 详情：基本信息 + 节点 + 评论 + 评价 + 关联打款单
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {

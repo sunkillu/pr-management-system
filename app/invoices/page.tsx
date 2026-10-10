@@ -18,7 +18,7 @@ export default async function InvoicesPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
-  const canUpload = role === "ADMIN" || role === "OPERATOR";
+  const canUpload = role === "ADMIN" || role === "PR";
   const canDelete = role === "ADMIN";
 
   const where: Record<string, unknown> = {};

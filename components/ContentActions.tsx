@@ -34,7 +34,7 @@ export default function ContentActions({
   }>(null);
 
   const isAdmin = role === "ADMIN";
-  const isEditor = role === "ADMIN" || role === "OPERATOR";
+  const isEditor = role === "ADMIN" || role === "PR";
 
   const call = async (url: string, body?: object) => {
     setBusy(true);

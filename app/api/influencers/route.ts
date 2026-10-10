@@ -6,7 +6,7 @@ import { notifyApprovers} from "@/lib/feishu-notify";
 
 // 列表：所有登录用户可查，支持搜索 / 平台 / 状态筛选
 export async function GET(req: NextRequest) {
-const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const { searchParams} = new URL(req.url);
 const q = searchParams.get("q")?? "";
@@ -33,7 +33,7 @@ return NextResponse.json(list);
 // 提报登记：运营 / 管理员 / PR负责人。提交时多选审批人（PR负责人或管理员），或签。
 // 创建后状态为待审核，并飞书通知审批人们。
 export async function POST(req: NextRequest) {
-const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const body = await req.json();
 if (!body.name?.trim()) {

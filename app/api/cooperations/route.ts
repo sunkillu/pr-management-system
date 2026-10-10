@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 列表：所有登录用户可查
 export async function GET(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type");
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
 // 新增合作记录：保存后自动累计对应达人/化妆师的合作次数与累计费用（同事务）
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const type = body.type as "INFLUENCER_POST" | "INFLUENCER_LIVE" | "MAKEUP" | undefined;

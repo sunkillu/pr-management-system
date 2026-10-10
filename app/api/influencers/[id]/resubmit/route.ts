@@ -7,7 +7,7 @@ import { notifyApprovers} from "@/lib/feishu-notify";
 // 驳回后重新提交：登记人本人或管理员可操作，状态回到待审核，审批人重置为待审批。
 // 可更换审批人（多选 PR负责人/管理员）。
 export async function POST(req: NextRequest, { params}: { params: { id: string}}) {
-const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const body = await req.json();
 const influencer = await prisma.influencer.findUnique({ where: { id: params.id}});

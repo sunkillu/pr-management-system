@@ -18,7 +18,7 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
   const role = sessionUser.role;
-  const canWrite = role === "ADMIN" || role === "OPERATOR";
+  const canWrite = role === "ADMIN" || role === "PR";
 
   const content = await prisma.content.findUnique({
     where: { id: params.id },

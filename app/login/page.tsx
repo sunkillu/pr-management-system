@@ -62,9 +62,9 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="mt-6 rounded bg-yellow-50 p-3 text-xs text-yellow-800">
-          演示账号：admin@example.com / admin123（管理员）、operator@example.com /
-          operator123（运营）、caiwu@example.com / caiwu123（财务）、viewer@example.com /
-          viewer123（只读）。⚠️ 首次登录后请立即修改密码。
+          演示账号：admin@example.com / admin123（管理员）、prstaff@example.com /
+          pr123（PR）、operator@example.com / operator123（运营）、caiwu@example.com /
+          caiwu123（财务）、viewer@example.com / viewer123（只读）。⚠️ 首次登录后请立即修改密码。
         </p>
       </div>
     </div>

@@ -17,7 +17,7 @@ export default async function CampaignsPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
-  const canWrite = role === "ADMIN" || role === "OPERATOR";
+  const canWrite = role === "ADMIN" || role === "PR";
 
   const where: Record<string, unknown> = {};
   if (searchParams.status) where.status = searchParams.status;
@@ -34,7 +34,7 @@ export default async function CampaignsPage({
       take: 200,
     }),
     prisma.user.findMany({
-      where: { role: { in: ["ADMIN", "OPERATOR"] } },
+      where: { role: { in: ["ADMIN", "PR"] } },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),

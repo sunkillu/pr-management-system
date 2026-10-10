@@ -6,7 +6,7 @@ import { notifyApprovers} from "@/lib/feishu-notify";
 
 // 驳回后重新提交：提交人本人或管理员可操作，审批人重置，可更换审批人
 export async function POST(req: NextRequest, { params}: { params: { id: string}}) {
-const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const body = await req.json();
 const request = await prisma.cooperationRequest.findUnique({ where: { id: params.id}});

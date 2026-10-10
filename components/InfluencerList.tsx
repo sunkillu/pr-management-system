@@ -33,7 +33,7 @@ export default async function InfluencerList({
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
-  const canWrite = ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+  const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
   const where: Record<string, unknown> = {};
   if (searchParams.q) where.name = { contains: searchParams.q, mode: "insensitive" };

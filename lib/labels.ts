@@ -6,6 +6,7 @@ export const roleLabels: Record<string, string> = {
   FINANCE: "财务",
   VIEWER: "只读",
   PR_MANAGER: "PR负责人",
+  PR: "PR",
 };
 
 export const outletTypeLabels: Record<string, string> = {

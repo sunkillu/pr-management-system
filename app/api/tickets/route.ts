@@ -6,8 +6,8 @@ import { notifyApprovers} from "@/lib/feishu-notify";
 import { buildNodesForTicket} from "@/lib/ticket-nodes";
 import { checkApprovalTimeouts} from "@/lib/timeout-check";
 
-const WRITE_ROLES = ["ADMIN", "OPERATOR", "PR_MANAGER"] as const;
-const ALL_ROLES = ["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
+const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
+const ALL_ROLES = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
 
 function pickPartner(body: Record<string, unknown>) {
 const influencerId = (body.influencerId as string) || null;

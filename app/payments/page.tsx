@@ -15,8 +15,8 @@ export default async function PaymentsPage({
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
   const role = sessionUser.role;
-  const canSubmit = role === "ADMIN" || role === "OPERATOR";
-  const canDelete = role === "ADMIN" || role === "OPERATOR";
+  const canSubmit = role === "ADMIN" || role === "PR";
+  const canDelete = role === "ADMIN" || role === "PR";
 
   const where: Record<string, unknown> = {};
   if (searchParams.q) where.title = { contains: searchParams.q, mode: "insensitive" };

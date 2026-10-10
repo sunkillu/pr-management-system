@@ -5,9 +5,9 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { roleLabels } from "@/lib/labels";
 
-type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER";
+type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR";
 
-const ALL = ["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as Role[];
+const ALL = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as Role[];
 
 type NavItem = { href: string; label: string; roles: Role[]; match?: string[] };
 type NavGroup = { key: string; label: string; items: NavItem[] };

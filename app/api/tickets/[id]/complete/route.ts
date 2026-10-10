@@ -7,7 +7,7 @@ import { notifyApprovers } from "@/lib/feishu-notify";
 // 标记完成：执行中 → 已完成，同时写入合作评价（评分 1-5 + 文字评价），沉淀到达人/化妆师档案
 // 完成后自动生成打款单（待业务审批），工单进入结算中，无需手动点"生成打款单"
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const ticket = await prisma.cooperationTicket.findUnique({
     where: { id: params.id },

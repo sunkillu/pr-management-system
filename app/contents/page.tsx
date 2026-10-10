@@ -14,7 +14,7 @@ export default async function ContentsPage({
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
   const role = sessionUser.role;
-  const canWrite = role === "ADMIN" || role === "OPERATOR";
+  const canWrite = role === "ADMIN" || role === "PR";
 
   const where: Record<string, unknown> = {};
   if (searchParams.q) where.title = { contains: searchParams.q, mode: "insensitive" };

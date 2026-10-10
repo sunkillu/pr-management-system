@@ -6,7 +6,7 @@ import { notifyApprovers } from "@/lib/feishu-notify";
 
 // 提交打款申请：运营 / 管理员，初始状态为待业务审批，写入操作日志
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.title?.trim()) return NextResponse.json({ error: "标题不能为空" }, { status: 400 });
