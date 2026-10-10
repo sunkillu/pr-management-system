@@ -16,7 +16,7 @@ ALTER TABLE "CooperationTicket" ADD COLUMN "homepageId" TEXT;
 ALTER TABLE "CooperationTicket" ADD COLUMN "budgetOverridden" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "CooperationTicket" ADD COLUMN "followUpDueDate" TIMESTAMP(3);
 
--- 回填存量工单编号：按创建日期分组，PR-YYYYMMDD-XXX
+-- 回填存量工单编号：按创建日期分组，YYYYMMDD + 4位序号
 DO $$
 DECLARE r RECORD;
 BEGIN
@@ -27,7 +27,7 @@ BEGIN
     FROM "CooperationTicket"
   LOOP
     UPDATE "CooperationTicket"
-    SET "ticketNo" = 'PR-' || to_char(r.createdAt, 'YYYYMMDD') || '-' || lpad(r.rn::text, 3, '0')
+    SET "ticketNo" = to_char(r.createdAt, 'YYYYMMDD') || lpad(r.rn::text, 4, '0')
     WHERE id = r.id;
   END LOOP;
 END $$;

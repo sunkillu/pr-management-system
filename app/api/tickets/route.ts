@@ -104,12 +104,12 @@ const attachments = Array.isArray(body.attachments)
   : undefined;
 
 const ticket = await prisma.$transaction(async (tx) => {
-// 生成工单编号 PR-YYYYMMDD-XXX（当日序号）
+// 生成工单编号 YYYYMMDD + 4位序号（如 202610100001）
 const today = new Date();
 const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
 const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 const todayCount = await tx.cooperationTicket.count({ where: { createdAt: { gte: dayStart } } });
-const ticketNo = `PR-${ymd}-${String(todayCount + 1).padStart(3, "0")}`;
+const ticketNo = `${ymd}${String(todayCount + 1).padStart(4, "0")}`;
 const created = await tx.cooperationTicket.create({
 data: {
 ticketNo,
