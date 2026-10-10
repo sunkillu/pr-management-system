@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Section} from "@/components/ui";
 import {
   coopRequestStatusLabels,
   approverStatusLabels,
@@ -69,15 +69,15 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
         title={request.title}
         desc={`${request.reqType} · ${coopRequestStatusLabels[request.status]}`}
         action={
-          <Link href="/coop-requests" className="text-sm text-blue-600 hover:underline">
+          <Link href="/coop-requests" className="text-sm text-[#0071e3] hover:underline">
             ← 返回合作需求
           </Link>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="bg-white rounded-2xl lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
+          <Section>
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(request.status)}`}>
                 {coopRequestStatusLabels[request.status]}
@@ -102,7 +102,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                 <ul className="space-y-1 text-sm">
                   {attachments.map((a, i) => (
                     <li key={i}>
-                      <a href={a.fileUrl} target="_blank" className="text-blue-600 hover:underline">
+                      <a href={a.fileUrl} target="_blank" className="text-[#0071e3] hover:underline">
                         {a.fileName}
                       </a>
                     </li>
@@ -130,10 +130,9 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                 )}
               </div>
             </div>
-          </div>
+          </Section>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">审批人（或签：任一通过即通过）</h3>
+          <Section title="审批人（或签：任一通过即通过）">
             <ul className="space-y-2 text-sm">
               {approvers.map((a) => (
                 <li key={a.id} className="flex items-center justify-between">
@@ -145,16 +144,14 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
               ))}
               {approvers.length === 0 && <li className="text-gray-400">暂无</li>}
             </ul>
-          </div>
+          </Section>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">操作历史</h3>
+        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+          <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
-          </div>
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h3 className="mb-3 font-semibold">通知记录</h3>
+          </Section>
+          <Section title="通知记录">
             {notifications.length === 0 ? (
               <p className="text-sm text-gray-400">暂无通知</p>
             ) : (
@@ -168,7 +165,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                 ))}
               </ul>
             )}
-          </div>
+          </Section>
         </div>
       </div>
     </div>

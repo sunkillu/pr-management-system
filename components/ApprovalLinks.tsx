@@ -109,7 +109,7 @@ export default function ApprovalLinks({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-semibold">关联单据</h3>
         {canEdit && (
-          <button onClick={() => { setShowAdd(true); setError(""); }} className="text-sm text-blue-600 hover:underline">
+          <button onClick={() => { setShowAdd(true); setError(""); }} className="text-sm text-[#0071e3] hover:underline">
             + 新增关联
           </button>
         )}
@@ -121,7 +121,7 @@ export default function ApprovalLinks({
           {links.map((l) => (
             <li key={l.id} className="flex items-center justify-between rounded border border-gray-200 p-2 text-sm">
               <div>
-                <Link href={detailHref(l.otherType, l.otherId)} className="font-medium text-blue-600 hover:underline">
+                <Link href={detailHref(l.otherType, l.otherId)} className="font-medium text-[#0071e3] hover:underline">
                   {l.otherTitle}
                 </Link>
                 <div className="mt-0.5 text-xs text-gray-500">
@@ -151,7 +151,7 @@ export default function ApprovalLinks({
               <button
                 key={t}
                 onClick={() => { setTab(t); setResults([]); }}
-                className={`rounded px-3 py-1 text-sm ${tab === t ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+                className={`rounded px-3 py-1 text-sm ${tab === t ? "bg-[#0071e3] text-white" : "bg-gray-100 text-gray-700"}`}
               >
                 {docTypeLabels[t]}
               </button>
@@ -183,7 +183,7 @@ export default function ApprovalLinks({
                 <button
                   disabled={busy}
                   onClick={() => doLink(r.id)}
-                  className="shrink-0 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="shrink-0 rounded bg-[#0071e3] px-3 py-1 text-xs text-white hover:bg-[#0077ed] disabled:opacity-50"
                 >
                   关联
                 </button>

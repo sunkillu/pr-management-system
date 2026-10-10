@@ -99,7 +99,7 @@ export default async function DashboardPage() {
           <Link
             key={s.label}
             href={s.href}
-            className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200 hover:ring-blue-400"
+            className="bg-white rounded-2xl p-5 transition-colors hover:bg-[#f0f7ff]"
           >
             <div className="text-sm text-gray-500">{s.label}</div>
             <div className="mt-2 text-2xl font-bold">{s.value}</div>
@@ -113,8 +113,8 @@ export default async function DashboardPage() {
           <Link
             key={s.label}
             href={s.href}
-            className={`rounded-lg bg-white p-5 shadow-sm ring-1 hover:ring-blue-400 ${
-              s.highlight ? "ring-2 ring-orange-400" : "ring-gray-200"
+            className={`bg-white rounded-2xl p-5 transition-colors hover:bg-[#f0f7ff] ${
+              s.highlight ? "border-2 border-orange-400" : ""
             }`}
           >
             <div className="text-sm text-gray-500">
@@ -131,22 +131,22 @@ export default async function DashboardPage() {
           <h2 className="mb-3 text-lg font-semibold">
             待您审批的打款（{paymentStatusLabels[queueStatus as string]}）
           </h2>
-          <div className="overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+          <div className="overflow-x-auto bg-white rounded-2xl">
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th className="border-b bg-gray-50 px-3 py-2 text-left text-xs text-gray-500">标题</th>
-                  <th className="border-b bg-gray-50 px-3 py-2 text-left text-xs text-gray-500">金额（元）</th>
-                  <th className="border-b bg-gray-50 px-3 py-2 text-left text-xs text-gray-500">收款方</th>
-                  <th className="border-b bg-gray-50 px-3 py-2 text-left text-xs text-gray-500">申请人</th>
-                  <th className="border-b bg-gray-50 px-3 py-2 text-left text-xs text-gray-500">状态</th>
+                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">标题</th>
+                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">金额（元）</th>
+                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">收款方</th>
+                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">申请人</th>
+                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">状态</th>
                 </tr>
               </thead>
               <tbody>
                 {queue.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr key={p.id} className="hover:bg-[#f5f5f7]">
                     <td className="border-b px-3 py-2">
-                      <Link href={`/payments/${p.id}`} className="text-blue-600 hover:underline">
+                      <Link href={`/payments/${p.id}`} className="text-[#0071e3] hover:underline">
                         {p.title}
                       </Link>
                     </td>
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
           <Link
             key={c.href}
             href={c.href}
-            className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200 hover:ring-blue-400"
+            className="bg-white rounded-2xl p-5 transition-colors hover:bg-[#f0f7ff]"
           >
             <div className="font-medium">{c.t}</div>
             <div className="mt-1 text-sm text-gray-500">{c.d}</div>

@@ -134,7 +134,7 @@ export default function CoopRequestForm() {
             <ul className="mt-2 space-y-1 text-sm">
               {attachments.map((a, i) => (
                 <li key={i} className="flex items-center justify-between">
-                  <a href={a.fileUrl} target="_blank" className="text-blue-600 hover:underline">
+                  <a href={a.fileUrl} target="_blank" className="text-[#0071e3] hover:underline">
                     {a.fileName}
                   </a>
                   <button

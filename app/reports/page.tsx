@@ -84,7 +84,7 @@ export default async function ReportsPage({
       />
 
       <h2 className="mb-3 text-lg font-semibold">项目汇总</h2>
-      <div className="mb-6 overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+      <div className="mb-6 overflow-x-auto bg-white rounded-2xl">
         <table className="w-full">
           <thead>
             <tr>
@@ -129,7 +129,7 @@ export default async function ReportsPage({
         <button className="rounded bg-gray-800 px-4 py-2 text-sm text-white">筛选</button>
       </form>
 
-      <div className="overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+      <div className="overflow-x-auto bg-white rounded-2xl">
         <table className="w-full">
           <thead>
             <tr>
