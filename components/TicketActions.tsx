@@ -100,13 +100,7 @@ export default function TicketActions({
         onClick={() => setShowCompleteBox(true)}>标记完成</button>
     );
   }
-  // 生成打款单
-  if (ticket.status === "COMPLETED" && (isCreator || isAdmin)) {
-    btns.push(
-      <a key="pay" href={`/payments?newTicket=${ticket.id}`}
-        className="rounded bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700">生成打款单</a>
-    );
-  }
+  // 生成打款单：已改为标记完成时自动生成，此处不再需要手动按钮
   // 重提
   if (ticket.status === "REJECTED" && (isCreator || isAdmin)) {
     btns.push(
@@ -215,6 +209,9 @@ export default function TicketActions({
             <textarea className={inputCls} rows={3} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+            确认后将自动生成打款单并提交业务审批，无需手动操作。
+          </p>
           <div className="flex justify-end gap-2">
             <button className={btnSecondary} onClick={() => setShowCompleteBox(false)}>取消</button>
             <button className={btnPrimary} disabled={busy}
