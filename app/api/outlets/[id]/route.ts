@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 更新：运营 / 管理员
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.name?.trim()) {
@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 // 删除：运营 / 管理员
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   await prisma.mediaOutlet.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

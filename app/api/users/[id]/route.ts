@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.name?.trim()) return NextResponse.json({ error: "姓名不能为空" }, { status: 400 });
-  if (!["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"].includes(body.role)) {
+  if (!["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"].includes(body.role)) {
     return NextResponse.json({ error: "角色非法" }, { status: 400 });
   }
   const data: Record<string, unknown> = { name: body.name.trim(), role: body.role };

@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 标记进度节点完成（记录完成人/时间）
 export async function POST(_req: NextRequest, { params }: { params: { id: string; nodeId: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });

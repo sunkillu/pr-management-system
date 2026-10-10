@@ -15,7 +15,7 @@ const ALLOWED: Record<string, string> = {
 
 // 发票文件上传：运营 / 管理员。文件保存在 public/uploads/invoices，可被 Next.js 静态 serving。
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
 
   const form = await req.formData();

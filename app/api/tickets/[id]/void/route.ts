@@ -6,7 +6,7 @@ import { writeLog } from "@/lib/approval-log";
 // 作废：创建人可作废自己的待审批单；ADMIN 可作废非终态单；终态（已结算/已作废）不可作废
 const TERMINAL = ["SETTLED", "VOIDED"];
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.reason?.trim()) return NextResponse.json({ error: "作废必须填写理由" }, { status: 400 });

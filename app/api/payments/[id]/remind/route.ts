@@ -5,7 +5,7 @@ import { notifyApprovers} from "@/lib/feishu-notify";
 
 // 打款单催办：按当前状态找对应审批人（待业务审批→管理员；待财务审批→财务），飞书提醒
 export async function POST(_req: NextRequest, { params}: { params: { id: string}}) {
-const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const payment = await prisma.paymentRequest.findUnique({ where: { id: params.id}});
 if (!payment) return NextResponse.json({ error: "打款单不存在"}, { status: 404});

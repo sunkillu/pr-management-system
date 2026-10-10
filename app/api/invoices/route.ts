@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 新建发票记录：运营 / 管理员（文件与关联打款单均为选填）
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.invoiceNo?.trim()) return NextResponse.json({ error: "发票号码不能为空" }, { status: 400 });

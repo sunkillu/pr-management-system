@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 编辑内容：仅草稿 / 已驳回可编辑；保存后版本号 +1 并回到草稿
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const existing = await prisma.content.findUnique({ where: { id: params.id } });
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 // 删除：运营 / 管理员
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   await prisma.content.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

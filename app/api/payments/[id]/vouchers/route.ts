@@ -17,7 +17,7 @@ const ALLOWED: Record<string, string> = {
 
 // 打款凭证：列表所有登录用户可查；上传：运营 / 管理员 / 财务
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const list = await prisma.paymentVoucher.findMany({
     where: { paymentRequestId: params.id },
@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE"]);
+  const auth = await requireRoles(["ADMIN", "PR", "FINANCE"]);
   if (!auth.ok) return auth.res;
   const payment = await prisma.paymentRequest.findUnique({ where: { id: params.id } });
   if (!payment) return NextResponse.json({ error: "打款单不存在" }, { status: 404 });

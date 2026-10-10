@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
-const ALL_ROLES = ["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
+const ALL_ROLES = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
 
 /** 当前登录用户的通知列表，?unread=1 只取未读，按时间倒序 */
 export async function GET(req: NextRequest) {

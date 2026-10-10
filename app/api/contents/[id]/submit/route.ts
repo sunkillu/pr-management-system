@@ -6,7 +6,7 @@ import { writeLog } from "@/lib/approval-log";
 // 提交审批：草稿 → 待审批；被驳回 → 重新提交（回到待审批，重新走完整审批链）
 // 重新提交仅限创建人本人或管理员；操作写入历史日志
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json().catch(() => ({}));
   const note = typeof body.note === "string" ? body.note.trim() : "";

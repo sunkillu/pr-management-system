@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 编辑打款申请：仅待业务审批 / 已驳回状态可编辑；驳回后编辑会重新回到待业务审批
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const existing = await prisma.paymentRequest.findUnique({ where: { id: params.id } });
@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 // 删除：运营 / 管理员
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   await prisma.paymentRequest.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

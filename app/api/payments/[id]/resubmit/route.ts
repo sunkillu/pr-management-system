@@ -6,7 +6,7 @@ import { writeLog } from "@/lib/approval-log";
 // 重新提交：被驳回的打款单，申请人修改后重新提交 → 待业务审批，重新走完整审批链
 // 仅申请人本人或管理员可操作；修改说明写入历史日志；重提次数不设限
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json().catch(() => ({}));
   const note = typeof body.note === "string" ? body.note.trim() : "";

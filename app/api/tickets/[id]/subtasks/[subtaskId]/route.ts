@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
-const WRITE_ROLES = ["ADMIN", "OPERATOR", "PR_MANAGER"] as const;
+const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 const TERMINAL = ["VOIDED", "SETTLED"];
 const STATUS = ["TODO", "DOING", "DONE"] as const;
 

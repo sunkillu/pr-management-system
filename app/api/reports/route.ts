@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 录入效果数据：运营 / 管理员
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.campaignId) {

@@ -18,7 +18,7 @@ function parsePayload(body: Record<string, unknown>) {
 
 // 新建：运营 / 管理员
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const p = parsePayload(await req.json());
   if (!p.name) return NextResponse.json({ error: "项目名称不能为空" }, { status: 400 });

@@ -7,7 +7,7 @@ import { writeLog } from "@/lib/approval-log";
 // 管理员可作废任何非终态单（已打款不可作废）。作废需填理由，写入历史记录。
 // 作废后单据不可再流转，只能查看。
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE"]);
+  const auth = await requireRoles(["ADMIN", "PR", "FINANCE"]);
   if (!auth.ok) return auth.res;
   const body = await req.json().catch(() => ({}));
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";

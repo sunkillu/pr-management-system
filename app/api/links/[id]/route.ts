@@ -5,7 +5,7 @@ import { writeLog } from "@/lib/approval-log";
 
 // 解除关联：关联创建人或管理员可操作，写入双方历史记录
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE"]);
+  const auth = await requireRoles(["ADMIN", "PR", "FINANCE"]);
   if (!auth.ok) return auth.res;
   const link = await prisma.approvalLink.findUnique({ where: { id: params.id } });
   if (!link) return NextResponse.json({ error: "关联不存在" }, { status: 404 });

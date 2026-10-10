@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 新建内容：运营 / 管理员，初始为草稿
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.title?.trim()) {

@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { notifyUser } from "@/lib/feishu-notify";
 
-const ALL_ROLES = ["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
-const WRITE_ROLES = ["ADMIN", "OPERATOR", "PR_MANAGER"] as const;
+const ALL_ROLES = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
+const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
 // 评论列表
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {

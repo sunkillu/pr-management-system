@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 导出 CSV：所有登录用户可导出（含 BOM，Excel 打开不乱码）
 export async function GET(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER"]);
   if (!auth.ok) return auth.res;
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get("campaignId");

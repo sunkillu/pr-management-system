@@ -9,7 +9,7 @@ import { writeLog } from "@/lib/approval-log";
 const TERMINAL = ["PUBLISHED", "VOIDED"];
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE"]);
+  const auth = await requireRoles(["ADMIN", "PR", "FINANCE"]);
   if (!auth.ok) return auth.res;
   const body = await req.json().catch(() => ({}));
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";

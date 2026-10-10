@@ -22,7 +22,7 @@ const ALLOWED: Record<string, string> = {
 // 通用附件上传（合作需求等）：运营 / 管理员 / PR负责人
 // 文件保存在 public/uploads/attachments，可被 Next.js 静态 serving。
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
 
   const form = await req.formData();

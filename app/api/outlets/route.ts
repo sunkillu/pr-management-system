@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 列表：所有登录用户可查
 export async function GET(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER"]);
   if (!auth.ok) return auth.res;
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 // 新建：运营 / 管理员
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   if (!body.name?.trim()) {

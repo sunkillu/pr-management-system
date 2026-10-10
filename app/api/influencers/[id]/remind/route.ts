@@ -5,7 +5,7 @@ import { notifyApprovers} from "@/lib/feishu-notify";
 
 // 催办：提醒待审批的审批人们走流程。写入通知记录，不做频率限制。
 export async function POST(_req: NextRequest, { params}: { params: { id: string}}) {
-const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const influencer = await prisma.influencer.findUnique({ where: { id: params.id}});
 if (!influencer) return NextResponse.json({ error: "达人登记不存在"}, { status: 404});

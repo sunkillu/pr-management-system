@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
-const WRITE = ["ADMIN", "OPERATOR", "PR_MANAGER"] as const;
+const WRITE = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
 // 列表：所有登录用户可查
 export async function GET(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";

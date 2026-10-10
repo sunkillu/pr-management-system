@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
-const WRITE_ROLES = ["ADMIN", "OPERATOR", "PR_MANAGER"] as const;
+const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 const TERMINAL = ["VOIDED", "SETTLED"];
 
 // 子任务列表
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const list = await prisma.ticketSubtask.findMany({
     where: { ticketId: params.id },

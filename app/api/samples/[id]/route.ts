@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
-const WRITE = ["ADMIN", "OPERATOR", "PR_MANAGER"] as const;
+const WRITE = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireRoles([...WRITE]);

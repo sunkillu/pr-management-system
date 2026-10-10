@@ -5,7 +5,7 @@ import { writeLog } from "@/lib/approval-log";
 
 // 标记已发布：已通过 → 已发布，写入操作日志
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const existing = await prisma.content.findUnique({ where: { id: params.id } });
   if (!existing) return NextResponse.json({ error: "内容不存在" }, { status: 404 });

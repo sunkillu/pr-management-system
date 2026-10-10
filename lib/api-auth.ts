@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "./auth";
 
-export type RoleName = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER";
+export type RoleName = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR";
 
 type OkResult = { ok: true; role: RoleName; userId: string; userName: string };
 type ErrResult = { ok: false; res: NextResponse };
@@ -10,7 +10,7 @@ type ErrResult = { ok: false; res: NextResponse };
 /**
  * API 路由鉴权守卫。
  * 用法：
- *   const auth = await requireRoles(["ADMIN", "OPERATOR"]);
+ *   const auth = await requireRoles(["ADMIN", "PR"]);
  *   if (!auth.ok) return auth.res;
  */
 export async function requireRoles(allowed: RoleName[]): Promise<OkResult | ErrResult> {

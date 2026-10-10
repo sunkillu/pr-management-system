@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 详情：所有登录用户可查（含审批人、操作日志、通知记录）
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const request = await prisma.cooperationRequest.findUnique({
     where: { id: params.id },
@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
 // 编辑：仅待审批/已驳回可编辑
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN", "OPERATOR", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const existing = await prisma.cooperationRequest.findUnique({ where: { id: params.id } });
