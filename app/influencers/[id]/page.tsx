@@ -63,7 +63,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
     influencer.status === "REJECTED" &&
     (role === "ADMIN" || influencer.registeredById === me.id);
   const canRemind =
-    influencer.status === "PENDING" && ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+    influencer.status === "PENDING" && ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,

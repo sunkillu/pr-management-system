@@ -63,7 +63,7 @@ export default function TicketBoard({
     : [...MAIN_COLUMNS];
 
   const canApprove = ["ADMIN", "PR_MANAGER"].includes(role);
-  const canStart = ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+  const canStart = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
   async function postAction(ticketId: string, url: string, body?: Record<string, unknown>) {
     setBusyId(ticketId);

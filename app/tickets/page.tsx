@@ -20,7 +20,7 @@ export default async function TicketsPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
-  const canWrite = ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+  const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const view = searchParams.view === "board" ? "board" : "list";
 
   const cutoff = new Date(Date.now() - APPROVAL_TIMEOUT_HOURS * 3600 * 1000);

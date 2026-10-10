@@ -21,6 +21,7 @@ enum Role {
   FINANCE
   VIEWER
   PR_MANAGER // PR负责人：合作板块（达人/化妆师/合作记录/寄品/合作需求）的审批与管理
+  PR // PR：提单干活（提内容/打款/达人登记/合作需求/工单/寄品/发票），不能审批、不碰财务
 }
 
 model User {

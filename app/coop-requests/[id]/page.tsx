@@ -49,7 +49,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
   const canResubmit =
     request.status === "REJECTED" && (role === "ADMIN" || request.submitterId === me.id);
   const canRemind =
-    request.status === "PENDING" && ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+    request.status === "PENDING" && ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,

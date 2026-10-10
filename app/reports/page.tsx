@@ -12,7 +12,7 @@ export default async function ReportsPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
-  const canWrite = role === "ADMIN" || role === "OPERATOR";
+  const canWrite = role === "ADMIN" || role === "PR";
 
   const campaignId = searchParams.campaignId || "";
   const where = campaignId ? { campaignId } : {};

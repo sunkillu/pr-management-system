@@ -58,6 +58,16 @@ async function main() {
       role: "PR_MANAGER",
     },
   });
+  await prisma.user.upsert({
+    where: { email: "prstaff@example.com" },
+    update: {},
+    create: {
+      email: "prstaff@example.com",
+      name: "PR专员",
+      passwordHash: await password("pr123"),
+      role: "PR",
+    },
+  });
   console.log("用户 OK");
 
   // ---------- 媒体资源 ----------

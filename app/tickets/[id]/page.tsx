@@ -93,10 +93,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     ? `/makeup-artists/${ticket.makeupArtist.id}`
     : null;
   const canUpdateNodes = ["APPROVED", "IN_PROGRESS"].includes(ticket.status) &&
-    ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
-  const canWriteComment = ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role);
+    ["ADMIN", "PR", "PR_MANAGER"].includes(role);
+  const canWriteComment = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canManageSubtasks =
-    ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role) &&
+    ["ADMIN", "PR", "PR_MANAGER"].includes(role) &&
     !["VOIDED", "SETTLED"].includes(ticket.status);
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 

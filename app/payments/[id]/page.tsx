@@ -23,8 +23,8 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
   const role = sessionUser.role;
-  const canSubmit = role === "ADMIN" || role === "OPERATOR";
-  const canUploadVoucher = ["ADMIN", "OPERATOR", "FINANCE"].includes(role);
+  const canSubmit = role === "ADMIN" || role === "PR";
+  const canUploadVoucher = ["ADMIN", "PR", "FINANCE"].includes(role);
 
   const payment = await prisma.paymentRequest.findUnique({
     where: { id: params.id },
@@ -119,7 +119,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
           <div className="mt-5 border-t pt-4" id="approval-section">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {["PENDING_BIZ", "PENDING_FIN"].includes(payment.status) &&
-                ["ADMIN", "OPERATOR", "PR_MANAGER"].includes(role) && (
+                ["ADMIN", "PR", "PR_MANAGER"].includes(role) && (
                   <PaymentRemindButton paymentId={payment.id} />
                 )}
             </div>
