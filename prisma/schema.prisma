@@ -131,6 +131,10 @@ model Content {
   outlet       MediaOutlet?  @relation(fields: [outletId], references: [id], onDelete: SetNull)
   createdById  String? // 创建人（用于重新提交权限判定）
   createdBy    User?         @relation("ContentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  ticketId     String? // 关联合作工单（工单详情页内维护的内容）
+  ticket       CooperationTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  link         String? // 内容链接（笔记/视频链接）
+  attachments  Json? // 内容附件 [{fileUrl, fileName}]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -249,6 +253,8 @@ enum DocType {
 }
 
 enum LogAction {
+  CREATE    // 新建
+  EDIT      // 编辑
   SUBMIT    // 提交审批
   RESUBMIT  // 重新提交（被驳回后）
   APPROVE   // 通过
@@ -626,6 +632,7 @@ model CooperationTicket {
   reviews  CooperationReview[]
   paymentRequests PaymentRequest[]
   followUps FollowUpRecord[]
+  contents Content[] // 工单内维护的内容
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

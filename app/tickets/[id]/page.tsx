@@ -21,6 +21,7 @@ import TicketNodes from "@/components/TicketNodes";
 import TicketSubtasks from "@/components/TicketSubtasks";
 import TicketComments from "@/components/TicketComments";
 import TicketFollowUps from "@/components/TicketFollowUps";
+import TicketContents, { TicketContent } from "@/components/TicketContents";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -49,6 +50,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       followUps: {
         include: { createdBy: { select: { name: true } } },
         orderBy: { followNo: "asc" },
+      },
+      contents: {
+        include: { createdBy: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
@@ -106,6 +111,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     !["VOIDED", "SETTLED", "FOLLOW_UP"].includes(ticket.status);
   const canManageFollowUps =
     ["ADMIN", "PR", "PR_MANAGER"].includes(role) && ticket.status === "FOLLOW_UP";
+  const canManageContents =
+    ["ADMIN", "PR", "PR_MANAGER"].includes(role) &&
+    !["VOIDED"].includes(ticket.status);
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
@@ -219,6 +227,28 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               }))}
               users={users}
               canManage={canManageSubtasks}
+            />
+          </Section>
+
+          {/* 内容（工单内维护） */}
+          <Section title={`内容（${ticket.contents.length}）`}>
+            <TicketContents
+              ticketId={ticket.id}
+              contents={ticket.contents.map((c): TicketContent => ({
+                id: c.id,
+                title: c.title,
+                type: c.type,
+                status: c.status,
+                link: c.link,
+                body: c.body,
+                rejectReason: c.rejectReason,
+                version: c.version,
+                createdAt: c.createdAt.toISOString(),
+                createdBy: c.createdBy,
+              }))}
+              role={role}
+              userId={me.id}
+              canManage={canManageContents}
             />
           </Section>
 

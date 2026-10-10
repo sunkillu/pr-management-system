@@ -21,9 +21,8 @@ const entries: NavEntry[] = [
     type: "group",
     group: {
       key: "content-coop",
-      label: "内容与合作",
+      label: "合作管理",
       items: [
-        { href: "/contents", label: "内容管理", roles: ALL },
         {
           href: "/partners",
           label: "合作资源",
