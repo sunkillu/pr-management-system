@@ -53,6 +53,7 @@ model User {
   cooperationReviews CooperationReview[] @relation("ReviewAuthor")
   completedNodes    TicketNode[] @relation("NodeCompleter")
   assignedSubtasks  TicketSubtask[] @relation("SubtaskAssignee")
+  followUpRecords FollowUpRecord[] @relation("FollowUpCreator")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -367,6 +368,7 @@ enum InfluencerStatus {
 model Influencer {
   id           String           @id @default(cuid())
   name         String // 达人姓名/昵称
+  homepageId   String? // 达人主页ID（小红书号/抖音号等）
   influencerType InfluencerType? // 达人类型（KOL/KOC/素人/化妆师）
   platforms    String[] // 平台标签多选，如 ["XIAOHONGSHU","DOUYIN"]
   contactInfo  String?
@@ -579,6 +581,7 @@ enum TicketStatus {
   IN_PROGRESS      // 执行中
   COMPLETED        // 已完成
   SETTLING         // 结算中
+  FOLLOW_UP        // 跟进中（打款后15天数据跟进）
   SETTLED          // 已结算
   REJECTED         // 已驳回
   VOIDED           // 已作废
@@ -586,10 +589,19 @@ enum TicketStatus {
 
 model CooperationTicket {
   id          String       @id @default(cuid())
+  ticketNo    String       @unique // 工单编号 PR-YYYYMMDD-XXX
   title       String
   type        CoopType
   budgetFee   Decimal      @db.Decimal(12, 2) // 预算费用
   actualFee   Decimal?     @db.Decimal(12, 2) // 实际费用（结算用）
+  budgetOverridden Boolean @default(false) // 超预算已特批
+  platform    String       // 合作平台（必填）：XIAOHONGSHU / DOUYIN
+  homepageId  String?      // 达人主页ID（从达人库带入，可手动改）
+  style       String?      // 款式
+  contentDirection String? @db.Text // 内容方向
+  coopCategory String?     // 合作类目
+  priceNote   String?      @db.Text // 价格备注
+  contentNote String?      @db.Text // 内容备注
   startDate   DateTime?    @db.Date // 档期开始
   endDate     DateTime?    @db.Date // 档期结束
   note        String?      @db.Text
@@ -597,6 +609,7 @@ model CooperationTicket {
   rejectReason String? // 驳回理由
   voidReason   String? // 作废理由
   escalatedAt DateTime? // 超时升级标记（防重复升级）
+  followUpDueDate DateTime? // 跟进到期日（打款后15天）
   attachments Json? // 附件/插图 [{fileUrl, fileName}]
 
   influencerId String?
@@ -612,12 +625,31 @@ model CooperationTicket {
   comments TicketComment[]
   reviews  CooperationReview[]
   paymentRequests PaymentRequest[]
+  followUps FollowUpRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([creatorId])
+}
+
+// 跟进记录：打款后15天数据跟进，平均3次
+model FollowUpRecord {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  followNo    Int      // 第几次跟进
+  noteUrl     String?  // 笔记链接
+  views       Int?     // 播放量/阅读量
+  likes       Int?     // 点赞数
+  comments    Int?     // 评论数
+  note        String?  @db.Text // 备注
+  createdById String
+  createdBy   User     @relation("FollowUpCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 // 进度节点：按合作类型自动生成模板，可手动标记完成

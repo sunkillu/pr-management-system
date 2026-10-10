@@ -35,6 +35,9 @@ export default function TicketActions({
   const [startNote, setStartNote] = useState("");
   const [executionSummary, setExecutionSummary] = useState("");
   const [confirmIncomplete, setConfirmIncomplete] = useState(false);
+  const [amountConfirmed, setAmountConfirmed] = useState(false);
+  const [showOverrideBox, setShowOverrideBox] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [actualFee, setActualFee] = useState("");
@@ -101,6 +104,13 @@ export default function TicketActions({
     btns.push(
       <button key="complete" className={btnPrimary}
         onClick={() => setShowCompleteBox(true)}>标记完成</button>
+    );
+  }
+  // 超预算特批：仅管理员，执行中工单可用
+  if (ticket.status === "IN_PROGRESS" && isAdmin) {
+    btns.push(
+      <button key="override" className="rounded border border-amber-400 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50"
+        onClick={() => { setOverrideReason(""); setShowOverrideBox(true); }}>超预算特批</button>
     );
   }
   // 生成打款单：已改为标记完成时自动生成，此处不再需要手动按钮
@@ -213,9 +223,31 @@ export default function TicketActions({
         </Modal>
       )}
 
+      {showOverrideBox && (
+        <Modal title="超预算特批" onClose={() => setShowOverrideBox(false)}>
+          <p className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-800">
+            特批后，该工单标记完成时不再拦截超预算。请填写特批理由，将记入操作日志。
+          </p>
+          <Field label="特批理由" required>
+            <textarea className={inputCls} rows={3} value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)} placeholder="如：达人临时涨价，已与对方确认" />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowOverrideBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy}
+              onClick={async () => {
+                if (!overrideReason.trim()) { setError("特批必须填写理由"); return; }
+                if (await call(`/api/tickets/${ticket.id}/override-budget`, { reason: overrideReason.trim() })) {
+                  setShowOverrideBox(false); setOverrideReason(""); refresh();
+                }
+              }}>确认特批</button>
+          </div>
+        </Modal>
+      )}
+
       {showCompleteBox && (
-        <Modal title="标记完成并评价" onClose={() => setShowCompleteBox(false)}>
-          <Field label="实际费用（元）" hint="留空则沿用已有实际费用/预算">
+        <Modal title="标记完成并评价" onClose={() => setShowCompleteBox(false)}>          <Field label="实际费用（元）" hint="留空则沿用已有实际费用/预算">
             <input type="number" min={0.01} step="0.01" className={inputCls}
               value={actualFee} onChange={(e) => setActualFee(e.target.value)}
               placeholder={String(ticket.actualFee ?? "")} />
@@ -239,6 +271,15 @@ export default function TicketActions({
           <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
             确认后将自动生成打款单并提交业务审批，无需手动操作。
           </p>
+          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
+            <input
+              type="checkbox"
+              checked={amountConfirmed}
+              onChange={(e) => setAmountConfirmed(e.target.checked)}
+              className="h-4 w-4 accent-[#0071e3]"
+            />
+            我确认以上金额为最终打款金额
+          </label>
           {(ticket.incompleteSubtasks ?? 0) > 0 && (
             <div className="mb-3 rounded-[10px] border border-amber-300 bg-amber-50 p-3">
               <p className="text-sm font-medium text-amber-800">
@@ -257,12 +298,14 @@ export default function TicketActions({
           )}
           <div className="flex justify-end gap-2">
             <button className={btnSecondary} onClick={() => { setShowCompleteBox(false); setConfirmIncomplete(false); }}>取消</button>
-            <button className={btnPrimary} disabled={busy || ((ticket.incompleteSubtasks ?? 0) > 0 && !confirmIncomplete)}
+            <button className={btnPrimary} disabled={busy || ((ticket.incompleteSubtasks ?? 0) > 0 && !confirmIncomplete) || !amountConfirmed}
               onClick={async () => {
                 if (!executionSummary.trim()) { setError("标记完成必须填写执行总结"); return; }
+                if (!amountConfirmed) { setError("请确认打款金额"); return; }
                 if (await call(`/api/tickets/${ticket.id}/complete`, {
                   rating, reviewComment, executionSummary: executionSummary.trim(), actualFee: actualFee || null,
-                })) { setShowCompleteBox(false); setConfirmIncomplete(false); setExecutionSummary(""); refresh(); }
+                  amountConfirmed: true,
+                })) { setShowCompleteBox(false); setConfirmIncomplete(false); setExecutionSummary(""); setAmountConfirmed(false); refresh(); }
               }}>确认完成</button>
           </div>
         </Modal>

@@ -28,7 +28,7 @@ const list = await prisma.cooperationTicket.findMany({
 where: {
 ...(status? { status: status as never}: {}),
 ...(type? { type: type as never}: {}),
-...(q? { title: { contains: q, mode: "insensitive"}}: {}),
+...(q? { OR: [{ title: { contains: q, mode: "insensitive"}}, { ticketNo: { contains: q, mode: "insensitive"}}]}: {}),
 },
 include: {
 influencer: { select: { name: true}},
@@ -54,6 +54,11 @@ const budgetFee = Number(body.budgetFee);
 if (!budgetFee || budgetFee <= 0) {
 return NextResponse.json({ error: "预算费用必须大于 0"}, { status: 400});
 }
+// 合作平台必填
+const platform = String(body.platform ?? "").trim();
+if (!platform || !["XIAOHONGSHU", "DOUYIN"].includes(platform)) {
+return NextResponse.json({ error: "请选择合作平台"}, { status: 400});
+}
 const { influencerId, makeupArtistId} = pickPartner(body);
 if (type === "MAKEUP" &&!makeupArtistId) {
 return NextResponse.json({ error: "化妆师合作必须选择化妆师"}, { status: 400});
@@ -68,6 +73,12 @@ if (!inf) return NextResponse.json({ error: "达人不存在"}, { status: 404});
 if (inf.status!== "APPROVED") {
 return NextResponse.json({ error: "该达人尚未通过审核，不能发起合作"}, { status: 400});
 }
+}
+// 达人主页ID：未手动填写时从达人库自动带入
+let homepageId = String(body.homepageId ?? "").trim() || null;
+if (!homepageId && influencerId) {
+const inf = await prisma.influencer.findUnique({ where: { id: influencerId }, select: { homepageId: true } });
+if (inf?.homepageId) homepageId = inf.homepageId;
 }
 
 const submit = body.submit === true;
@@ -93,12 +104,26 @@ const attachments = Array.isArray(body.attachments)
   : undefined;
 
 const ticket = await prisma.$transaction(async (tx) => {
+// 生成工单编号 PR-YYYYMMDD-XXX（当日序号）
+const today = new Date();
+const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+const todayCount = await tx.cooperationTicket.count({ where: { createdAt: { gte: dayStart } } });
+const ticketNo = `PR-${ymd}-${String(todayCount + 1).padStart(3, "0")}`;
 const created = await tx.cooperationTicket.create({
 data: {
+ticketNo,
 title: body.title.trim(),
 type,
 budgetFee: body.budgetFee,
 actualFee: body.actualFee? body.actualFee: null,
+platform,
+homepageId,
+style: String(body.style ?? "").trim() || null,
+contentDirection: String(body.contentDirection ?? "").trim() || null,
+coopCategory: String(body.coopCategory ?? "").trim() || null,
+priceNote: String(body.priceNote ?? "").trim() || null,
+contentNote: String(body.contentNote ?? "").trim() || null,
 startDate: body.startDate? new Date(body.startDate): null,
 endDate: body.endDate? new Date(body.endDate): null,
 note: body.note?.trim() || null,

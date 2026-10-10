@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
-import { ticketStatusLabels, coopTypeLabels, badgeClass, formatMoney, formatDate } from "@/lib/labels";
+import { ticketStatusLabels, coopTypeLabels, badgeClass, formatMoney, formatDate, platformTagLabels } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
@@ -27,7 +27,7 @@ export default async function TicketsPage({
 
   const influencers = await prisma.influencer.findMany({
     where: { status: "APPROVED" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, homepageId: true },
     orderBy: { name: "asc" },
   });
   const makeupArtists = await prisma.makeupArtist.findMany({
@@ -52,6 +52,7 @@ export default async function TicketsPage({
     });
     const boardTickets: BoardTicket[] = all.map((t) => ({
       id: t.id,
+      ticketNo: t.ticketNo,
       title: t.title,
       type: t.type,
       status: t.status,
@@ -93,7 +94,14 @@ export default async function TicketsPage({
   // 列表视图
   const list = await prisma.cooperationTicket.findMany({
     where: {
-      ...(searchParams.q ? { title: { contains: searchParams.q, mode: "insensitive" } } : {}),
+      ...(searchParams.q
+        ? {
+            OR: [
+              { title: { contains: searchParams.q, mode: "insensitive" } },
+              { ticketNo: { contains: searchParams.q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { type: searchParams.type as never } : {}),
     },
@@ -132,7 +140,7 @@ export default async function TicketsPage({
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
         <input
           name="q"
-          placeholder="按标题搜索"
+          placeholder="按标题/工单编号搜索"
           defaultValue={searchParams.q ?? ""}
           className="rounded border border-gray-300 px-3 py-2 text-sm"
         />
@@ -155,8 +163,10 @@ export default async function TicketsPage({
         <table className="w-full">
           <thead>
             <tr>
+              <th className={thCls}>工单编号</th>
               <th className={thCls}>标题</th>
               <th className={thCls}>类型</th>
+              <th className={thCls}>平台</th>
               <th className={thCls}>合作对象</th>
               <th className={thCls}>预算（元）</th>
               <th className={thCls}>档期</th>
@@ -169,6 +179,7 @@ export default async function TicketsPage({
               const overdue = t.status === "PENDING_APPROVAL" && t.updatedAt < cutoff;
               return (
                 <tr key={t.id} className="hover:bg-gray-50">
+                  <td className={tdCls + " whitespace-nowrap font-mono text-xs text-gray-500"}>{t.ticketNo}</td>
                   <td className={tdCls + " font-medium"}>
                     <Link href={`/tickets/${t.id}`} className="text-[#0071e3] hover:underline">
                       {t.title}
@@ -178,6 +189,7 @@ export default async function TicketsPage({
                     )}
                   </td>
                   <td className={tdCls}>{coopTypeLabels[t.type]}</td>
+                  <td className={tdCls}>{platformTagLabels[t.platform] ?? t.platform ?? "-"}</td>
                   <td className={tdCls}>{t.influencer?.name ?? t.makeupArtist?.name ?? "-"}</td>
                   <td className={tdCls}>{formatMoney(t.budgetFee)}</td>
                   <td className={tdCls}>
@@ -193,7 +205,7 @@ export default async function TicketsPage({
               );
             })}
             {list.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <tr><td colSpan={9} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
             )}
           </tbody>
         </table>

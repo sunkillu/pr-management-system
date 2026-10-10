@@ -23,6 +23,7 @@ export default function InfluencerForm({
   const [influencerType, setInfluencerType] = useState(initial?.influencerType ?? "");
   const [platforms, setPlatforms] = useState<string[]>(initial?.platforms ?? []);
   const [contactInfo, setContactInfo] = useState("");
+  const [homepageId, setHomepageId] = useState("");
   const [bio, setBio] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -53,6 +54,7 @@ export default function InfluencerForm({
         influencerType: influencerType || null,
         platforms,
         contactInfo: contactInfo.trim() || null,
+        homepageId: homepageId.trim() || null,
         bio: bio.trim() || null,
         approverIds: selected,
       }),
@@ -100,6 +102,9 @@ export default function InfluencerForm({
           </Field>
           <Field label="联系方式">
             <input className={inputCls} value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} />
+          </Field>
+          <Field label="达人主页ID" hint="如小红书号/抖音号，发起工单时自动带入">
+            <input className={inputCls} value={homepageId} onChange={(e) => setHomepageId(e.target.value)} />
           </Field>
           <Field label="简介">
             <textarea className={inputCls} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />

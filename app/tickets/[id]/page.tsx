@@ -12,6 +12,7 @@ import {
   formatMoney,
   formatDate,
   formatDateTime,
+  platformTagLabels,
 } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
@@ -19,6 +20,7 @@ import TicketActions from "@/components/TicketActions";
 import TicketNodes from "@/components/TicketNodes";
 import TicketSubtasks from "@/components/TicketSubtasks";
 import TicketComments from "@/components/TicketComments";
+import TicketFollowUps from "@/components/TicketFollowUps";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -43,6 +45,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       paymentRequests: {
         select: { id: true, title: true, amount: true, status: true },
         orderBy: { createdAt: "desc" },
+      },
+      followUps: {
+        include: { createdBy: { select: { name: true } } },
+        orderBy: { followNo: "asc" },
       },
     },
   });
@@ -97,14 +103,16 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   const canWriteComment = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canManageSubtasks =
     ["ADMIN", "PR", "PR_MANAGER"].includes(role) &&
-    !["VOIDED", "SETTLED"].includes(ticket.status);
+    !["VOIDED", "SETTLED", "FOLLOW_UP"].includes(ticket.status);
+  const canManageFollowUps =
+    ["ADMIN", "PR", "PR_MANAGER"].includes(role) && ticket.status === "FOLLOW_UP";
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
     <div>
       <PageHeader
         title={ticket.title}
-        desc={`${coopTypeLabels[ticket.type]} · ${ticketStatusLabels[ticket.status]}`}
+        desc={`${ticket.ticketNo} · ${coopTypeLabels[ticket.type]} · ${ticketStatusLabels[ticket.status]}`}
         action={
           <Link href="/tickets" className="text-sm text-[#0071e3] hover:underline">
             ← 返回合作工单
@@ -122,14 +130,32 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           {/* 基本信息 */}
           <Section title="基本信息">
             <dl>
+              <InfoRow label="工单编号">
+                <span className="font-mono text-sm">{ticket.ticketNo}</span>
+              </InfoRow>
               <InfoRow label="合作对象">
                 <span className="font-medium">
                   {partnerHref ? <Link href={partnerHref} className="text-[#0071e3] hover:underline">{partnerName}</Link> : partnerName}
                 </span>
               </InfoRow>
               <InfoRow label="合作类型">{coopTypeLabels[ticket.type]}</InfoRow>
+              <InfoRow label="合作平台">{platformTagLabels[ticket.platform] ?? ticket.platform ?? "-"}</InfoRow>
+              {ticket.homepageId && (
+                <InfoRow label="达人主页ID"><span className="font-mono text-sm">{ticket.homepageId}</span></InfoRow>
+              )}
+              {ticket.style && <InfoRow label="款式">{ticket.style}</InfoRow>}
+              {ticket.coopCategory && <InfoRow label="合作类目">{ticket.coopCategory}</InfoRow>}
               <InfoRow label="预算费用">¥{formatMoney(ticket.budgetFee)}</InfoRow>
               <InfoRow label="实际费用">{ticket.actualFee ? `¥${formatMoney(ticket.actualFee)}` : "-"}</InfoRow>
+              {ticket.contentDirection && (
+                <InfoRow label="内容方向" wide><span className="whitespace-pre-wrap">{ticket.contentDirection}</span></InfoRow>
+              )}
+              {ticket.priceNote && (
+                <InfoRow label="价格备注" wide><span className="whitespace-pre-wrap">{ticket.priceNote}</span></InfoRow>
+              )}
+              {ticket.contentNote && (
+                <InfoRow label="内容备注" wide><span className="whitespace-pre-wrap">{ticket.contentNote}</span></InfoRow>
+              )}
               <InfoRow label="档期">{ticket.startDate ? formatDate(ticket.startDate) : "-"} ~ {ticket.endDate ? formatDate(ticket.endDate) : "-"}</InfoRow>
               <InfoRow label="发起人">{ticket.creator.name}</InfoRow>
               {ticket.rejectReason && (
@@ -223,6 +249,28 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   </div>
                 ))}
               </div>
+            </Section>
+          )}
+
+          {/* 跟进记录（打款后15天） */}
+          {["FOLLOW_UP", "SETTLED"].includes(ticket.status) && ticket.followUpDueDate && (
+            <Section title="跟进记录">
+              <TicketFollowUps
+                ticketId={ticket.id}
+                initial={ticket.followUps.map((f) => ({
+                  id: f.id,
+                  followNo: f.followNo,
+                  noteUrl: f.noteUrl,
+                  views: f.views,
+                  likes: f.likes,
+                  comments: f.comments,
+                  note: f.note,
+                  createdAt: f.createdAt.toISOString(),
+                  createdBy: f.createdBy,
+                }))}
+                dueDate={ticket.followUpDueDate.toISOString()}
+                canManage={canManageFollowUps}
+              />
             </Section>
           )}
 

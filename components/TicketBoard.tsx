@@ -7,6 +7,7 @@ import { btnPrimarySm, btnDangerSm, btnSecondarySm, cardHoverCls } from "./ui";
 
 export type BoardTicket = {
   id: string;
+  ticketNo: string;
   title: string;
   type: string;
   status: string;
@@ -24,6 +25,7 @@ const MAIN_COLUMNS = [
   "APPROVED",
   "IN_PROGRESS",
   "SETTLING",
+  "FOLLOW_UP",
   "SETTLED",
 ] as const;
 const EXTRA_COLUMNS = ["DRAFT", "REJECTED", "VOIDED"] as const;
@@ -140,6 +142,7 @@ export default function TicketBoard({
                         )}
                       </div>
                       <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
+                        <div className="font-mono">{t.ticketNo}</div>
                         <div>{partner} · {coopTypeLabels[t.type] ?? t.type}</div>
                         <div>¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
                       </div>

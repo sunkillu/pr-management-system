@@ -2,11 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels, coopTypeLabels } from "@/lib/labels";
+import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS } from "@/lib/labels";
 import Modal from "./Modal";
 
 type Approver = { id: string; name: string; email: string; role: string };
-type Partner = { id: string; name: string };
+type Partner = { id: string; name: string; homepageId?: string | null };
 type Attachment = { fileUrl: string; fileName: string };
 
 const isImage = (name: string) => /\.(jpe?g|png|webp|gif)$/i.test(name);
@@ -28,6 +28,13 @@ export default function TicketForm({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [note, setNote] = useState("");
+  const [platform, setPlatform] = useState("");
+  const [homepageId, setHomepageId] = useState("");
+  const [style, setStyle] = useState("");
+  const [coopCategory, setCoopCategory] = useState("");
+  const [contentDirection, setContentDirection] = useState("");
+  const [priceNote, setPriceNote] = useState("");
+  const [contentNote, setContentNote] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -59,10 +66,20 @@ export default function TicketForm({
 
   const partners = type === "MAKEUP" ? makeupArtists : influencers;
 
+  function onPartnerChange(id: string) {
+    setPartnerId(id);
+    // 选达人时从达人库自动带入主页ID，可手动改
+    if (type !== "MAKEUP") {
+      const p = influencers.find((x) => x.id === id);
+      if (p?.homepageId) setHomepageId(p.homepageId);
+    }
+  }
+
   async function submit(submitForApproval: boolean) {
     setError("");
     if (!title.trim()) return setError("标题不能为空");
     if (!partnerId) return setError("请选择合作对象");
+    if (!platform) return setError("请选择合作平台");
     if (!budgetFee || Number(budgetFee) <= 0) return setError("预算费用必须大于 0");
     if (submitForApproval && selected.length === 0) return setError("提交审批必须选择至少一位审批人");
     setSaving(true);
@@ -75,6 +92,13 @@ export default function TicketForm({
         influencerId: type === "MAKEUP" ? null : partnerId,
         makeupArtistId: type === "MAKEUP" ? partnerId : null,
         budgetFee,
+        platform,
+        homepageId: homepageId.trim() || null,
+        style: style.trim() || null,
+        coopCategory: coopCategory.trim() || null,
+        contentDirection: contentDirection.trim() || null,
+        priceNote: priceNote.trim() || null,
+        contentNote: contentNote.trim() || null,
         startDate: startDate || null,
         endDate: endDate || null,
         note: note.trim() || null,
@@ -109,13 +133,46 @@ export default function TicketForm({
           </Field>
           <Field label={type === "MAKEUP" ? "合作化妆师" : "合作达人"} required
             hint={type === "MAKEUP" ? "" : "仅可选择已通过审核的达人"}>
-            <select className={inputCls} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+            <select className={inputCls} value={partnerId} onChange={(e) => onPartnerChange(e.target.value)}>
               <option value="">请选择</option>
               {partners.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="合作平台" required>
+              <select className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)}>
+                <option value="">请选择</option>
+                {PLATFORM_TAG_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="达人主页ID" hint="选达人自动带入，可手动修改">
+              <input className={inputCls} value={homepageId} onChange={(e) => setHomepageId(e.target.value)}
+                placeholder="如小红书号/抖音号" />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="款式">
+              <input className={inputCls} value={style} onChange={(e) => setStyle(e.target.value)} />
+            </Field>
+            <Field label="合作类目">
+              <input className={inputCls} value={coopCategory} onChange={(e) => setCoopCategory(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="内容方向">
+            <textarea className={inputCls} rows={2} value={contentDirection} onChange={(e) => setContentDirection(e.target.value)} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="价格备注">
+              <textarea className={inputCls} rows={2} value={priceNote} onChange={(e) => setPriceNote(e.target.value)} />
+            </Field>
+            <Field label="内容备注">
+              <textarea className={inputCls} rows={2} value={contentNote} onChange={(e) => setContentNote(e.target.value)} />
+            </Field>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <Field label="预算费用（元）" required>
               <input type="number" min={0.01} step="0.01" className={inputCls}
