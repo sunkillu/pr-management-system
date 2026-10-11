@@ -25,6 +25,7 @@ import TicketSubtasks from "@/components/TicketSubtasks";
 import TicketComments from "@/components/TicketComments";
 import TicketFollowUps from "@/components/TicketFollowUps";
 import TicketContents, { TicketContent } from "@/components/TicketContents";
+import TicketMaterials from "@/components/TicketMaterials";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -57,6 +58,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       contents: {
         include: { createdBy: { select: { id: true, name: true } } },
         orderBy: { createdAt: "desc" },
+      },
+      materials: {
+        include: { uploadedBy: { select: { name: true } } },
+        orderBy: { createdAt: "asc" },
       },
     },
   });
@@ -125,12 +130,14 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   const canWriteComment = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canManageSubtasks =
     canOperate &&
-    !["VOIDED", "SETTLED", "FOLLOW_UP"].includes(ticket.status);
+    !["VOIDED", "SETTLED", "FOLLOW_UP", "MATERIAL_REVIEW"].includes(ticket.status);
   const canManageFollowUps =
     canOperate && ticket.status === "FOLLOW_UP";
   const canManageContents =
     canOperate &&
-    !["VOIDED"].includes(ticket.status);
+    !["VOIDED", "MATERIAL_REVIEW"].includes(ticket.status);
+  const canManageMaterials =
+    canOperate && ticket.status === "IN_PROGRESS";
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
@@ -279,6 +286,27 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               userId={me.id}
               canManage={canManageContents}
             />
+          </Section>
+
+          {/* 回收素材 */}
+          <Section title={`回收素材（${ticket.materials.length}）`}>
+            <TicketMaterials
+              ticketId={ticket.id}
+              initial={ticket.materials.map((m) => ({
+                id: m.id,
+                type: m.type,
+                url: m.url,
+                note: m.note,
+                createdAt: m.createdAt.toISOString(),
+                uploadedBy: m.uploadedBy,
+              }))}
+              canManage={canManageMaterials}
+            />
+            {ticket.status === "MATERIAL_REVIEW" && (
+              <p className="mt-3 rounded-[10px] bg-purple-50 p-2 text-xs text-purple-800 ring-1 ring-inset ring-purple-200">
+                素材待 PR负责人 / 管理员审批，审批通过后自动生成打款单。
+              </p>
+            )}
           </Section>
 
           {/* 审批区 */}

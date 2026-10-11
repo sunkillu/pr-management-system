@@ -39,6 +39,9 @@ export default function TicketActions({
   const [amountConfirmed, setAmountConfirmed] = useState(false);
   const [showOverrideBox, setShowOverrideBox] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
+  const [showMaterialApproveBox, setShowMaterialApproveBox] = useState(false);
+  const [showMaterialRejectBox, setShowMaterialRejectBox] = useState(false);
+  const [materialComment, setMaterialComment] = useState("");
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [actualFee, setActualFee] = useState("");
@@ -93,11 +96,22 @@ export default function TicketActions({
     );
   }
   // 审批通过后自动进入执行中，无需手动"开始执行"
-  // 标记完成（含评价）：仅创建人 / 审批链成员 / ADMIN
+  // 标记完成（含评价）：仅创建人 / 审批链成员 / ADMIN；完成后进入待素材审批
   if (ticket.status === "IN_PROGRESS" && canOperate) {
     btns.push(
       <button key="complete" className={btnPrimary}
         onClick={() => setShowCompleteBox(true)}>标记完成</button>
+    );
+  }
+  // 素材审批：待素材审批状态，仅 PR负责人 / ADMIN
+  if (ticket.status === "MATERIAL_REVIEW" && canApprove) {
+    btns.push(
+      <button key="material-approve" className={btnPrimary}
+        onClick={() => { setMaterialComment(""); setShowMaterialApproveBox(true); }}>素材审批通过</button>
+    );
+    btns.push(
+      <button key="material-reject" className={btnDanger}
+        onClick={() => { setMaterialComment(""); setShowMaterialRejectBox(true); }}>驳回素材</button>
     );
   }
   // 超预算特批：仅管理员，执行中工单可用
@@ -243,7 +257,7 @@ export default function TicketActions({
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
-            确认后将自动生成打款单并提交业务审批，无需手动操作。
+            确认后将提交素材审批，PR负责人审批通过后自动生成打款单。
           </p>
           <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
             <input
@@ -281,6 +295,50 @@ export default function TicketActions({
                   amountConfirmed: true,
                 })) { setShowCompleteBox(false); setConfirmIncomplete(false); setExecutionSummary(""); setAmountConfirmed(false); refresh(); }
               }}>确认完成</button>
+          </div>
+        </Modal>
+      )}
+      {showMaterialApproveBox && (
+        <Modal title="素材审批通过" onClose={() => setShowMaterialApproveBox(false)}>
+          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+            通过后将自动生成打款单并提交业务审批，工单进入结算中。
+          </p>
+          <Field label="审批意见（选填）">
+            <textarea className={inputCls} rows={3} value={materialComment}
+              onChange={(e) => setMaterialComment(e.target.value)} />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowMaterialApproveBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy}
+              onClick={async () => {
+                if (await call(`/api/tickets/${ticket.id}/review-materials`, {
+                  action: "APPROVE", comment: materialComment.trim() || null,
+                })) { setShowMaterialApproveBox(false); setMaterialComment(""); refresh(); }
+              }}>确认通过</button>
+          </div>
+        </Modal>
+      )}
+
+      {showMaterialRejectBox && (
+        <Modal title="驳回素材" onClose={() => setShowMaterialRejectBox(false)}>
+          <p className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-800">
+            驳回后工单退回执行中，需继续回收素材后重新标记完成。
+          </p>
+          <Field label="驳回理由" required>
+            <textarea className={inputCls} rows={3} value={materialComment}
+              onChange={(e) => setMaterialComment(e.target.value)} placeholder="如：缺少发布后的笔记链接" />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowMaterialRejectBox(false)}>取消</button>
+            <button className={btnDanger} disabled={busy}
+              onClick={async () => {
+                if (!materialComment.trim()) { setError("驳回必须填写理由"); return; }
+                if (await call(`/api/tickets/${ticket.id}/review-materials`, {
+                  action: "REJECT", reason: materialComment.trim(),
+                })) { setShowMaterialRejectBox(false); setMaterialComment(""); refresh(); }
+              }}>确认驳回</button>
           </div>
         </Modal>
       )}

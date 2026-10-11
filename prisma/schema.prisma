@@ -54,6 +54,7 @@ model User {
   completedNodes    TicketNode[] @relation("NodeCompleter")
   assignedSubtasks  TicketSubtask[] @relation("SubtaskAssignee")
   followUpRecords FollowUpRecord[] @relation("FollowUpCreator")
+  uploadedMaterials MaterialRecord[] @relation("MaterialUploader")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -589,6 +590,7 @@ enum TicketStatus {
   PENDING_APPROVAL // 待审批
   APPROVED         // 已通过（待执行）
   IN_PROGRESS      // 执行中
+  MATERIAL_REVIEW  // 待素材审批（标记完成后，PR负责人审批回收素材）
   COMPLETED        // 已完成
   SETTLING         // 结算中
   FOLLOW_UP        // 跟进中（打款后15天数据跟进）
@@ -638,6 +640,7 @@ model CooperationTicket {
   paymentRequests PaymentRequest[]
   followUps FollowUpRecord[]
   contents Content[] // 工单内维护的内容
+  materials MaterialRecord[] // 回收素材（执行中上传，PR负责人审批后才能生成打款单）
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -720,6 +723,29 @@ model CooperationReview {
 
   @@index([influencerId])
   @@index([makeupArtistId])
+}
+
+// 回收素材类型
+enum MaterialType {
+  NOTE_LINK // 笔记链接
+  VIDEO     // 视频
+  IMAGE     // 图片
+  OTHER     // 其他
+}
+
+// 回收素材：执行中上传，PR负责人审批通过后才能生成打款单
+model MaterialRecord {
+  id          String       @id @default(cuid())
+  ticketId    String
+  ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  type        MaterialType
+  url         String       @db.Text // 素材链接
+  note        String?      @db.Text // 备注
+  uploadedById String
+  uploadedBy  User         @relation("MaterialUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime     @default(now())
+
+  @@index([ticketId])
 }
 
 // 工单内评论：支持 @ 用户，被@者收到站内通知

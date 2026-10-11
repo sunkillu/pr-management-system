@@ -23,6 +23,7 @@ export type BoardTicket = {
 const MAIN_COLUMNS = [
   "PENDING_APPROVAL",
   "IN_PROGRESS",
+  "MATERIAL_REVIEW",
   "SETTLING",
   "FOLLOW_UP",
   "SETTLED",
@@ -173,6 +174,14 @@ export default function TicketBoard({
                             className={btnPrimarySm}
                           >
                             标记完成
+                          </Link>
+                        )}
+                        {t.status === "MATERIAL_REVIEW" && (
+                          <Link
+                            href={`/tickets/${t.id}#approval-section`}
+                            className={btnPrimarySm}
+                          >
+                            去审批素材
                           </Link>
                         )}
                         {t.status === "SETTLING" && (

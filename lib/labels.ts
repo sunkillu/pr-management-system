@@ -127,6 +127,7 @@ const badgeColors: Record<string, string> = {
   VOIDED: "bg-gray-200 text-gray-600",
   PENDING_APPROVAL: "bg-yellow-100 text-yellow-800",
   IN_PROGRESS: "bg-blue-100 text-blue-800",
+  MATERIAL_REVIEW: "bg-purple-100 text-purple-800",
   COMPLETED: "bg-green-100 text-green-800",
   SETTLING: "bg-orange-100 text-orange-800",
   FOLLOW_UP: "bg-purple-100 text-purple-800",
@@ -218,11 +219,26 @@ export const coopTypeLabels: Record<string, string> = {
   MAKEUP: "化妆师合作",
 };
 
+// 回收素材类型
+export const MATERIAL_TYPE_OPTIONS = [
+  { value: "NOTE_LINK", label: "笔记链接" },
+  { value: "VIDEO", label: "视频" },
+  { value: "IMAGE", label: "图片" },
+  { value: "OTHER", label: "其他" },
+] as const;
+export const materialTypeLabels: Record<string, string> = {
+  NOTE_LINK: "笔记链接",
+  VIDEO: "视频",
+  IMAGE: "图片",
+  OTHER: "其他",
+};
+
 // 合作工单状态
 export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
   PENDING_APPROVAL: "待审批",
   APPROVED: "已通过（待执行）",
   IN_PROGRESS: "执行中",
+  MATERIAL_REVIEW: "待素材审批",
   COMPLETED: "已完成",
   SETTLING: "结算中",
   FOLLOW_UP: "跟进中",
