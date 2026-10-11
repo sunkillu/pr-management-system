@@ -398,6 +398,7 @@ model Influencer {
   cooperationRecords CooperationRecord[]
   sampleShipments    SampleShipment[]
   tickets            CooperationTicket[]
+  coopRequests       CooperationRequest[] @relation("RequestInfluencer")
   reviews            CooperationReview[]
 
   @@index([status])
@@ -500,6 +501,13 @@ model CooperationRequest {
 
   submitterId String
   submitter   User   @relation("RequestSubmitter", fields: [submitterId], references: [id], onDelete: Restrict)
+
+  // 审批通过时自动生成的达人（直接入库，不再走达人登记审批）
+  influencerId String?
+  influencer   Influencer? @relation("RequestInfluencer", fields: [influencerId], references: [id], onDelete: SetNull)
+
+  // 由此需求发起的工单
+  tickets CooperationTicket[] @relation("TicketSourceRequest")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -629,6 +637,10 @@ model CooperationTicket {
   influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
   makeupArtistId String?
   makeupArtist   MakeupArtist? @relation(fields: [makeupArtistId], references: [id], onDelete: SetNull)
+
+  // 来源合作需求（从需求详情页"发起工单"跳转创建时带入）
+  coopRequestId String?
+  coopRequest   CooperationRequest? @relation("TicketSourceRequest", fields: [coopRequestId], references: [id], onDelete: SetNull)
 
   creatorId String
   creator   User   @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Restrict)

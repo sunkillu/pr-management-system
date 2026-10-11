@@ -93,6 +93,12 @@ if (auth.role === "PR" && inf.registeredById !== auth.userId) {
 return NextResponse.json({ error: "只能选择自己登记的达人发起合作"}, { status: 403});
 }
 }
+// 来源合作需求：如传入则校验存在
+const coopRequestId = (typeof body.coopRequestId === "string" && body.coopRequestId.trim()) ? body.coopRequestId.trim() : null;
+if (coopRequestId) {
+const cr = await prisma.cooperationRequest.findUnique({ where: { id: coopRequestId }, select: { id: true } });
+if (!cr) return NextResponse.json({ error: "来源合作需求不存在" }, { status: 400 });
+}
 // 达人主页ID：未手动填写时从达人库自动带入
 let homepageId = String(body.homepageId ?? "").trim() || null;
 if (!homepageId && influencerId) {
@@ -150,6 +156,8 @@ note: body.note?.trim() || null,
 status: submit? "PENDING_APPROVAL": "DRAFT",
 influencerId,
 makeupArtistId,
+// 来源合作需求（从需求详情页"发起工单"跳转时带入，已在上方校验）
+coopRequestId,
 creatorId: auth.userId,
 attachments: attachments ?? undefined,
 nodes: { create: nodes},

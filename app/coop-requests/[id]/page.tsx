@@ -16,7 +16,6 @@ import {
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import CoopRequestActions from "@/components/CoopRequestActions";
-import AddToInfluencerButton from "@/components/AddToInfluencerButton";
 
 export default async function CoopRequestDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -25,7 +24,10 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
 
   const request = await prisma.cooperationRequest.findUnique({
     where: { id: params.id },
-    include: { submitter: { select: { id: true, name: true } } },
+    include: {
+      submitter: { select: { id: true, name: true } },
+      influencer: { select: { id: true, name: true } },
+    },
   });
   if (!request) notFound();
 
@@ -123,11 +125,23 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                   influencerType={request.influencerType}
                   platforms={request.platforms}
                 />
-                {request.status === "APPROVED" && (
-                  <AddToInfluencerButton
-                    influencerType={request.influencerType}
-                    platforms={request.platforms}
-                  />
+                {request.status === "APPROVED" && request.influencer && (
+                  <>
+                    <span className="text-sm text-gray-500">
+                      已生成达人：
+                      <Link href={`/influencers/${request.influencer.id}`} className="text-[#0071e3] hover:underline">
+                        {request.influencer.name}
+                      </Link>
+                    </span>
+                    {["ADMIN", "PR", "PR_MANAGER"].includes(role) && (
+                      <Link
+                        href={`/tickets/new?influencerId=${request.influencer.id}&coopRequestId=${request.id}`}
+                        className="rounded-full bg-[#0071e3] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#0077ed]"
+                      >
+                        发起工单
+                      </Link>
+                    )}
+                  </>
                 )}
               </div>
             </div>

@@ -14,16 +14,22 @@ const isImage = (name: string) => /\.(jpe?g|png|webp|gif)$/i.test(name);
 export default function TicketForm({
   influencers,
   makeupArtists,
+  initialInfluencerId,
+  initialCoopRequestId,
+  autoOpen = false,
 }: {
   influencers: Partner[];
   makeupArtists: Partner[];
+  initialInfluencerId?: string;
+  initialCoopRequestId?: string;
+  autoOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [approvers, setApprovers] = useState<Approver[]>([]);
   const [title, setTitle] = useState("");
   const [type, setType] = useState("INFLUENCER_POST");
-  const [partnerId, setPartnerId] = useState("");
+  const [partnerId, setPartnerId] = useState(initialInfluencerId ?? "");
   const [budgetFee, setBudgetFee] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -66,6 +72,15 @@ export default function TicketForm({
   }, [open ]);
 
   const partners = type === "MAKEUP" ? makeupArtists : influencers;
+
+  // 从需求跳转带入达人时，自动带入主页ID
+  useEffect(() => {
+    if (initialInfluencerId) {
+      const p = influencers.find((x) => x.id === initialInfluencerId);
+      if (p?.homepageId) setHomepageId(p.homepageId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function onPartnerChange(id: string) {
     setPartnerId(id);
@@ -110,6 +125,7 @@ export default function TicketForm({
         approverIds: selected,
         submit: submitForApproval,
         attachments,
+        coopRequestId: initialCoopRequestId ?? null,
       }),
     });
     const data = await res.json().catch(() => ({}));

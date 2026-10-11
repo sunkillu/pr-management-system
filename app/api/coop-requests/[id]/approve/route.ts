@@ -32,6 +32,27 @@ status: toStatus,
 rejectReason: action === "REJECT"? body.comment.trim(): null,
 },
 });
+// 审批通过：自动创建达人并直接入库（幂等：已生成过则跳过）
+let influencerId = request.influencerId;
+if (action === "APPROVE" &&!influencerId) {
+const inf = await tx.influencer.create({
+data: {
+name: request.title,
+influencerType: request.influencerType,
+platforms: request.platforms,
+bio: request.description,
+attachments: request.attachments ?? undefined,
+status: "APPROVED",
+registeredById: request.submitterId,
+tags: [],
+},
+});
+influencerId = inf.id;
+await tx.cooperationRequest.update({
+where: { id: params.id},
+data: { influencerId },
+});
+}
 await tx.requestApprover.upsert({
 where: {
 requestType_requestId_approverId: {
@@ -64,7 +85,7 @@ return u;
 
 await notifyUser(
 request.submitterId,
-`「${request.title}」${action === "APPROVE"? "审批通过。": `被驳回，理由：${body.comment.trim()}`}`,
+`「${request.title}」${action === "APPROVE"? "审批通过，已自动加入达人库。": `被驳回，理由：${body.comment.trim()}`}`,
 { type: "COOP_REQUEST", id: request.id, title: "合作需求审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
 );
 

@@ -38,6 +38,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       influencer: { select: { id: true, name: true } },
       makeupArtist: { select: { id: true, name: true } },
       creator: { select: { id: true, name: true } },
+      coopRequest: { select: { id: true, title: true } },
       nodes: {
         orderBy: { sort: "asc" },
         include: { completedBy: { select: { name: true } } },
@@ -170,6 +171,13 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   {partnerHref ? <Link href={partnerHref} className="text-[#0071e3] hover:underline">{partnerName}</Link> : partnerName}
                 </span>
               </InfoRow>
+              {ticket.coopRequest && (
+                <InfoRow label="来源需求">
+                  <Link href={`/coop-requests/${ticket.coopRequest.id}`} className="text-[#0071e3] hover:underline">
+                    {ticket.coopRequest.title}
+                  </Link>
+                </InfoRow>
+              )}
               <InfoRow label="合作类型">{coopTypeLabels[ticket.type]}</InfoRow>
               <InfoRow label="合作平台">{platformTagLabels[ticket.platform] ?? ticket.platform ?? "-"}</InfoRow>
               {ticket.homepageId && (
