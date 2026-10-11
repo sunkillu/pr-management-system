@@ -9,6 +9,9 @@ const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id}});
 if (!ticket) return NextResponse.json({ error: "工单不存在"}, { status: 404});
+if (ticket.creatorId !== auth.userId) {
+return NextResponse.json({ error: "仅申请人可催办"}, { status: 403});
+}
 if (ticket.status!== "PENDING_APPROVAL") {
 return NextResponse.json({ error: "仅待审批的工单可催办"}, { status: 400});
 }
