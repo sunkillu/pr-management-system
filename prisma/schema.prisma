@@ -275,6 +275,7 @@ enum DocType {
   INFLUENCER   // 达人登记单
   COOP_REQUEST // 合作需求单
   TICKET       // 合作工单
+  SAMPLE       // 寄件请求单
 }
 
 enum LogAction {
@@ -555,23 +556,35 @@ model PaymentVoucher {
 
 // ---------- 10. 寄品管理 ----------
 enum SampleStatus {
+  PENDING     // 待处理（寄件请求已提交）
+  PREPARING   // 备货中（仓库已接单）
   SHIPPED     // 已寄出
   SIGNED      // 已签收
-  RETURNED    // 已归还
+  RETURNED    // 已归还（已废弃，不再使用）
   WRITTEN_OFF // 已核销
+  CANCELLED   // 已取消
 }
 
 model SampleShipment {
   id           String       @id @default(cuid())
   influencerId String?
   influencer   Influencer?  @relation(fields: [influencerId], references: [id], onDelete: SetNull)
+  ticketId     String? // 关联工单（从工单寄品明细一键生成）
+  ticket       CooperationTicket? @relation("TicketSamples", fields: [ticketId], references: [id], onDelete: SetNull)
   productName  String // 产品名称
   quantity     Int          @default(1)
+  items        Json? // 寄品明细 [{style, degree?, note?}]（从工单带入）
+  receiverName String? // 收件人
+  receiverPhone String? // 收件电话
+  receiverAddress String? // 收件地址
   courier      String? // 快递公司（仓库维护）
   trackingNo   String? // 快递单号（仓库维护）
   shippedDate  DateTime?    @db.Date // 寄出时间（仓库维护）
   shippedBy    String? // 寄件人（仓库维护）
-  status       SampleStatus @default(SHIPPED)
+  signedAt     DateTime? // 签收时间
+  signedNote   String? // 签收备注
+  cancelReason String? // 取消理由
+  status       SampleStatus @default(PENDING)
 
   createdById String
   createdBy   User   @relation("SampleCreator", fields: [createdById], references: [id], onDelete: Restrict)
@@ -580,6 +593,7 @@ model SampleShipment {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  @@index([ticketId])
 }
 
 // ---------- 11. 飞书通知记录（真实发送与 mock 均记一条） ----------
@@ -680,6 +694,7 @@ model CooperationTicket {
   followUps FollowUpRecord[]
   contents Content[] // 工单内维护的内容
   materials MaterialRecord[] // 回收素材（执行中上传，PR负责人审批后才能生成打款单）
+  samples   SampleShipment[] @relation("TicketSamples") // 关联寄件请求
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

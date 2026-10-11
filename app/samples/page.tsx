@@ -5,6 +5,8 @@ import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import { sampleStatusLabels, badgeClass } from "@/lib/labels";
 import SampleForm from "@/components/SampleForm";
 import SampleShipForm from "@/components/SampleShipForm";
+import SampleActions from "@/components/SampleActions";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export default async function SamplesPage({
   searchParams,
@@ -45,9 +47,10 @@ export default async function SamplesPage({
 
   return (
     <div>
+      <AutoRefresh intervalMs={30000} />
       <PageHeader
         title="寄品管理"
-        desc="维护寄给达人的样品信息：产品、数量、快递单号、状态"
+        desc="寄件请求：PR提交 → 仓库接单备货 → 寄出 → 确认签收 → 核销"
         action={canWrite ? <SampleForm influencers={influencers} /> : undefined}
       />
 
@@ -73,14 +76,14 @@ export default async function SamplesPage({
             <tr>
               <th className={thCls}>产品名称</th>
               <th className={thCls}>达人</th>
+              <th className={thCls}>收件人</th>
               <th className={thCls}>数量</th>
               <th className={thCls}>快递公司</th>
               <th className={thCls}>快递单号</th>
-              <th className={thCls}>寄出日期</th>
-              <th className={thCls}>寄件人</th>
               <th className={thCls}>状态</th>
               <th className={thCls}>记录人</th>
-              {(canWrite || canShip) && <th className={thCls}>操作</th>}
+              <th className={thCls}>流转操作</th>
+              {(canWrite || canShip) && <th className={thCls}>维护</th>}
             </tr>
           </thead>
           <tbody>
@@ -88,17 +91,19 @@ export default async function SamplesPage({
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className={tdCls + " font-medium"}>{r.productName}</td>
                 <td className={tdCls}>{r.influencer?.name ?? "-"}</td>
+                <td className={tdCls}>{r.receiverName ?? "-"}</td>
                 <td className={tdCls}>{r.quantity}</td>
                 <td className={tdCls}>{r.courier ?? "-"}</td>
                 <td className={tdCls}>{r.trackingNo ?? "-"}</td>
-                <td className={tdCls}>{r.shippedDate ? r.shippedDate.toISOString().slice(0, 10) : "-"}</td>
-                <td className={tdCls}>{r.shippedBy ?? "-"}</td>
                 <td className={tdCls}>
                   <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(r.status)}`}>
                     {sampleStatusLabels[r.status]}
                   </span>
                 </td>
                 <td className={tdCls}>{r.createdBy?.name ?? "-"}</td>
+                <td className={tdCls + " whitespace-nowrap"}>
+                  <SampleActions sample={{ id: r.id, productName: r.productName, status: r.status }} role={role} />
+                </td>
                 {(canWrite || canShip) && (
                   <td className={tdCls + " whitespace-nowrap"}>
                     <div className="flex flex-wrap gap-2">

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { writeLog } from "@/lib/approval-log";
+import { notifyApprovers, notifyUser } from "@/lib/feishu-notify";
 
 const WRITE = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(list);
 }
 
-// 寄品登记：产品名称必填
+// 寄件请求登记：产品名称必填；新建默认待处理（PENDING），由仓库接单
 export async function POST(req: NextRequest) {
   const auth = await requireRoles([...WRITE]);
   if (!auth.ok) return auth.res;
@@ -40,18 +42,47 @@ export async function POST(req: NextRequest) {
   if (!body.productName?.trim()) {
     return NextResponse.json({ error: "产品名称不能为空" }, { status: 400 });
   }
+  // 从工单一键生成时校验 ticketId 存在
+  if (body.ticketId) {
+    const ticket = await prisma.cooperationTicket.findUnique({ where: { id: body.ticketId }, select: { id: true } });
+    if (!ticket) return NextResponse.json({ error: "关联工单不存在" }, { status: 400 });
+  }
   const sample = await prisma.sampleShipment.create({
     data: {
       influencerId: body.influencerId || null,
+      ticketId: body.ticketId || null,
       productName: body.productName.trim(),
       quantity: Number(body.quantity) > 0 ? Number(body.quantity) : 1,
+      items: Array.isArray(body.items) ? body.items : null,
+      receiverName: body.receiverName?.trim() || null,
+      receiverPhone: body.receiverPhone?.trim() || null,
+      receiverAddress: body.receiverAddress?.trim() || null,
       courier: body.courier?.trim() || null,
       trackingNo: body.trackingNo || null,
       shippedDate: body.shippedDate ? new Date(body.shippedDate) : null,
       shippedBy: body.shippedBy?.trim() || null,
-      status: body.status ?? "SHIPPED",
+      status: "PENDING",
       createdById: auth.userId,
     },
   });
+  await writeLog(prisma, {
+    docType: "SAMPLE",
+    docId: sample.id,
+    action: "CREATE",
+    actorId: auth.userId,
+    fromStatus: null,
+    toStatus: "PENDING",
+    note: body.ticketId ? "由工单寄品明细一键生成" : null,
+  });
+  // 通知仓库有新的寄件请求
+  const warehouses = await prisma.user.findMany({
+    where: { role: { in: ["WAREHOUSE", "ADMIN"] } },
+    select: { id: true },
+  });
+  await notifyApprovers(
+    warehouses.map((w) => w.id),
+    `【寄件请求待处理】${sample.productName}（${body.receiverName ?? ""}），请仓库接单备货。`,
+    { type: "SAMPLE", id: sample.id, title: "寄件请求待处理", kind: "APPROVAL_PENDING" }
+  );
   return NextResponse.json(sample, { status: 201 });
 }

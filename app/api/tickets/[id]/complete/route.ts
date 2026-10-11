@@ -28,6 +28,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (materialCount === 0) {
     return NextResponse.json({ error: "请先回收素材" }, { status: 400 });
   }
+  // 寄件门槛：工单有寄品明细时，必须有关联寄件请求且已签收/已核销
+  const shipItems = ticket.shipItems as { style: string }[] | null;
+  if (Array.isArray(shipItems) && shipItems.length > 0) {
+    const doneSample = await prisma.sampleShipment.findFirst({
+      where: { ticketId: params.id, status: { in: ["SIGNED", "WRITTEN_OFF"] } },
+      select: { id: true },
+    });
+    if (!doneSample) {
+      return NextResponse.json({ error: "寄品尚未签收，请先完成寄件流程" }, { status: 400 });
+    }
+  }
   const body = await req.json();
   const rating = Number(body.rating);
   if (!rating || rating < 1 || rating > 5) {

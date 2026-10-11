@@ -27,6 +27,8 @@ import TicketComments from "@/components/TicketComments";
 import TicketFollowUps from "@/components/TicketFollowUps";
 import TicketContents, { TicketContent } from "@/components/TicketContents";
 import TicketMaterials from "@/components/TicketMaterials";
+import TicketSampleLink from "@/components/TicketSampleLink";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -49,6 +51,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         include: { assignee: { select: { id: true, name: true } } },
       },
       reviews: { include: { reviewer: { select: { name: true } } } },
+      samples: {
+        select: { id: true, productName: true, status: true, trackingNo: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      },
       paymentRequests: {
         select: { id: true, title: true, amount: true, status: true },
         orderBy: { createdAt: "desc" },
@@ -153,6 +159,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
 
   return (
     <div>
+      <AutoRefresh intervalMs={30000} />
       <PageHeader
         title={ticket.title}
         desc={`${ticket.ticketNo} · ${coopTypeLabels[ticket.type]} · ${ticketStatusLabels[ticket.status]}`}
@@ -255,6 +262,14 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                       ))}
                     </tbody>
                   </table>
+                  <TicketSampleLink
+                    ticketId={ticket.id}
+                    ticketTitle={ticket.title}
+                    shipItems={ticket.shipItems as { style: string; degree?: string; note?: string }[]}
+                    samples={ticket.samples}
+                    influencerName={ticket.influencer?.name ?? ticket.makeupArtist?.name ?? ""}
+                    canCreate={["ADMIN", "PR", "PR_MANAGER"].includes(role)}
+                  />
                 </InfoRow>
               )}
               {Array.isArray(ticket.attachments) && ticket.attachments.length > 0 && (

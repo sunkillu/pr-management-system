@@ -135,9 +135,15 @@ const badgeColors: Record<string, string> = {
   SETTLED: "bg-green-100 text-green-800",
   ACTIVE: "bg-green-100 text-green-800",
   INACTIVE: "bg-gray-100 text-gray-500",
-  PREPARING: "bg-gray-100 text-gray-700",
+  PREPARING: "bg-blue-100 text-blue-800",
   ONGOING: "bg-blue-100 text-blue-800",
   ENDED: "bg-gray-100 text-gray-500",
+  // 寄件请求状态
+  SHIPPED: "bg-indigo-100 text-indigo-800",
+  SIGNED: "bg-green-100 text-green-800",
+  RETURNED: "bg-gray-100 text-gray-500",
+  WRITTEN_OFF: "bg-gray-200 text-gray-600",
+  CANCELLED: "bg-red-100 text-red-800",
 };
 
 export function badgeClass(status: string): string {
@@ -275,10 +281,13 @@ export const approverStatusLabels: Record<string, string> = {
 };
 
 export const sampleStatusLabels: Record<string, string> = {
+  PENDING: "待处理",
+  PREPARING: "备货中",
   SHIPPED: "已寄出",
   SIGNED: "已签收",
   RETURNED: "已归还",
   WRITTEN_OFF: "已核销",
+  CANCELLED: "已取消",
 };
 
 export const notifyTypeLabels: Record<string, string> = {

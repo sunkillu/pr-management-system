@@ -7,6 +7,7 @@ import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
 import TicketBoard, { BoardTicket } from "@/components/TicketBoard";
+import AutoRefresh from "@/components/AutoRefresh";
 
 const VIEWS = [
   { key: "list", label: "列表" },
@@ -116,6 +117,7 @@ export default async function TicketsPage({
 
   return (
     <div>
+      <AutoRefresh intervalMs={30000} />
       <PageHeader
         title="合作工单"
         desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
