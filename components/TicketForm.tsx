@@ -36,7 +36,7 @@ export default function TicketForm({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [note, setNote] = useState("");
-  const [platform, setPlatform] = useState("");
+  const [platforms, setPlatforms] = useState<string[]>([]);
   const [homepageId, setHomepageId] = useState("");
   const [styles, setStyles] = useState<string[]>([]);
   const [coopCategories, setCoopCategories] = useState<string[]>([]);
@@ -99,7 +99,7 @@ export default function TicketForm({
     setError("");
     if (!title.trim()) return setError("标题不能为空");
     if (!partnerId) return setError("请选择合作对象");
-    if (!platform) return setError("请选择合作平台");
+    if (platforms.length === 0) return setError("请选择合作平台（可多选）");
     if (styles.length === 0) return setError("请选择款式（可多选）");
     if (coopCategories.length === 0) return setError("请选择合作类目（可多选）");
     if (!estimatedSchedule.trim()) return setError("请填写预估档期");
@@ -122,7 +122,7 @@ export default function TicketForm({
         influencerId: type === "MAKEUP" ? null : partnerId,
         makeupArtistId: type === "MAKEUP" ? partnerId : null,
         budgetFee,
-        platform,
+        platform: platforms,
         homepageId: homepageId.trim() || null,
         style: styles,
         coopCategory: coopCategories,
@@ -174,13 +174,21 @@ export default function TicketForm({
             </select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="合作平台" required>
-              <select className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)}>
-                <option value="">请选择</option>
+            <Field label="合作平台（可多选）" required>
+              <div className="flex flex-wrap gap-3">
                 {PLATFORM_TAG_OPTIONS.map((p) => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
+                  <label key={p.value} className="flex items-center gap-1 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={platforms.includes(p.value)}
+                      onChange={() =>
+                        setPlatforms(platforms.includes(p.value) ? platforms.filter((x) => x !== p.value) : [...platforms, p.value])
+                      }
+                    />
+                    {p.label}
+                  </label>
                 ))}
-              </select>
+              </div>
             </Field>
             <Field label="达人主页ID" hint="选达人自动带入，可手动修改">
               <input className={inputCls} value={homepageId} onChange={(e) => setHomepageId(e.target.value)}

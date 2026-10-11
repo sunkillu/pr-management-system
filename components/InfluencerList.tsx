@@ -21,7 +21,7 @@ export type InfluencerSearchParams = {
   status?: string;
   type?: string;
   coop?: string;
-  tag?: string;
+  tag?: string | string[];
   prefill?: string;
   ptype?: string;
   pplatforms?: string;
@@ -45,9 +45,15 @@ export default async function InfluencerList({
   if (searchParams.platform) where.platforms = { has: searchParams.platform };
   if (searchParams.status) where.status = searchParams.status;
   if (searchParams.type) where.influencerType = searchParams.type;
-  if (searchParams.tag) where.tags = { has: searchParams.tag };
   if (searchParams.coop === "none") where.coopCount = 0;
   if (searchParams.coop === "active") where.coopCount = { gt: 0 };
+  // 标签多选筛选：命中任一标签即可
+  const selectedTags = Array.isArray(searchParams.tag)
+    ? searchParams.tag.filter(Boolean)
+    : searchParams.tag
+      ? [searchParams.tag]
+      : [];
+  if (selectedTags.length > 0) where.tags = { hasSome: selectedTags };
 
   const [list, allTags] = await Promise.all([
     prisma.influencer.findMany({
@@ -100,12 +106,26 @@ export default async function InfluencerList({
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
-        <select name="tag" defaultValue={searchParams.tag ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
-          <option value="">全部标签</option>
-          {tagOptions.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
+        <details className="relative">
+          <summary className="cursor-pointer list-none rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 [&::-webkit-details-marker]:hidden">
+            {selectedTags.length > 0 ? `标签（${selectedTags.length}）` : "全部标签"}
+          </summary>
+          <div className="absolute z-10 mt-1 max-h-56 w-48 overflow-auto rounded-lg border border-[#e5e5e5] bg-white p-2 shadow-lg">
+            {tagOptions.length === 0 && <p className="px-2 py-1 text-xs text-gray-400">暂无标签</p>}
+            {tagOptions.map((t) => (
+              <label key={t} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-[#f5f5f7]">
+                <input
+                  type="checkbox"
+                  name="tag"
+                  value={t}
+                  defaultChecked={selectedTags.includes(t)}
+                  className="h-4 w-4 accent-[#0071e3]"
+                />
+                {t}
+              </label>
+            ))}
+          </div>
+        </details>
         <select name="coop" defaultValue={searchParams.coop ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
           <option value="">全部合作状态</option>
           <option value="none">未合作</option>

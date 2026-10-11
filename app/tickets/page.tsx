@@ -192,7 +192,7 @@ export default async function TicketsPage({
                     )}
                   </td>
                   <td className={tdCls}>{coopTypeLabels[t.type]}</td>
-                  <td className={tdCls}>{platformTagLabels[t.platform] ?? t.platform ?? "-"}</td>
+                  <td className={tdCls}>{(t.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</td>
                   <td className={tdCls}>{t.influencer?.name ?? t.makeupArtist?.name ?? "-"}</td>
                   <td className={tdCls}>{formatMoney(t.budgetFee)}</td>
                   <td className={tdCls}>

@@ -641,7 +641,7 @@ model CooperationTicket {
   budgetFee   Decimal      @db.Decimal(12, 2) // 预算费用
   actualFee   Decimal?     @db.Decimal(12, 2) // 实际费用（结算用）
   budgetOverridden Boolean @default(false) // 超预算已特批
-  platform    String       // 合作平台（必填）：XIAOHONGSHU / DOUYIN
+  platform    String[]     // 合作平台（多选，必填）：XIAOHONGSHU / DOUYIN
   homepageId  String?      // 达人主页ID（从达人库带入，可手动改）
   style       String[]     // 款式（多选，必填）
   contentDirection String? @db.Text // 内容方向

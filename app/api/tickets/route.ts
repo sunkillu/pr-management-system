@@ -54,10 +54,10 @@ const budgetFee = Number(body.budgetFee);
 if (!budgetFee || budgetFee <= 0) {
 return NextResponse.json({ error: "预算费用必须大于 0"}, { status: 400});
 }
-// 合作平台必填
-const platform = String(body.platform ?? "").trim();
-if (!platform || !["XIAOHONGSHU", "DOUYIN"].includes(platform)) {
-return NextResponse.json({ error: "请选择合作平台"}, { status: 400});
+// 合作平台多选必填
+const platforms: string[] = Array.isArray(body.platform) ? body.platform.map((s: unknown) => String(s)).filter((s: string) => ["XIAOHONGSHU", "DOUYIN"].includes(s)) : [];
+if (platforms.length === 0) {
+return NextResponse.json({ error: "请选择合作平台（可多选）"}, { status: 400});
 }
 // 款式多选必填
 const styles: string[] = Array.isArray(body.style) ? body.style.map((s: unknown) => String(s)).filter(Boolean) : [];
@@ -153,7 +153,7 @@ title: body.title.trim(),
 type,
 budgetFee: body.budgetFee,
 actualFee: body.actualFee? body.actualFee: null,
-platform,
+platform: platforms,
 homepageId,
 style: styles,
 contentDirection: String(body.contentDirection ?? "").trim() || null,

@@ -60,7 +60,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.startDate !== undefined) data.startDate = body.startDate ? new Date(body.startDate) : null;
   if (body.endDate !== undefined) data.endDate = body.endDate ? new Date(body.endDate) : null;
   if (body.note !== undefined) data.note = body.note?.trim() || null;
-  if (body.platform !== undefined && ["XIAOHONGSHU", "DOUYIN"].includes(body.platform)) data.platform = body.platform;
+  if (body.platform !== undefined) {
+    const ps = Array.isArray(body.platform) ? body.platform.map((s: unknown) => String(s)).filter((s: string) => ["XIAOHONGSHU", "DOUYIN"].includes(s)) : [];
+    if (ps.length > 0) data.platform = ps;
+  }
   if (body.homepageId !== undefined) data.homepageId = String(body.homepageId ?? "").trim() || null;
   if (body.style !== undefined) data.style = Array.isArray(body.style) ? body.style.map((s: unknown) => String(s)).filter(Boolean) : [];
   if (body.contentDirection !== undefined) data.contentDirection = String(body.contentDirection ?? "").trim() || null;

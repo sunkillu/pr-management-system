@@ -195,7 +195,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 </InfoRow>
               )}
               <InfoRow label="合作类型">{coopTypeLabels[ticket.type]}</InfoRow>
-              <InfoRow label="合作平台">{platformTagLabels[ticket.platform] ?? ticket.platform ?? "-"}</InfoRow>
+              <InfoRow label="合作平台">{(ticket.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</InfoRow>
               {ticket.homepageId && (
                 <InfoRow label="达人主页ID"><span className="font-mono text-sm">{ticket.homepageId}</span></InfoRow>
               )}
