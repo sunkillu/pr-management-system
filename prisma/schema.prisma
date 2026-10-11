@@ -100,6 +100,8 @@ model MediaOutlet {
 
   contents        Content[]
   paymentRequests PaymentRequest[]
+
+  @@index([updatedAt, id])
 }
 
 // ---------- 2. 内容管理 ----------
@@ -147,6 +149,8 @@ model Content {
   reports         Report[]
   paymentRequests PaymentRequest[]
   comments        ContentComment[] // 发布后外部评论及处理跟进
+
+  @@index([updatedAt, id])
 }
 
 // 内容发布后评论：记录外部（如平台）评论，标记是否已处理（回复/跟进）
@@ -237,6 +241,10 @@ model PaymentRequest {
   approvalRecords ApprovalRecord[]
   invoices        Invoice[]
   vouchers        PaymentVoucher[]
+
+  @@index([status, updatedAt, id])
+  @@index([status, campaignId])
+  @@index([updatedAt, id])
 }
 
 // ---------- 审批记录（内容审批 & 打款两阶段共用） ----------
@@ -357,6 +365,9 @@ model Invoice {
   uploadedBy     User          @relation("InvoiceUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
+  @@index([status, updatedAt, id])
+  @@index([updatedAt, id])
 }
 
 // ---------- 6. 效果报表 ----------
@@ -376,6 +387,9 @@ model Report {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([campaignId, recordDate, id])
+  @@index([recordDate, id])
 }
 
 // ---------- 7. 合作管理 ----------
@@ -427,6 +441,10 @@ model Influencer {
   reviews            CooperationReview[]
 
   @@index([status])
+  @@index([updatedAt, id])
+  @@index([registeredById, updatedAt, id])
+  @@index([tags], type: Gin)
+  @@index([platforms], type: Gin)
 }
 
 model MakeupArtist {
@@ -446,6 +464,8 @@ model MakeupArtist {
 
   tickets            CooperationTicket[]
   reviews            CooperationReview[]
+
+  @@index([updatedAt, id])
 }
 
 // 合作类型：达人挂车 / 达播 / 化妆师合作
@@ -538,6 +558,8 @@ model CooperationRequest {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  @@index([updatedAt, id])
+  @@index([platforms], type: Gin)
 }
 
 // ---------- 9. 打款凭证（多附件，本地存储，沿用发票上传方式） ----------
@@ -595,6 +617,7 @@ model SampleShipment {
 
   @@index([status])
   @@index([ticketId])
+  @@index([createdAt, id])
 }
 
 // ---------- 11. 飞书通知记录（真实发送与 mock 均记一条） ----------
@@ -702,6 +725,8 @@ model CooperationTicket {
 
   @@index([status])
   @@index([creatorId])
+  @@index([status, updatedAt, id])
+  @@index([updatedAt, id])
 }
 
 // 跟进记录：打款后15天数据跟进，平均3次

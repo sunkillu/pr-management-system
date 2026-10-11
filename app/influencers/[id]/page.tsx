@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canViewInfluencer, parseInfluencerAttachments } from "@/lib/influencer-access";
 import { PageHeader, Section, InfoRow } from "@/components/ui";
 import {
   influencerStatusLabels,
@@ -36,6 +37,9 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
     },
   });
   if (!influencer) notFound();
+  if (!canViewInfluencer(role, me.id, influencer.registeredById)) notFound();
+  const attachmentResult = parseInfluencerAttachments(influencer.attachments);
+  const attachments = attachmentResult.ok ? attachmentResult.attachments : [];
   const avgRating = influencer.reviews.length > 0
     ? (influencer.reviews.reduce((s, r) => s + r.rating, 0) / influencer.reviews.length).toFixed(1)
     : null;
@@ -141,11 +145,11 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 <div className="whitespace-pre-wrap">{influencer.bio}</div>
               </div>
             )}
-            {((influencer.attachments as { fileUrl: string; fileName: string }[] | null) ?? []).length > 0 && (
+            {attachments.length > 0 && (
               <div className="mt-3 text-sm">
                 <div className="mb-2 text-gray-500">附件（参考图）</div>
                 <div className="flex flex-wrap gap-2">
-                  {((influencer.attachments as { fileUrl: string; fileName: string }[]) ?? []).map((a, i) => (
+                  {attachments.map((a, i) => (
                     <a key={i} href={a.fileUrl} target="_blank" title={a.fileName}
                       className="flex h-20 w-20 items-center justify-center overflow-hidden rounded border border-gray-200 bg-[#f5f5f7] text-center text-[10px] text-[#0071e3]">
                       {/.(jpe?g|png|webp|gif)$/i.test(a.fileName) ? (

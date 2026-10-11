@@ -88,6 +88,7 @@ export const docTypeLabels: Record<string, string> = {
 };
 
 export const logActionLabels: Record<string, string> = {
+  CREATE: "直接加入",
   SUBMIT: "提交审批",
   RESUBMIT: "重新提交",
   APPROVE: "通过",

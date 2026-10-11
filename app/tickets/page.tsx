@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import { ticketStatusLabels, coopTypeLabels, badgeClass, formatMoney, formatDate, platformTagLabels } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
@@ -8,6 +9,8 @@ import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
 import TicketBoard, { BoardTicket } from "@/components/TicketBoard";
 import AutoRefresh from "@/components/AutoRefresh";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 
 const VIEWS = [
   { key: "list", label: "列表" },
@@ -17,7 +20,7 @@ const VIEWS = [
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; type?: string; view?: string };
+  searchParams: { q?: string; status?: string; type?: string; view?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -40,7 +43,7 @@ export default async function TicketsPage({
   const viewTab = (key: string) =>
     `/tickets${key === "board" ? "?view=board" : ""}`;
 
-  // 看板视图：全量工单，按状态分列
+  // Keep the board bounded; historical tickets remain available in the paginated list.
   if (view === "board") {
     const all = await prisma.cooperationTicket.findMany({
       include: {
@@ -50,7 +53,8 @@ export default async function TicketsPage({
         subtasks: { select: { status: true } },
         paymentRequests: { select: { id: true }, orderBy: { createdAt: "desc" }, take: 1 },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: 200,
     });
     const boardTickets: BoardTicket[] = all.map((t) => ({
       id: t.id,
@@ -89,13 +93,13 @@ export default async function TicketsPage({
           ))}
         </div>
         <TicketBoard tickets={boardTickets} role={role} />
+        <p className="mt-3 text-xs text-gray-500">看板显示最近 200 条工单；更早的记录请使用列表筛选。</p>
       </div>
     );
   }
 
   // 列表视图
-  const list = await prisma.cooperationTicket.findMany({
-    where: {
+  const where: Prisma.CooperationTicketWhereInput = {
       ...(searchParams.q
         ? {
             OR: [
@@ -106,14 +110,22 @@ export default async function TicketsPage({
         : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { type: searchParams.type as never } : {}),
-    },
-    include: {
-      influencer: { select: { name: true } },
-      makeupArtist: { select: { name: true } },
-      creator: { select: { name: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  };
+  const pagination = getPagination(searchParams.page);
+  const [list, total] = await Promise.all([
+    prisma.cooperationTicket.findMany({
+      where,
+      include: {
+        influencer: { select: { name: true } },
+        makeupArtist: { select: { name: true } },
+        creator: { select: { name: true } },
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.cooperationTicket.count({ where }),
+  ]);
 
   return (
     <div>
@@ -215,6 +227,7 @@ export default async function TicketsPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/tickets" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

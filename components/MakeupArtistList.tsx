@@ -5,10 +5,14 @@ import { thCls, tdCls, btnPrimary } from "@/components/ui";
 import { badgeClass, formatFee } from "@/lib/labels";
 import Link from "next/link";
 import MakeupArtistForm from "@/components/MakeupArtistForm";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
+import { Prisma } from "@prisma/client";
 
 export type MakeupArtistSearchParams = {
   q?: string;
   longTerm?: string;
+  page?: string;
 };
 
 // 化妆师列表（查询+筛选+表格），用于 /partners 的"化妆师" tab
@@ -22,16 +26,28 @@ export default async function MakeupArtistList({
   const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canDelete = ["ADMIN", "PR_MANAGER"].includes(role);
 
-  const list = await prisma.makeupArtist.findMany({
-    where: {
+  const where: Prisma.MakeupArtistWhereInput = {
       ...(searchParams.q ? { name: { contains: searchParams.q, mode: "insensitive" } } : {}),
       ...(searchParams.longTerm === "1" ? { isLongTerm: true } : {}),
-    },
-    include: { reviews: { select: { rating: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
-  const avgOf = (rs: { rating: number }[]) =>
-    rs.length > 0 ? (rs.reduce((s, r) => s + r.rating, 0) / rs.length).toFixed(1) : null;
+  };
+  const pagination = getPagination(searchParams.page);
+  const [list, total] = await Promise.all([
+    prisma.makeupArtist.findMany({
+      where,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.makeupArtist.count({ where }),
+  ]);
+  const ratings = list.length > 0
+    ? await prisma.cooperationReview.groupBy({
+        by: ["makeupArtistId"],
+        where: { makeupArtistId: { in: list.map((artist) => artist.id) } },
+        _avg: { rating: true },
+      })
+    : [];
+  const ratingByArtist = new Map(ratings.map((rating) => [rating.makeupArtistId, rating._avg.rating]));
 
   return (
     <div>
@@ -85,7 +101,9 @@ export default async function MakeupArtistList({
                 <td className={tdCls}>{r.coopCount}</td>
                 <td className={tdCls}>{formatFee(r.totalFee)}</td>
                 <td className={tdCls}>
-                  {(() => { const a = avgOf(r.reviews); return a ? <span className="text-yellow-600">★ {a}</span> : "-"; })()}
+                  {ratingByArtist.get(r.id) != null
+                    ? <span className="text-yellow-600">★ {ratingByArtist.get(r.id)!.toFixed(1)}</span>
+                    : "-"}
                 </td>
                 <td className={tdCls}>{r.notes ?? "-"}</td>
                 {canWrite && (
@@ -117,6 +135,7 @@ export default async function MakeupArtistList({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/partners" page={pagination.page} total={total} query={{ ...searchParams, tab: "makeup" }} />
     </div>
   );
 }

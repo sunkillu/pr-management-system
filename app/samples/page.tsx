@@ -1,17 +1,20 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import { sampleStatusLabels, badgeClass } from "@/lib/labels";
 import SampleForm from "@/components/SampleForm";
 import SampleShipForm from "@/components/SampleShipForm";
 import SampleActions from "@/components/SampleActions";
 import AutoRefresh from "@/components/AutoRefresh";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 
 export default async function SamplesPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string };
+  searchParams: { q?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const me = session?.user as unknown as { id: string; role: string };
@@ -21,8 +24,7 @@ export default async function SamplesPage({
   // 仓库维护寄件信息；ADMIN / PR_MANAGER 兜底
   const canShip = ["ADMIN", "PR_MANAGER", "WAREHOUSE"].includes(role);
 
-  const list = await prisma.sampleShipment.findMany({
-    where: {
+  const where: Prisma.SampleShipmentWhereInput = {
       ...(searchParams.q
         ? {
             OR: [
@@ -32,13 +34,21 @@ export default async function SamplesPage({
           }
         : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
-    },
-    include: {
-      influencer: { select: { id: true, name: true } },
-      createdBy: { select: { id: true, name: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  };
+  const pagination = getPagination(searchParams.page);
+  const [list, total] = await Promise.all([
+    prisma.sampleShipment.findMany({
+      where,
+      include: {
+        influencer: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.sampleShipment.count({ where }),
+  ]);
 
   const influencers = await prisma.influencer.findMany({
     where: { status: "APPROVED" },
@@ -152,6 +162,7 @@ export default async function SamplesPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/samples" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

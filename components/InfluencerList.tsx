@@ -14,6 +14,10 @@ import {
 import Link from "next/link";
 import InfluencerForm from "@/components/InfluencerForm";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
+import { influencerOwnerFilter } from "@/lib/influencer-access";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
+import { Prisma } from "@prisma/client";
 
 export type InfluencerSearchParams = {
   q?: string;
@@ -25,6 +29,7 @@ export type InfluencerSearchParams = {
   prefill?: string;
   ptype?: string;
   pplatforms?: string;
+  page?: string;
 };
 
 // 达人列表（查询+筛选+表格），用于 /partners 的"达人" tab
@@ -40,7 +45,7 @@ export default async function InfluencerList({
 
   const where: Record<string, unknown> = {};
   // 数据权限：PR 只能看自己登记的；ADMIN / FINANCE / PR_MANAGER 可看全部
-  if (role === "PR") where.registeredById = me.id;
+  Object.assign(where, influencerOwnerFilter(role, me.id));
   if (searchParams.q) where.name = { contains: searchParams.q, mode: "insensitive" };
   if (searchParams.platform) where.platforms = { has: searchParams.platform };
   if (searchParams.status) where.status = searchParams.status;
@@ -55,23 +60,36 @@ export default async function InfluencerList({
       : [];
   if (selectedTags.length > 0) where.tags = { hasSome: selectedTags };
 
-  const [list, allTags] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [list, total, allTags] = await Promise.all([
     prisma.influencer.findMany({
       where,
       include: {
         registeredBy: { select: { name: true } },
         cooperationRecords: { orderBy: { coopDate: "desc" }, take: 1, select: { fee: true } },
-        reviews: { select: { rating: true } },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
-    // 标签筛选下拉：取库内所有已用标签（同样受数据权限约束）
-    prisma.influencer.findMany({
-      where: role === "PR" ? { registeredById: me.id } : {},
-      select: { tags: true },
-    }),
+    prisma.influencer.count({ where }),
+    prisma.$queryRaw<{ tag: string }[]>(Prisma.sql`
+      SELECT DISTINCT tag
+      FROM "Influencer" AS i
+      CROSS JOIN LATERAL unnest(i."tags") AS tag
+      WHERE ${role === "PR" ? Prisma.sql`i."registeredById" = ${me.id}` : Prisma.sql`TRUE`}
+      ORDER BY tag
+    `),
   ]);
-  const tagOptions = Array.from(new Set(allTags.flatMap((r) => r.tags))).sort();
+  const ratings = list.length > 0
+    ? await prisma.cooperationReview.groupBy({
+        by: ["influencerId"],
+        where: { influencerId: { in: list.map((influencer) => influencer.id) } },
+        _avg: { rating: true },
+      })
+    : [];
+  const ratingByInfluencer = new Map(ratings.map((rating) => [rating.influencerId, rating._avg.rating]));
+  const tagOptions = allTags.map((row) => row.tag);
 
   // 从合作需求一键加入时的预填参数（ptype/pplatforms，与筛选参数区分）
   const prefill = searchParams.prefill === "1";
@@ -200,9 +218,9 @@ export default async function InfluencerList({
                 </td>
                 <td className={tdCls}>{formatFee(r.totalFee)}</td>
                 <td className={tdCls}>
-                  {r.reviews.length > 0 ? (
+                  {ratingByInfluencer.get(r.id) != null ? (
                     <span className="text-yellow-600">
-                      ★ {(r.reviews.reduce((s, x) => s + x.rating, 0) / r.reviews.length).toFixed(1)}
+                      ★ {ratingByInfluencer.get(r.id)!.toFixed(1)}
                     </span>
                   ) : (
                     "-"
@@ -236,6 +254,7 @@ export default async function InfluencerList({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/partners" page={pagination.page} total={total} query={{ ...searchParams, tab: "influencer" }} />
     </div>
   );
 }

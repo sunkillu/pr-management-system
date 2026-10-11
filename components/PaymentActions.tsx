@@ -11,12 +11,14 @@ import { btnPrimarySm, btnDangerSm, btnDanger } from "./ui";
 // 所有操作均经二次确认弹窗；驳回/作废必填理由
 export default function PaymentActions({
   id,
+  ticketId,
   status,
   role,
   isRequester,
   voucherCount = 0,
 }: {
   id: string;
+  ticketId?: string | null;
   status: string;
   role: string;
   isRequester: boolean;
@@ -123,7 +125,9 @@ export default function PaymentActions({
           onClick={() =>
             openConfirm({
               title: "重新提交",
-              message: "修改申请内容后重新提交，将回到待业务审批状态并重新走完整审批链。",
+              message: ticketId
+                ? "修改工单结算申请后重新提交，将直接返回财务审批。"
+                : "修改申请内容后重新提交，将回到待业务审批状态并重新走完整审批链。",
               needReason: true,
               reasonLabel: "修改说明",
               reasonPlaceholder: "请说明本次修改了哪些内容（选填，会记入历史记录）",

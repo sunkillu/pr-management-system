@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import {
   coopRequestStatusLabels,
@@ -12,26 +13,35 @@ import {
 } from "@/lib/labels";
 import Link from "next/link";
 import CoopRequestForm from "@/components/CoopRequestForm";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 
 export default async function CoopRequestsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; type?: string; platform?: string };
+  searchParams: { q?: string; status?: string; type?: string; platform?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
   const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
-  const list = await prisma.cooperationRequest.findMany({
-    where: {
+  const where: Prisma.CooperationRequestWhereInput = {
       ...(searchParams.q ? { title: { contains: searchParams.q, mode: "insensitive" } } : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { influencerType: searchParams.type as never } : {}),
       ...(searchParams.platform ? { platforms: { has: searchParams.platform } } : {}),
-    },
-    include: { submitter: { select: { name: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
+  };
+  const pagination = getPagination(searchParams.page);
+  const [list, total] = await Promise.all([
+    prisma.cooperationRequest.findMany({
+      where,
+      include: { submitter: { select: { name: true } } },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.cooperationRequest.count({ where }),
+  ]);
 
   return (
     <div>
@@ -110,6 +120,7 @@ export default async function CoopRequestsPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/coop-requests" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }
