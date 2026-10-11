@@ -57,7 +57,16 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         orderBy: { followNo: "asc" },
       },
       contents: {
-        include: { createdBy: { select: { id: true, name: true } } },
+        include: {
+          createdBy: { select: { id: true, name: true } },
+          comments: {
+            include: {
+              handledBy: { select: { name: true } },
+              createdBy: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+        },
         orderBy: { createdAt: "desc" },
       },
       materials: {
@@ -219,6 +228,28 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               {ticket.note && (
                 <InfoRow label="备注" wide><span className="whitespace-pre-wrap">{ticket.note}</span></InfoRow>
               )}
+              {Array.isArray(ticket.shipItems) && ticket.shipItems.length > 0 && (
+                <InfoRow label="寄品明细" wide>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500">
+                        <th className="py-1 pr-3 font-medium">款式名</th>
+                        <th className="py-1 pr-3 font-medium">度数</th>
+                        <th className="py-1 font-medium">寄品备注</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(ticket.shipItems as { style: string; degree?: string; note?: string }[]).map((s, i) => (
+                        <tr key={i} className="border-t border-[#f0f0f0]">
+                          <td className="py-1.5 pr-3 font-medium">{s.style}</td>
+                          <td className="py-1.5 pr-3">{s.degree || "-"}</td>
+                          <td className="py-1.5 text-gray-600">{s.note || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </InfoRow>
+              )}
               {Array.isArray(ticket.attachments) && ticket.attachments.length > 0 && (
                 <InfoRow label="插图 / 附件" wide>
                   <span className="flex flex-wrap gap-2">
@@ -289,6 +320,16 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 version: c.version,
                 createdAt: c.createdAt.toISOString(),
                 createdBy: c.createdBy,
+                comments: c.comments.map((cm) => ({
+                  id: cm.id,
+                  comment: cm.comment,
+                  author: cm.author,
+                  handled: cm.handled,
+                  handledBy: cm.handledBy,
+                  handledAt: cm.handledAt ? cm.handledAt.toISOString() : null,
+                  createdBy: cm.createdBy,
+                  createdAt: cm.createdAt.toISOString(),
+                })),
               }))}
               role={role}
               userId={me.id}

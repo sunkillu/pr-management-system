@@ -88,6 +88,9 @@ export default function TicketActions({
       <button key="reject" className={btnDanger}
         onClick={() => setShowRejectBox(true)}>驳回</button>
     );
+  }
+  // 提醒审批人：仅申请人（创建人）可见
+  if (ticket.status === "PENDING_APPROVAL" && ticket.creatorId === userId) {
     btns.push(
       <button key="remind" className="rounded border border-orange-400 px-4 py-2 text-sm text-orange-600 hover:bg-orange-50"
         onClick={() => ask("提醒审批人", "确定向待审批人发送催办提醒吗？", async () => {

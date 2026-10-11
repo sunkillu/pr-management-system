@@ -22,6 +22,7 @@ enum Role {
   VIEWER
   PR_MANAGER // PR负责人：合作板块（达人/化妆师/合作记录/寄品/合作需求）的审批与管理
   PR // PR：提单干活（提内容/打款/达人登记/合作需求/工单/寄品/发票），不能审批、不碰财务
+  WAREHOUSE // 仓库：维护寄品寄件信息
 }
 
 model User {
@@ -55,6 +56,8 @@ model User {
   assignedSubtasks  TicketSubtask[] @relation("SubtaskAssignee")
   followUpRecords FollowUpRecord[] @relation("FollowUpCreator")
   uploadedMaterials MaterialRecord[] @relation("MaterialUploader")
+  handledContentComments ContentComment[] @relation("CommentHandler")
+  createdContentComments ContentComment[] @relation("CommentCreator")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -143,6 +146,27 @@ model Content {
   campaigns       Campaign[]       @relation("CampaignContents")
   reports         Report[]
   paymentRequests PaymentRequest[]
+  comments        ContentComment[] // 发布后外部评论及处理跟进
+}
+
+// 内容发布后评论：记录外部（如平台）评论，标记是否已处理（回复/跟进）
+model ContentComment {
+  id          String    @id @default(cuid())
+  contentId   String
+  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  comment     String    @db.Text // 评论内容
+  author      String? // 评论人（外部评论者昵称）
+  handled     Boolean   @default(false) // 是否已处理（回复/跟进）
+  handledById String?
+  handledBy   User?     @relation("CommentHandler", fields: [handledById], references: [id], onDelete: SetNull)
+  handledAt   DateTime?
+  createdById String?
+  createdBy   User?     @relation("CommentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contentId])
 }
 
 // ---------- 3. 项目排期 ----------
@@ -543,8 +567,10 @@ model SampleShipment {
   influencer   Influencer?  @relation(fields: [influencerId], references: [id], onDelete: SetNull)
   productName  String // 产品名称
   quantity     Int          @default(1)
-  trackingNo   String? // 快递单号
-  shippedDate  DateTime?    @db.Date
+  courier      String? // 快递公司（仓库维护）
+  trackingNo   String? // 快递单号（仓库维护）
+  shippedDate  DateTime?    @db.Date // 寄出时间（仓库维护）
+  shippedBy    String? // 寄件人（仓库维护）
   status       SampleStatus @default(SHIPPED)
 
   createdById String
@@ -623,6 +649,7 @@ model CooperationTicket {
   priceNote   String?      @db.Text // 价格备注
   contentNote String?      @db.Text // 内容备注
   estimatedSchedule String // 预估档期（必填），如"10月下旬"或"2026-10-20~2026-10-31"
+  shipItems   Json? // 寄品明细 [{style, degree?, note?}]，与合作款式(style)独立
   startDate   DateTime?    @db.Date // 档期开始
   endDate     DateTime?    @db.Date // 档期结束
   note        String?      @db.Text

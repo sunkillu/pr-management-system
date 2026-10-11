@@ -15,12 +15,14 @@ export default function TicketForm({
   influencers,
   makeupArtists,
   initialInfluencerId,
+  initialMakeupArtistId,
   initialCoopRequestId,
   autoOpen = false,
 }: {
   influencers: Partner[];
   makeupArtists: Partner[];
   initialInfluencerId?: string;
+  initialMakeupArtistId?: string;
   initialCoopRequestId?: string;
   autoOpen?: boolean;
 }) {
@@ -28,8 +30,8 @@ export default function TicketForm({
   const [open, setOpen] = useState(autoOpen);
   const [approvers, setApprovers] = useState<Approver[]>([]);
   const [title, setTitle] = useState("");
-  const [type, setType] = useState("INFLUENCER_POST");
-  const [partnerId, setPartnerId] = useState(initialInfluencerId ?? "");
+  const [type, setType] = useState(initialMakeupArtistId ? "MAKEUP" : "INFLUENCER_POST");
+  const [partnerId, setPartnerId] = useState(initialInfluencerId ?? initialMakeupArtistId ?? "");
   const [budgetFee, setBudgetFee] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -44,6 +46,8 @@ export default function TicketForm({
   const [estimatedSchedule, setEstimatedSchedule] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // 寄品明细：可寄多个款式，每行 {款式名、度数、寄品备注}
+  const [shipItems, setShipItems] = useState<{ style: string; degree: string; note: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -100,6 +104,13 @@ export default function TicketForm({
     if (coopCategories.length === 0) return setError("请选择合作类目（可多选）");
     if (!estimatedSchedule.trim()) return setError("请填写预估档期");
     if (!budgetFee || Number(budgetFee) <= 0) return setError("预算费用必须大于 0");
+    // 寄品明细：填了行则款式名必填
+    const cleanShipItems = shipItems
+      .map((s) => ({ style: s.style.trim(), degree: s.degree.trim(), note: s.note.trim() }))
+      .filter((s) => s.style || s.degree || s.note);
+    for (const s of cleanShipItems) {
+      if (!s.style) return setError("寄品明细中款式名为必填");
+    }
     if (submitForApproval && selected.length === 0) return setError("提交审批必须选择至少一位审批人");
     setSaving(true);
     const res = await fetch("/api/tickets", {
@@ -125,6 +136,7 @@ export default function TicketForm({
         approverIds: selected,
         submit: submitForApproval,
         attachments,
+        shipItems: cleanShipItems.length > 0 ? cleanShipItems : null,
         coopRequestId: initialCoopRequestId ?? null,
       }),
     });
@@ -237,6 +249,46 @@ export default function TicketForm({
           </div>
           <Field label="备注">
             <textarea className={inputCls} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+          <Field label="寄品明细" hint="需要寄样时填写，可寄多个款式；与合作款式独立">
+            <div className="space-y-2">
+              {shipItems.map((s, i) => (
+                <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg bg-[#f5f5f7] p-2">
+                  <div className="min-w-[120px] flex-1">
+                    <label className="mb-1 block text-xs text-gray-500">款式名 *</label>
+                    <input className={inputCls} value={s.style}
+                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, style: e.target.value } : x))}
+                      placeholder="如：A款-红色" />
+                  </div>
+                  <div className="w-24">
+                    <label className="mb-1 block text-xs text-gray-500">度数</label>
+                    <input className={inputCls} value={s.degree}
+                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, degree: e.target.value } : x))}
+                      placeholder="选填" />
+                  </div>
+                  <div className="min-w-[140px] flex-1">
+                    <label className="mb-1 block text-xs text-gray-500">寄品备注</label>
+                    <input className={inputCls} value={s.note}
+                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, note: e.target.value } : x))}
+                      placeholder="选填" />
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded border border-red-300 px-2.5 py-2 text-xs text-red-600 hover:bg-red-50"
+                    onClick={() => setShipItems(shipItems.filter((_, j) => j !== i))}
+                  >
+                    删除
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="rounded border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 hover:border-[#0071e3] hover:text-[#0071e3]"
+                onClick={() => setShipItems([...shipItems, { style: "", degree: "", note: "" }])}
+              >
+                + 增加一款
+              </button>
+            </div>
           </Field>
           <Field label="插图 / 附件" hint="可上传产品图、参考图等，图片会显示缩略图">
             <input

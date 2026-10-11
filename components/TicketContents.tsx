@@ -5,6 +5,18 @@ import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
 import { inputCls, btnPrimary, btnSecondary, btnPrimarySm, btnDangerSm, Field } from "./ui";
 import { contentTypeLabels, contentStatusLabels, badgeClass } from "@/lib/labels";
+import ContentComments from "./ContentComments";
+
+export type ContentCommentItem = {
+  id: string;
+  comment: string;
+  author?: string | null;
+  handled: boolean;
+  handledBy?: { name: string } | null;
+  handledAt?: string | null;
+  createdBy?: { name: string } | null;
+  createdAt: string;
+};
 
 export type TicketContent = {
   id: string;
@@ -17,6 +29,7 @@ export type TicketContent = {
   version: number;
   createdAt: string;
   createdBy?: { id: string; name: string } | null;
+  comments?: ContentCommentItem[];
 };
 
 const TYPE_OPTIONS = Object.entries(contentTypeLabels);
@@ -211,6 +224,15 @@ export default function TicketContents({
                     </button>
                   )}
                 </div>
+              )}
+              {/* 已发布内容的外部评论及处理 */}
+              {c.status === "PUBLISHED" && (
+                <ContentComments
+                  ticketId={ticketId}
+                  contentId={c.id}
+                  initial={c.comments ?? []}
+                  canManage={canManage}
+                />
               )}
             </div>
           ))}
