@@ -42,7 +42,7 @@ export default function ConfirmDialog({
 
   return (
     <Modal title={title} onClose={onClose}>
-      {message && <p className="mb-3 text-sm text-gray-600">{message}</p>}
+      {message && <p className="mb-3 whitespace-pre-wrap text-sm text-gray-600">{message}</p>}
       {needReason && (
         <Field label={reasonLabel} required={!reasonOptional}>
           <textarea

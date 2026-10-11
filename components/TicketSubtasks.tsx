@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { subtaskStatusLabels, formatDate } from "@/lib/labels";
 import { inputCls, btnPrimary } from "./ui";
+import ConfirmDialog from "./ConfirmDialog";
 
 type Subtask = {
   id: string;
@@ -41,6 +42,7 @@ export default function TicketSubtasks({
   const [items, setItems] = useState<Subtask[]>(initial);
   const [newTitle, setNewTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [doneConfirm, setDoneConfirm] = useState<Subtask | null>(null);
 
   const done = items.filter((s) => s.status === "DONE").length;
   const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
@@ -95,6 +97,12 @@ export default function TicketSubtasks({
     }
   }
 
+  // 状态切换：标记完成需要二次确认（核对子任务名）
+  async function requestStatusChange(s: Subtask, next: Subtask["status"]) {
+    if (next === "DONE" && s.status !== "DONE") { setDoneConfirm(s); return; }
+    await patch(s.id, { status: next });
+  }
+
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -127,7 +135,7 @@ export default function TicketSubtasks({
                 <input
                   type="checkbox"
                   checked={s.status === "DONE"}
-                  onChange={() => patch(s.id, { status: s.status === "DONE" ? "TODO" : "DONE" })}
+                  onChange={() => requestStatusChange(s, s.status === "DONE" ? "TODO" : "DONE")}
                   className="h-4 w-4 shrink-0 cursor-pointer accent-[#0071e3]"
                   title="勾选完成 / 取消完成"
                 />
@@ -146,7 +154,7 @@ export default function TicketSubtasks({
               )}
               {canManage ? (
                 <button
-                  onClick={() => patch(s.id, { status: NEXT_STATUS[s.status] })}
+                  onClick={() => requestStatusChange(s, NEXT_STATUS[s.status])}
                   className={`rounded-full px-2 py-0.5 text-xs font-medium transition-all hover:opacity-80 active:scale-95 ${statusPill[s.status]}`}
                   title="点击切换状态"
                 >
@@ -213,6 +221,16 @@ export default function TicketSubtasks({
             添加
           </button>
         </div>
+      )}
+
+      {doneConfirm && (
+        <ConfirmDialog
+          title="子任务标记完成"
+          message={`子任务：${doneConfirm.title}\n\n确认将其标记为完成吗？`}
+          confirmText="确认完成"
+          onClose={() => setDoneConfirm(null)}
+          onConfirm={async () => { const s = doneConfirm; setDoneConfirm(null); await patch(s.id, { status: "DONE" }); }}
+        />
       )}
     </div>
   );

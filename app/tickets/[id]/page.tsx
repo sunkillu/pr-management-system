@@ -307,6 +307,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 completedBy: n.completedBy,
               }))}
               canUpdate={canUpdateNodes}
+              materialsCount={ticket.materials.length}
             />
           </Section>
 

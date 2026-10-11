@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
 import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS } from "@/lib/labels";
 import Modal from "./Modal";
+import ConfirmDialog from "./ConfirmDialog";
 
 type Approver = { id: string; name: string; email: string; role: string };
 type Partner = { id: string; name: string; homepageId?: string | null };
@@ -51,6 +52,7 @@ export default function TicketForm({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   async function uploadFile(file: File) {
     setUploading(true);
@@ -95,23 +97,38 @@ export default function TicketForm({
     }
   }
 
-  async function submit(submitForApproval: boolean) {
-    setError("");
-    if (!title.trim()) return setError("标题不能为空");
-    if (!partnerId) return setError("请选择合作对象");
-    if (platforms.length === 0) return setError("请选择合作平台（可多选）");
-    if (styles.length === 0) return setError("请选择款式（可多选）");
-    if (coopCategories.length === 0) return setError("请选择合作类目（可多选）");
-    if (!estimatedSchedule.trim()) return setError("请填写预估档期");
-    if (!budgetFee || Number(budgetFee) <= 0) return setError("预算费用必须大于 0");
-    // 寄品明细：填了行则款式名必填
-    const cleanShipItems = shipItems
+  async function validate(): Promise<string | null> {
+    if (!title.trim()) return "标题不能为空";
+    if (!partnerId) return "请选择合作对象";
+    if (platforms.length === 0) return "请选择合作平台（可多选）";
+    if (styles.length === 0) return "请选择款式（可多选）";
+    if (coopCategories.length === 0) return "请选择合作类目（可多选）";
+    if (!estimatedSchedule.trim()) return "请填写预估档期";
+    if (!budgetFee || Number(budgetFee) <= 0) return "预算费用必须大于 0";
+    return null;
+  }
+
+  function cleanShipItems() {
+    return shipItems
       .map((s) => ({ style: s.style.trim(), degree: s.degree.trim(), note: s.note.trim() }))
       .filter((s) => s.style || s.degree || s.note);
-    for (const s of cleanShipItems) {
+  }
+
+  async function submit(submitForApproval: boolean) {
+    setError("");
+    const err = await validate();
+    if (err) return setError(err);
+    // 寄品明细：填了行则款式名必填
+    for (const s of cleanShipItems()) {
       if (!s.style) return setError("寄品明细中款式名为必填");
     }
     if (submitForApproval && selected.length === 0) return setError("提交审批必须选择至少一位审批人");
+    // 提交审批需要二次确认（核对关键信息）
+    if (submitForApproval) { setShowSubmitConfirm(true); return; }
+    await doSubmit(false);
+  }
+
+  async function doSubmit(submitForApproval: boolean) {
     setSaving(true);
     const res = await fetch("/api/tickets", {
       method: "POST",
@@ -136,7 +153,7 @@ export default function TicketForm({
         approverIds: selected,
         submit: submitForApproval,
         attachments,
-        shipItems: cleanShipItems.length > 0 ? cleanShipItems : null,
+        shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
         coopRequestId: initialCoopRequestId ?? null,
       }),
     });
@@ -370,6 +387,16 @@ export default function TicketForm({
             </button>
           </div>
         </Modal>
+      )}
+      {showSubmitConfirm && (
+        <ConfirmDialog
+          title="确认提交审批"
+          message={`标题：${title.trim()}\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n预算费用：¥${budgetFee}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`}
+          confirmText="确认提交"
+          busy={saving}
+          onClose={() => setShowSubmitConfirm(false)}
+          onConfirm={async () => { setShowSubmitConfirm(false); await doSubmit(true); }}
+        />
       )}
     </>
   );

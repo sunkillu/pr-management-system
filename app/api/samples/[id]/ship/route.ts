@@ -39,6 +39,29 @@ fromStatus: "PREPARING",
 toStatus: "SHIPPED",
 note: `已寄出：${courier} ${trackingNo}`,
 });
+// 仓库发货后自动完成关联工单的"寄品"节点（无节点或已完成则跳过）
+if (sample.ticketId) {
+const shipNode = await tx.ticketNode.findFirst({
+where: { ticketId: sample.ticketId, name: { contains: "寄品" }, completedAt: null },
+orderBy: { sort: "asc" },
+});
+if (shipNode) {
+await tx.ticketNode.update({
+where: { id: shipNode.id },
+data: { completedAt: new Date(), completedById: auth.userId },
+});
+const t = await tx.cooperationTicket.findUnique({ where: { id: sample.ticketId }, select: { status: true } });
+await writeLog(tx, {
+docType: "TICKET",
+docId: sample.ticketId,
+action: "APPROVE",
+actorId: auth.userId,
+fromStatus: t?.status ?? null,
+toStatus: t?.status ?? null,
+note: `仓库发货（${courier} ${trackingNo}），寄品节点「${shipNode.name}」自动完成`,
+});
+}
+}
 return u;
 });
 await notifyUser(
