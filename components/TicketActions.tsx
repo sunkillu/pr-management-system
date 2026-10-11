@@ -18,10 +18,13 @@ export default function TicketActions({
   ticket,
   userId,
   role,
+  canOperate,
 }: {
   ticket: Ticket;
   userId: string;
   role: string;
+  // 是否可推动工单状态：创建人 / 审批链成员 / ADMIN（后端同样校验）
+  canOperate: boolean;
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<null | { title: string; message: string; onOk: () => Promise<void> }>(null);
@@ -31,8 +34,6 @@ export default function TicketActions({
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showVoidBox, setShowVoidBox] = useState(false);
   const [showCompleteBox, setShowCompleteBox] = useState(false);
-  const [showStartBox, setShowStartBox] = useState(false);
-  const [startNote, setStartNote] = useState("");
   const [executionSummary, setExecutionSummary] = useState("");
   const [confirmIncomplete, setConfirmIncomplete] = useState(false);
   const [amountConfirmed, setAmountConfirmed] = useState(false);
@@ -65,7 +66,6 @@ export default function TicketActions({
   }
 
   const refresh = () => router.refresh();
-  const isCreator = ticket.creatorId === userId;
   const isAdmin = role === "ADMIN";
   const canApprove = ["ADMIN", "PR_MANAGER"].includes(role);
 
@@ -92,15 +92,9 @@ export default function TicketActions({
         })}>提醒审批人</button>
     );
   }
-  // 开始执行（弹窗必填推进说明）
-  if (ticket.status === "APPROVED" && (isCreator || isAdmin)) {
-    btns.push(
-      <button key="start" className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed]"
-        onClick={() => { setStartNote(""); setShowStartBox(true); }}>开始执行</button>
-    );
-  }
-  // 标记完成（含评价）
-  if (ticket.status === "IN_PROGRESS" && (isCreator || isAdmin)) {
+  // 审批通过后自动进入执行中，无需手动"开始执行"
+  // 标记完成（含评价）：仅创建人 / 审批链成员 / ADMIN
+  if (ticket.status === "IN_PROGRESS" && canOperate) {
     btns.push(
       <button key="complete" className={btnPrimary}
         onClick={() => setShowCompleteBox(true)}>标记完成</button>
@@ -114,8 +108,8 @@ export default function TicketActions({
     );
   }
   // 生成打款单：已改为标记完成时自动生成，此处不再需要手动按钮
-  // 重提
-  if (ticket.status === "REJECTED" && (isCreator || isAdmin)) {
+  // 重提：仅创建人 / 审批链成员 / ADMIN
+  if (ticket.status === "REJECTED" && canOperate) {
     btns.push(
       <button key="resubmit" className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed]"
         onClick={() => ask("重新提交", "确认重新提交审批吗？将通知原审批人。", async () => {
@@ -123,8 +117,8 @@ export default function TicketActions({
         })}>重新提交</button>
     );
   }
-  // 作废
-  if (!["SETTLED", "VOIDED"].includes(ticket.status) && (isAdmin || (isCreator && ["DRAFT", "PENDING_APPROVAL", "REJECTED"].includes(ticket.status)))) {
+  // 作废：ADMIN 可作废非终态；创建人/审批链成员仅可作废早期待办状态
+  if (!["SETTLED", "VOIDED"].includes(ticket.status) && (isAdmin || (canOperate && ["DRAFT", "PENDING_APPROVAL", "REJECTED"].includes(ticket.status)))) {
     btns.push(
       <button key="void" className="rounded border border-gray-400 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
         onClick={() => setShowVoidBox(true)}>作废</button>
@@ -161,26 +155,6 @@ export default function TicketActions({
                   setShowApproveBox(false); refresh();
                 }
               }}>确认通过</button>
-          </div>
-        </Modal>
-      )}
-
-      {showStartBox && (
-        <Modal title="开始执行" onClose={() => setShowStartBox(false)}>
-          <Field label="推进说明" required hint="如：已对接达人，约定X月X日拍摄">
-            <textarea className={inputCls} rows={3} value={startNote} onChange={(e) => setStartNote(e.target.value)}
-              placeholder="请填写本次推进的说明" />
-          </Field>
-          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2">
-            <button className={btnSecondary} onClick={() => setShowStartBox(false)}>取消</button>
-            <button className={btnPrimary} disabled={busy}
-              onClick={async () => {
-                if (!startNote.trim()) { setError("开始执行必须填写推进说明"); return; }
-                if (await call(`/api/tickets/${ticket.id}/start`, { note: startNote.trim() })) {
-                  setShowStartBox(false); refresh();
-                }
-              }}>确认开始执行</button>
           </div>
         </Modal>
       )}

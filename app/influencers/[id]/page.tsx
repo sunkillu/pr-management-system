@@ -122,11 +122,39 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
               <InfoRow label="登记人">{influencer.registeredBy?.name ?? "-"}</InfoRow>
               <InfoRow label="合作次数">{influencer.coopCount}</InfoRow>
               <InfoRow label="累计合作费用">{formatFee(influencer.totalFee)}</InfoRow>
+              {influencer.tags.length > 0 && (
+                <InfoRow label="标签">
+                  <span className="flex flex-wrap gap-1">
+                    {influencer.tags.map((t: string) => (
+                      <span key={t} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                </InfoRow>
+              )}
             </dl>
             {influencer.bio && (
               <div className="mt-3 text-sm">
                 <div className="text-gray-500">简介</div>
                 <div className="whitespace-pre-wrap">{influencer.bio}</div>
+              </div>
+            )}
+            {((influencer.attachments as { fileUrl: string; fileName: string }[] | null) ?? []).length > 0 && (
+              <div className="mt-3 text-sm">
+                <div className="mb-2 text-gray-500">附件（参考图）</div>
+                <div className="flex flex-wrap gap-2">
+                  {((influencer.attachments as { fileUrl: string; fileName: string }[]) ?? []).map((a, i) => (
+                    <a key={i} href={a.fileUrl} target="_blank" title={a.fileName}
+                      className="flex h-20 w-20 items-center justify-center overflow-hidden rounded border border-gray-200 bg-[#f5f5f7] text-center text-[10px] text-[#0071e3]">
+                      {/.(jpe?g|png|webp|gif)$/i.test(a.fileName) ? (
+                        <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="px-1">{a.fileName}</span>
+                      )}
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
             <div className="mt-4 border-t border-[#e5e5e5] pt-4" id="approval-section">

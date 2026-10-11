@@ -6,6 +6,9 @@ import { PLATFORM_TAG_OPTIONS, INFLUENCER_TYPE_OPTIONS, roleLabels } from "@/lib
 import Modal from "./Modal";
 
 type Approver = { id: string; name: string; email: string; role: string };
+type Attachment = { fileUrl: string; fileName: string };
+
+const isImage = (name: string) => /\.(jpe?g|png|webp|gif)$/i.test(name);
 
 // initial：从合作需求一键加入时预填 { influencerType, platforms }
 // autoOpen：带预填参数打开页面时自动弹出表单
@@ -25,9 +28,34 @@ export default function InfluencerForm({
   const [contactInfo, setContactInfo] = useState("");
   const [homepageId, setHomepageId] = useState("");
   const [bio, setBio] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  async function uploadFile(file: File) {
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/uploads", { method: "POST", body: form });
+    const data = await res.json().catch(() => ({}));
+    setUploading(false);
+    if (!res.ok) {
+      setError(data.error || "附件上传失败");
+      return;
+    }
+    setAttachments((a) => [...a, { fileUrl: data.fileUrl, fileName: data.fileName }]);
+  }
+
+  function addTag() {
+    const t = tagInput.trim();
+    if (!t) return;
+    if (!tags.includes(t)) setTags([...tags, t].slice(0, 20));
+    setTagInput("");
+  }
 
   useEffect(() => {
     if (open) {
@@ -56,6 +84,8 @@ export default function InfluencerForm({
         contactInfo: contactInfo.trim() || null,
         homepageId: homepageId.trim() || null,
         bio: bio.trim() || null,
+        tags,
+        attachments,
         approverIds: selected,
       }),
     });
@@ -108,6 +138,70 @@ export default function InfluencerForm({
           </Field>
           <Field label="简介">
             <textarea className={inputCls} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
+          </Field>
+          <Field label="达人标签" hint="如：美妆垂类、母婴、高转化，可自定义添加">
+            <div className="flex gap-2">
+              <input
+                className={inputCls}
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+                placeholder="输入标签后回车或点添加"
+              />
+              <button type="button" className={btnSecondary} onClick={addTag}>添加</button>
+            </div>
+            {tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {tags.map((t) => (
+                  <span key={t} className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700 ring-1 ring-blue-200">
+                    {t}
+                    <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))}
+                      className="text-blue-400 hover:text-blue-700" title="移除">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </Field>
+          <Field label="附件（参考图）" hint="可上传达人主页截图、过往作品等，图片显示缩略图">
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              multiple
+              disabled={uploading}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                files.forEach((f) => uploadFile(f));
+                e.target.value = "";
+              }}
+              className="text-sm"
+            />
+            {uploading && <p className="mt-1 text-xs text-gray-500">上传中…</p>}
+            {attachments.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {attachments.map((a, i) => (
+                  <div key={i} className="relative h-20 w-20 overflow-hidden rounded border border-gray-200">
+                    {isImage(a.fileName) ? (
+                      <a href={a.fileUrl} target="_blank" title={a.fileName}>
+                        <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover" />
+                      </a>
+                    ) : (
+                      <a href={a.fileUrl} target="_blank" title={a.fileName}
+                        className="flex h-full w-full items-center justify-center bg-[#f5f5f7] px-1 text-center text-[10px] text-[#0071e3]">
+                        {a.fileName}
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setAttachments(attachments.filter((_, j) => j !== i))}
+                      className="absolute right-0 top-0 rounded-bl bg-black/60 px-1 text-xs text-white"
+                      title="移除"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </Field>
           <Field label="审批人（多选，任一通过即通过）" required>
             <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">

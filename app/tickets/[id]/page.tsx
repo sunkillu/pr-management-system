@@ -13,6 +13,8 @@ import {
   formatDate,
   formatDateTime,
   platformTagLabels,
+  styleLabels,
+  coopCategoryLabels,
 } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
@@ -97,22 +99,36 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
 
   const cutoff = new Date(Date.now() - APPROVAL_TIMEOUT_HOURS * 3600 * 1000);
   const overdue = ticket.status === "PENDING_APPROVAL" && ticket.updatedAt < cutoff;
+  // 状态推动权限：仅创建人 / 审批链成员 / ADMIN
+  const canOperate =
+    role === "ADMIN" ||
+    ticket.creator.id === me.id ||
+    approvers.some((a) => a.approverId === me.id);
+  // 预估档期超期提醒：从文本中解析最后一个 YYYY-MM-DD 作为参考结束日，仅标黄不锁定
+  const scheduleEndMatch = ticket.estimatedSchedule.match(/(\d{4})-(\d{2})-(\d{2})/g);
+  const scheduleEnd = scheduleEndMatch ? new Date(scheduleEndMatch[scheduleEndMatch.length - 1] + "T23:59:59") : null;
+  const scheduleOverdue =
+    scheduleEnd !== null &&
+    !isNaN(scheduleEnd.getTime()) &&
+    scheduleEnd < new Date() &&
+    !["SETTLED", "VOIDED"].includes(ticket.status);
   const partnerName = ticket.influencer?.name ?? ticket.makeupArtist?.name ?? "-";
   const partnerHref = ticket.influencer
     ? `/influencers/${ticket.influencer.id}`
     : ticket.makeupArtist
     ? `/makeup-artists/${ticket.makeupArtist.id}`
     : null;
-  const canUpdateNodes = ["APPROVED", "IN_PROGRESS"].includes(ticket.status) &&
-    ["ADMIN", "PR", "PR_MANAGER"].includes(role);
+  const canUpdateNodes =
+    canOperate &&
+    ["APPROVED", "IN_PROGRESS"].includes(ticket.status);
   const canWriteComment = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canManageSubtasks =
-    ["ADMIN", "PR", "PR_MANAGER"].includes(role) &&
+    canOperate &&
     !["VOIDED", "SETTLED", "FOLLOW_UP"].includes(ticket.status);
   const canManageFollowUps =
-    ["ADMIN", "PR", "PR_MANAGER"].includes(role) && ticket.status === "FOLLOW_UP";
+    canOperate && ticket.status === "FOLLOW_UP";
   const canManageContents =
-    ["ADMIN", "PR", "PR_MANAGER"].includes(role) &&
+    canOperate &&
     !["VOIDED"].includes(ticket.status);
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
@@ -151,8 +167,12 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               {ticket.homepageId && (
                 <InfoRow label="达人主页ID"><span className="font-mono text-sm">{ticket.homepageId}</span></InfoRow>
               )}
-              {ticket.style && <InfoRow label="款式">{ticket.style}</InfoRow>}
-              {ticket.coopCategory && <InfoRow label="合作类目">{ticket.coopCategory}</InfoRow>}
+              {ticket.style.length > 0 && (
+                <InfoRow label="款式">{ticket.style.map((s) => styleLabels[s] ?? s).join("、")}</InfoRow>
+              )}
+              {ticket.coopCategory.length > 0 && (
+                <InfoRow label="合作类目">{ticket.coopCategory.map((c) => coopCategoryLabels[c] ?? c).join("、")}</InfoRow>
+              )}
               <InfoRow label="预算费用">¥{formatMoney(ticket.budgetFee)}</InfoRow>
               <InfoRow label="实际费用">{ticket.actualFee ? `¥${formatMoney(ticket.actualFee)}` : "-"}</InfoRow>
               {ticket.contentDirection && (
@@ -165,6 +185,14 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 <InfoRow label="内容备注" wide><span className="whitespace-pre-wrap">{ticket.contentNote}</span></InfoRow>
               )}
               <InfoRow label="档期">{ticket.startDate ? formatDate(ticket.startDate) : "-"} ~ {ticket.endDate ? formatDate(ticket.endDate) : "-"}</InfoRow>
+              <InfoRow label="预估档期">
+                <span>{ticket.estimatedSchedule}</span>
+                {scheduleOverdue && (
+                  <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-300">
+                    已超预估档期（仅提醒）
+                  </span>
+                )}
+              </InfoRow>
               <InfoRow label="发起人">{ticket.creator.name}</InfoRow>
               {ticket.rejectReason && (
                 <InfoRow label="驳回理由" wide><span className="text-red-600">{ticket.rejectReason}</span></InfoRow>
@@ -265,7 +293,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             ) : (
               <p className="mb-3 text-sm text-gray-400">草稿状态，尚未提交审批</p>
             )}
-            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} />
+            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
           </Section>
 
           {/* 关联打款单 */}

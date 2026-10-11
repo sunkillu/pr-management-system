@@ -20,6 +20,7 @@ export type InfluencerSearchParams = {
   status?: string;
   type?: string;
   coop?: string;
+  tag?: string;
   prefill?: string;
   ptype?: string;
   pplatforms?: string;
@@ -32,26 +33,38 @@ export default async function InfluencerList({
   searchParams: InfluencerSearchParams;
 }) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as unknown as { role: string }).role;
+  const me = session?.user as unknown as { id: string; role: string };
+  const role = me.role;
   const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
   const where: Record<string, unknown> = {};
+  // 数据权限：PR 只能看自己登记的；ADMIN / FINANCE / PR_MANAGER 可看全部
+  if (role === "PR") where.registeredById = me.id;
   if (searchParams.q) where.name = { contains: searchParams.q, mode: "insensitive" };
   if (searchParams.platform) where.platforms = { has: searchParams.platform };
   if (searchParams.status) where.status = searchParams.status;
   if (searchParams.type) where.influencerType = searchParams.type;
+  if (searchParams.tag) where.tags = { has: searchParams.tag };
   if (searchParams.coop === "none") where.coopCount = 0;
   if (searchParams.coop === "active") where.coopCount = { gt: 0 };
 
-  const list = await prisma.influencer.findMany({
-    where,
-    include: {
-      registeredBy: { select: { name: true } },
-      cooperationRecords: { orderBy: { coopDate: "desc" }, take: 1, select: { fee: true } },
-      reviews: { select: { rating: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const [list, allTags] = await Promise.all([
+    prisma.influencer.findMany({
+      where,
+      include: {
+        registeredBy: { select: { name: true } },
+        cooperationRecords: { orderBy: { coopDate: "desc" }, take: 1, select: { fee: true } },
+        reviews: { select: { rating: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+    // 标签筛选下拉：取库内所有已用标签（同样受数据权限约束）
+    prisma.influencer.findMany({
+      where: role === "PR" ? { registeredById: me.id } : {},
+      select: { tags: true },
+    }),
+  ]);
+  const tagOptions = Array.from(new Set(allTags.flatMap((r) => r.tags))).sort();
 
   // 从合作需求一键加入时的预填参数（ptype/pplatforms，与筛选参数区分）
   const prefill = searchParams.prefill === "1";
@@ -86,6 +99,12 @@ export default async function InfluencerList({
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
+        <select name="tag" defaultValue={searchParams.tag ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+          <option value="">全部标签</option>
+          {tagOptions.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
         <select name="coop" defaultValue={searchParams.coop ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
           <option value="">全部合作状态</option>
           <option value="none">未合作</option>
@@ -107,6 +126,7 @@ export default async function InfluencerList({
               <th className={thCls}>姓名</th>
               <th className={thCls}>达人类型</th>
               <th className={thCls}>平台</th>
+              <th className={thCls}>标签</th>
               <th className={thCls}>合作状态</th>
               <th className={thCls}>合作次数</th>
               <th className={thCls}>最近合作金额</th>
@@ -129,6 +149,19 @@ export default async function InfluencerList({
                   {r.platforms.length > 0
                     ? r.platforms.map((p) => platformTagLabels[p] ?? p).join("、")
                     : "-"}
+                </td>
+                <td className={tdCls}>
+                  {r.tags.length > 0 ? (
+                    <span className="flex flex-wrap gap-1">
+                      {r.tags.map((t) => (
+                        <span key={t} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
+                          {t}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    "-"
+                  )}
                 </td>
                 <td className={tdCls}>
                   {r.coopCount === 0 ? (
@@ -164,7 +197,7 @@ export default async function InfluencerList({
               </tr>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
             )}
           </tbody>
         </table>

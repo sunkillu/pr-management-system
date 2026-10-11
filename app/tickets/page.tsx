@@ -26,7 +26,8 @@ export default async function TicketsPage({
   const cutoff = new Date(Date.now() - APPROVAL_TIMEOUT_HOURS * 3600 * 1000);
 
   const influencers = await prisma.influencer.findMany({
-    where: { status: "APPROVED" },
+    // PR 只能选择自己登记的达人发起工单
+    where: { status: "APPROVED", ...(role === "PR" ? { registeredById: (session?.user as unknown as { id: string }).id } : {}) },
     select: { id: true, name: true, homepageId: true },
     orderBy: { name: "asc" },
   });

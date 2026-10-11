@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS } from "@/lib/labels";
+import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS } from "@/lib/labels";
 import Modal from "./Modal";
 
 type Approver = { id: string; name: string; email: string; role: string };
@@ -30,11 +30,12 @@ export default function TicketForm({
   const [note, setNote] = useState("");
   const [platform, setPlatform] = useState("");
   const [homepageId, setHomepageId] = useState("");
-  const [style, setStyle] = useState("");
-  const [coopCategory, setCoopCategory] = useState("");
+  const [styles, setStyles] = useState<string[]>([]);
+  const [coopCategories, setCoopCategories] = useState<string[]>([]);
   const [contentDirection, setContentDirection] = useState("");
   const [priceNote, setPriceNote] = useState("");
   const [contentNote, setContentNote] = useState("");
+  const [estimatedSchedule, setEstimatedSchedule] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -80,6 +81,9 @@ export default function TicketForm({
     if (!title.trim()) return setError("标题不能为空");
     if (!partnerId) return setError("请选择合作对象");
     if (!platform) return setError("请选择合作平台");
+    if (styles.length === 0) return setError("请选择款式（可多选）");
+    if (coopCategories.length === 0) return setError("请选择合作类目（可多选）");
+    if (!estimatedSchedule.trim()) return setError("请填写预估档期");
     if (!budgetFee || Number(budgetFee) <= 0) return setError("预算费用必须大于 0");
     if (submitForApproval && selected.length === 0) return setError("提交审批必须选择至少一位审批人");
     setSaving(true);
@@ -94,11 +98,12 @@ export default function TicketForm({
         budgetFee,
         platform,
         homepageId: homepageId.trim() || null,
-        style: style.trim() || null,
-        coopCategory: coopCategory.trim() || null,
+        style: styles,
+        coopCategory: coopCategories,
         contentDirection: contentDirection.trim() || null,
         priceNote: priceNote.trim() || null,
         contentNote: contentNote.trim() || null,
+        estimatedSchedule: estimatedSchedule.trim(),
         startDate: startDate || null,
         endDate: endDate || null,
         note: note.trim() || null,
@@ -154,14 +159,43 @@ export default function TicketForm({
                 placeholder="如小红书号/抖音号" />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="款式">
-              <input className={inputCls} value={style} onChange={(e) => setStyle(e.target.value)} />
-            </Field>
-            <Field label="合作类目">
-              <input className={inputCls} value={coopCategory} onChange={(e) => setCoopCategory(e.target.value)} />
-            </Field>
-          </div>
+          <Field label="款式（可多选）" required>
+            <div className="flex flex-wrap gap-3">
+              {STYLE_OPTIONS.map((s) => (
+                <label key={s.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={styles.includes(s.value)}
+                    onChange={() =>
+                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
+                    }
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+          </Field>
+          <Field label="合作类目（可多选）" required>
+            <div className="flex flex-wrap gap-3">
+              {COOP_CATEGORY_OPTIONS.map((c) => (
+                <label key={c.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={coopCategories.includes(c.value)}
+                    onChange={() =>
+                      setCoopCategories(coopCategories.includes(c.value) ? coopCategories.filter((x) => x !== c.value) : [...coopCategories, c.value])
+                    }
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </Field>
+          <Field label="预估档期" required hint='如"10月下旬"或"2026-10-20~2026-10-31"，仅作参考，不锁定工单'>
+            <input className={inputCls} value={estimatedSchedule}
+              onChange={(e) => setEstimatedSchedule(e.target.value)}
+              placeholder='如：10月下旬 / 2026-10-20~2026-10-31' />
+          </Field>
           <Field label="内容方向">
             <textarea className={inputCls} rows={2} value={contentDirection} onChange={(e) => setContentDirection(e.target.value)} />
           </Field>

@@ -388,6 +388,9 @@ model Influencer {
   registeredById String
   registeredBy   User   @relation("InfluencerRegistrar", fields: [registeredById], references: [id], onDelete: Restrict)
 
+  attachments Json? // 附件（参考图）[{fileUrl, fileName}]
+  tags        String[] // 达人标签
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -603,11 +606,12 @@ model CooperationTicket {
   budgetOverridden Boolean @default(false) // 超预算已特批
   platform    String       // 合作平台（必填）：XIAOHONGSHU / DOUYIN
   homepageId  String?      // 达人主页ID（从达人库带入，可手动改）
-  style       String?      // 款式
+  style       String[]     // 款式（多选，必填）
   contentDirection String? @db.Text // 内容方向
-  coopCategory String?     // 合作类目
+  coopCategory String[]    // 合作类目（多选，必填）
   priceNote   String?      @db.Text // 价格备注
   contentNote String?      @db.Text // 内容备注
+  estimatedSchedule String // 预估档期（必填），如"10月下旬"或"2026-10-20~2026-10-31"
   startDate   DateTime?    @db.Date // 档期开始
   endDate     DateTime?    @db.Date // 档期结束
   note        String?      @db.Text
