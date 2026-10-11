@@ -11,7 +11,8 @@ async function main() {
   const password = async (p: string) => bcrypt.hash(p, 10);
   const admin = await prisma.user.upsert({
     where: { email: "admin@example.com" },
-    update: {},
+    // 演示账号：重跑 seed 时把密码恢复为文档中的初始密码，避免"密码不正确"还要手动重置
+    update: { passwordHash: await password("admin123") },
     create: {
       email: "admin@example.com",
       name: "岗位甲（管理员）",
@@ -21,7 +22,7 @@ async function main() {
   });
   const prStaff = await prisma.user.upsert({
     where: { email: "prstaff@example.com" },
-    update: {},
+    update: { passwordHash: await password("pr123") },
     create: {
       email: "prstaff@example.com",
       name: "岗位乙（PR）",
@@ -31,7 +32,7 @@ async function main() {
   });
   const operator = await prisma.user.upsert({
     where: { email: "operator@example.com" },
-    update: {},
+    update: { passwordHash: await password("operator123") },
     create: {
       email: "operator@example.com",
       name: "岗位丙（运营）",
@@ -41,7 +42,7 @@ async function main() {
   });
   const finance = await prisma.user.upsert({
     where: { email: "caiwu@example.com" },
-    update: {},
+    update: { passwordHash: await password("caiwu123") },
     create: {
       email: "caiwu@example.com",
       name: "岗位丁（财务）",
@@ -51,7 +52,7 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { email: "pr@example.com" },
-    update: {},
+    update: { passwordHash: await password("pr123") },
     create: {
       email: "pr@example.com",
       name: "岗位戊（PR负责人）",
@@ -61,12 +62,22 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { email: "viewer@example.com" },
-    update: {},
+    update: { passwordHash: await password("viewer123") },
     create: {
       email: "viewer@example.com",
       name: "岗位己（只读）",
       passwordHash: await password("viewer123"),
       role: "VIEWER",
+    },
+  });
+  await prisma.user.upsert({
+    where: { email: "warehouse@example.com" },
+    update: { passwordHash: await password("warehouse123") },
+    create: {
+      email: "warehouse@example.com",
+      name: "岗位庚（仓库）",
+      passwordHash: await password("warehouse123"),
+      role: "WAREHOUSE",
     },
   });
   console.log("用户 OK");

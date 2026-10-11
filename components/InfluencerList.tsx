@@ -134,6 +134,7 @@ export default async function InfluencerList({
               <th className={thCls}>平均评价</th>
               <th className={thCls}>审核状态</th>
               <th className={thCls}>登记人</th>
+              {canWrite && <th className={thCls}>操作</th>}
             </tr>
           </thead>
           <tbody>
@@ -194,10 +195,24 @@ export default async function InfluencerList({
                   </span>
                 </td>
                 <td className={tdCls}>{r.registeredBy?.name ?? "-"}</td>
+                {canWrite && (
+                  <td className={tdCls + " whitespace-nowrap"}>
+                    {r.status === "APPROVED" ? (
+                      <Link
+                        href={`/tickets/new?influencerId=${r.id}`}
+                        className="rounded border border-[#0071e3] px-2.5 py-1 text-xs text-[#0071e3] hover:bg-blue-50"
+                      >
+                        发起工单
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-gray-300">-</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <tr><td colSpan={canWrite ? 12 : 11} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
             )}
           </tbody>
         </table>

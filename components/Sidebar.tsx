@@ -5,9 +5,11 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { roleLabels } from "@/lib/labels";
 
-type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR";
+type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR" | "WAREHOUSE";
 
 const ALL = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as Role[];
+// 仓库仅看首页 + 寄品管理
+const WAREHOUSE_ONLY: Role[] = ["WAREHOUSE"];
 
 type NavItem = { href: string; label: string; roles: Role[]; match?: string[] };
 type NavGroup = { key: string; label: string; items: NavItem[] };
@@ -16,7 +18,7 @@ type NavEntry =
   | { type: "group"; group: NavGroup };
 
 const entries: NavEntry[] = [
-  { type: "link", item: { href: "/", label: "首页仪表盘", roles: ALL } },
+  { type: "link", item: { href: "/", label: "首页仪表盘", roles: [...ALL, ...WAREHOUSE_ONLY] } },
   {
     type: "group",
     group: {
@@ -31,7 +33,7 @@ const entries: NavEntry[] = [
         },
         { href: "/tickets", label: "合作工单", roles: ALL },
         { href: "/coop-requests", label: "合作需求", roles: ALL },
-        { href: "/samples", label: "寄品管理", roles: ALL },
+        { href: "/samples", label: "寄品管理", roles: [...ALL, ...WAREHOUSE_ONLY] },
       ],
     },
   },

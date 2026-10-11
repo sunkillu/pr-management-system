@@ -119,7 +119,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
           <div className="mt-5 border-t pt-4" id="approval-section">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {["PENDING_BIZ", "PENDING_FIN"].includes(payment.status) &&
-                ["ADMIN", "PR", "PR_MANAGER"].includes(role) && (
+                isRequester && (
                   <PaymentRemindButton paymentId={payment.id} />
                 )}
             </div>

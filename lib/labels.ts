@@ -7,6 +7,7 @@ export const roleLabels: Record<string, string> = {
   VIEWER: "只读",
   PR_MANAGER: "PR负责人",
   PR: "PR",
+  WAREHOUSE: "仓库",
 };
 
 export const outletTypeLabels: Record<string, string> = {

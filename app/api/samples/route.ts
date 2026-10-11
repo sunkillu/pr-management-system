@@ -6,7 +6,7 @@ const WRITE = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
 // 列表：所有登录用户可查，支持搜索 / 状态筛选
 export async function GET(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
+  const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER", "WAREHOUSE"]);
   if (!auth.ok) return auth.res;
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
@@ -45,8 +45,10 @@ export async function POST(req: NextRequest) {
       influencerId: body.influencerId || null,
       productName: body.productName.trim(),
       quantity: Number(body.quantity) > 0 ? Number(body.quantity) : 1,
+      courier: body.courier?.trim() || null,
       trackingNo: body.trackingNo || null,
       shippedDate: body.shippedDate ? new Date(body.shippedDate) : null,
+      shippedBy: body.shippedBy?.trim() || null,
       status: body.status ?? "SHIPPED",
       createdById: auth.userId,
     },

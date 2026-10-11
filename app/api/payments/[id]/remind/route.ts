@@ -9,6 +9,9 @@ const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const payment = await prisma.paymentRequest.findUnique({ where: { id: params.id}});
 if (!payment) return NextResponse.json({ error: "打款单不存在"}, { status: 404});
+if (payment.requesterId !== auth.userId) {
+return NextResponse.json({ error: "仅申请人可催办"}, { status: 403});
+}
 
 const targetRoles =
 payment.status === "PENDING_BIZ"

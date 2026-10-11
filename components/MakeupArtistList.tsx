@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { thCls, tdCls, btnPrimary } from "@/components/ui";
 import { badgeClass, formatFee } from "@/lib/labels";
+import Link from "next/link";
 import MakeupArtistForm from "@/components/MakeupArtistForm";
 
 export type MakeupArtistSearchParams = {
@@ -89,6 +90,12 @@ export default async function MakeupArtistList({
                 <td className={tdCls}>{r.notes ?? "-"}</td>
                 {canWrite && (
                   <td className={tdCls + " whitespace-nowrap"}>
+                    <Link
+                      href={`/tickets/new?makeupArtistId=${r.id}`}
+                      className="mr-2 rounded border border-[#0071e3] px-2.5 py-1 text-xs text-[#0071e3] hover:bg-blue-50"
+                    >
+                      发起工单
+                    </Link>
                     <MakeupArtistForm
                       editTarget={{
                         id: r.id,

@@ -14,7 +14,7 @@ export const metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
   const user = session?.user as unknown as
-    | { name?: string; email?: string; role?: "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR" }
+    | { name?: string; email?: string; role?: "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR" | "WAREHOUSE" }
     | undefined;
 
   return (

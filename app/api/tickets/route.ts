@@ -127,6 +127,17 @@ const nodes = buildNodesForTicket(type, baseDate);
 const attachments = Array.isArray(body.attachments)
   ? body.attachments.filter((a: unknown) => a && typeof (a as { fileUrl?: unknown }).fileUrl === "string").slice(0, 20)
   : undefined;
+// 寄品明细：[{style, degree?, note?}]，款式名必填
+const shipItems = Array.isArray(body.shipItems)
+  ? body.shipItems
+      .map((s: unknown) => ({
+        style: String((s as { style?: unknown }).style ?? "").trim(),
+        degree: String((s as { degree?: unknown }).degree ?? "").trim(),
+        note: String((s as { note?: unknown }).note ?? "").trim(),
+      }))
+      .filter((s: { style: string }) => s.style)
+      .slice(0, 50)
+  : undefined;
 
 const ticket = await prisma.$transaction(async (tx) => {
 // 生成工单编号 YYYYMMDD + 4位序号（如 202610100001）
@@ -160,6 +171,7 @@ makeupArtistId,
 coopRequestId,
 creatorId: auth.userId,
 attachments: attachments ?? undefined,
+shipItems: shipItems && shipItems.length > 0 ? shipItems : undefined,
 nodes: { create: nodes},
 },
 });

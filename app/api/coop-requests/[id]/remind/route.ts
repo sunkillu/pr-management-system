@@ -9,6 +9,9 @@ const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const request = await prisma.cooperationRequest.findUnique({ where: { id: params.id}});
 if (!request) return NextResponse.json({ error: "合作需求不存在"}, { status: 404});
+if (request.submitterId !== auth.userId) {
+return NextResponse.json({ error: "仅申请人可催办"}, { status: 403});
+}
 if (request.status!== "PENDING") {
 return NextResponse.json({ error: "仅待审批的需求可催办"}, { status: 400});
 }

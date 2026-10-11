@@ -9,6 +9,9 @@ const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
 const influencer = await prisma.influencer.findUnique({ where: { id: params.id}});
 if (!influencer) return NextResponse.json({ error: "达人登记不存在"}, { status: 404});
+if (influencer.registeredById !== auth.userId) {
+return NextResponse.json({ error: "仅申请人可催办"}, { status: 403});
+}
 if (influencer.status!== "PENDING") {
 return NextResponse.json({ error: "仅待审核的登记可催办"}, { status: 400});
 }

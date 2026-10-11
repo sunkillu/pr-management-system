@@ -11,7 +11,7 @@ import TicketForm from "@/components/TicketForm";
 export default async function NewTicketPage({
   searchParams,
 }: {
-  searchParams: { influencerId?: string; coopRequestId?: string };
+  searchParams: { influencerId?: string; makeupArtistId?: string; coopRequestId?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -34,6 +34,11 @@ export default async function NewTicketPage({
     searchParams.influencerId && influencers.some((i) => i.id === searchParams.influencerId)
       ? searchParams.influencerId
       : undefined;
+  // 预选的化妆师（化妆师无审批状态，直接可用）
+  const initialMakeupArtistId =
+    searchParams.makeupArtistId && makeupArtists.some((m) => m.id === searchParams.makeupArtistId)
+      ? searchParams.makeupArtistId
+      : undefined;
 
   return (
     <div>
@@ -49,6 +54,7 @@ export default async function NewTicketPage({
         influencers={influencers}
         makeupArtists={makeupArtists}
         initialInfluencerId={initialInfluencerId}
+        initialMakeupArtistId={initialMakeupArtistId}
         initialCoopRequestId={searchParams.coopRequestId}
         autoOpen
       />
