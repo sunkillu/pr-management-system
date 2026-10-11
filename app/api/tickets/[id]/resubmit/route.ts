@@ -3,8 +3,9 @@ import { prisma} from "@/lib/prisma";
 import { requireRoles} from "@/lib/api-auth";
 import { writeLog} from "@/lib/approval-log";
 import { notifyApprovers} from "@/lib/feishu-notify";
+import { canOperateTicket } from "@/lib/ticket-permission";
 
-// 驳回后重提：创建人或管理员可操作，重新走审批（可更换审批人）
+// 驳回后重提：创建人 / 审批链成员 / 管理员可操作，重新走审批（可更换审批人）
 export async function POST(req: NextRequest, { params}: { params: { id: string}}) {
 const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
@@ -13,8 +14,8 @@ if (!ticket) return NextResponse.json({ error: "工单不存在"}, { status: 404
 if (ticket.status!== "REJECTED") {
 return NextResponse.json({ error: "仅已驳回的工单可重新提交"}, { status: 400});
 }
-if (auth.role!== "ADMIN" && ticket.creatorId!== auth.userId) {
-return NextResponse.json({ error: "仅创建人或管理员可重新提交"}, { status: 403});
+if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
+return NextResponse.json({ error: "仅创建人、审批链成员或管理员可重新提交"}, { status: 403});
 }
 const body = await req.json().catch(() => ({}));
 const approverIds: string[] = Array.isArray(body.approverIds)? body.approverIds: [];

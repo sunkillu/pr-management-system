@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { notifyApprovers } from "@/lib/feishu-notify";
+import { canOperateTicket } from "@/lib/ticket-permission";
 
 // 标记完成：执行中 → 已完成，同时写入合作评价（评分 1-5 + 文字评价），沉淀到达人/化妆师档案
 // 完成后自动生成打款单（待业务审批），工单进入结算中，无需手动点"生成打款单"
@@ -20,8 +21,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (ticket.status !== "IN_PROGRESS") {
     return NextResponse.json({ error: "仅执行中的工单可标记完成" }, { status: 400 });
   }
-  if (auth.role !== "ADMIN" && ticket.creatorId !== auth.userId) {
-    return NextResponse.json({ error: "仅创建人或管理员可标记完成" }, { status: 403 });
+  if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
+    return NextResponse.json({ error: "仅创建人、审批链成员或管理员可标记完成" }, { status: 403 });
   }
   const body = await req.json();
   const rating = Number(body.rating);

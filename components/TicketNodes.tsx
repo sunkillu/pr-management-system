@@ -26,8 +26,13 @@ export default function TicketNodes({
   const now = new Date();
 
   async function completeNode(nodeId: string) {
+    const note = prompt("完成该节点（推进说明选填）：") ?? "";
     setBusyId(nodeId);
-    const res = await fetch(`/api/tickets/${ticketId}/nodes/${nodeId}/complete`, { method: "POST" });
+    const res = await fetch(`/api/tickets/${ticketId}/nodes/${nodeId}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: note.trim() || undefined }),
+    });
     setBusyId("");
     if (res.ok) router.refresh();
   }

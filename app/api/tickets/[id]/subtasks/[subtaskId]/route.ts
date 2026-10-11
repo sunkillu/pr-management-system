@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { canOperateTicket } from "@/lib/ticket-permission";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 const TERMINAL = ["VOIDED", "SETTLED", "FOLLOW_UP"];
@@ -16,7 +17,7 @@ async function getSubtask(ticketId: string, subtaskId: string) {
   return { ticket, subtask };
 }
 
-// 更新子任务（标题/状态/负责人/截止日期/排序）
+// 更新子任务（标题/状态/负责人/截止日期/排序）：仅创建人 / 审批链成员 / ADMIN
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; subtaskId: string } }
@@ -25,6 +26,9 @@ export async function PATCH(
   if (!auth.ok) return auth.res;
   const found = await getSubtask(params.id, params.subtaskId);
   if ("error" in found) return NextResponse.json({ error: found.error }, { status: found.status });
+  if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
+    return NextResponse.json({ error: "仅创建人、审批链成员或管理员可操作子任务" }, { status: 403 });
+  }
   if (TERMINAL.includes(found.ticket.status)) {
     return NextResponse.json({ error: "终态工单不可增改子任务" }, { status: 400 });
   }
@@ -46,7 +50,7 @@ export async function PATCH(
   return NextResponse.json(updated);
 }
 
-// 删除子任务
+// 删除子任务：仅创建人 / 审批链成员 / ADMIN
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string; subtaskId: string } }
@@ -55,6 +59,9 @@ export async function DELETE(
   if (!auth.ok) return auth.res;
   const found = await getSubtask(params.id, params.subtaskId);
   if ("error" in found) return NextResponse.json({ error: found.error }, { status: found.status });
+  if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
+    return NextResponse.json({ error: "仅创建人、审批链成员或管理员可操作子任务" }, { status: 403 });
+  }
   if (TERMINAL.includes(found.ticket.status)) {
     return NextResponse.json({ error: "终态工单不可增改子任务" }, { status: 400 });
   }

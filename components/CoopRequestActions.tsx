@@ -80,11 +80,14 @@ export default function CoopRequestActions({
         <ConfirmDialog
           title="确认通过"
           message={`确认通过合作需求「${title}」？`}
+          needReason
+          reasonLabel="审批备注"
+          reasonOptional
           confirmText="通过"
           busy={busy}
           onClose={() => setDlg(null)}
-          onConfirm={() =>
-            call(`/api/coop-requests/${id}/approve`, { action: "APPROVE" }, () =>
+          onConfirm={(reason) =>
+            call(`/api/coop-requests/${id}/approve`, { action: "APPROVE", comment: reason }, () =>
               setDlg("addToLibrary")
             )
           }

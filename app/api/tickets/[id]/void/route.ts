@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
+import { canOperateTicket } from "@/lib/ticket-permission";
 
-// 作废：创建人可作废自己的待审批单；ADMIN 可作废非终态单；终态（已结算/已作废）不可作废
+// 作废：ADMIN 可作废非终态单；创建人/审批链成员仅可作废待审批/草稿/已驳回；终态（已结算/已作废）不可作废
 const TERMINAL = ["SETTLED", "VOIDED"];
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
@@ -16,11 +17,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "终态工单不可作废" }, { status: 400 });
   }
   if (auth.role !== "ADMIN") {
-    if (ticket.creatorId !== auth.userId) {
-      return NextResponse.json({ error: "仅创建人或管理员可作废" }, { status: 403 });
+    if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
+      return NextResponse.json({ error: "仅创建人、审批链成员或管理员可作废" }, { status: 403 });
     }
     if (!["DRAFT", "PENDING_APPROVAL", "REJECTED"].includes(ticket.status)) {
-      return NextResponse.json({ error: "创建人仅可作废待审批/草稿/已驳回的工单" }, { status: 403 });
+      return NextResponse.json({ error: "仅可作废待审批/草稿/已驳回的工单" }, { status: 403 });
     }
   }
   const updated = await prisma.$transaction(async (tx) => {

@@ -59,6 +59,21 @@ const platform = String(body.platform ?? "").trim();
 if (!platform || !["XIAOHONGSHU", "DOUYIN"].includes(platform)) {
 return NextResponse.json({ error: "请选择合作平台"}, { status: 400});
 }
+// 款式多选必填
+const styles: string[] = Array.isArray(body.style) ? body.style.map((s: unknown) => String(s)).filter(Boolean) : [];
+if (styles.length === 0) {
+return NextResponse.json({ error: "请选择款式（可多选）" }, { status: 400});
+}
+// 合作类目多选必填
+const coopCategories: string[] = Array.isArray(body.coopCategory) ? body.coopCategory.map((s: unknown) => String(s)).filter(Boolean) : [];
+if (coopCategories.length === 0) {
+return NextResponse.json({ error: "请选择合作类目（可多选）" }, { status: 400});
+}
+// 预估档期必填
+const estimatedSchedule = String(body.estimatedSchedule ?? "").trim();
+if (!estimatedSchedule) {
+return NextResponse.json({ error: "请填写预估档期" }, { status: 400});
+}
 const { influencerId, makeupArtistId} = pickPartner(body);
 if (type === "MAKEUP" &&!makeupArtistId) {
 return NextResponse.json({ error: "化妆师合作必须选择化妆师"}, { status: 400});
@@ -72,6 +87,10 @@ const inf = await prisma.influencer.findUnique({ where: { id: influencerId}});
 if (!inf) return NextResponse.json({ error: "达人不存在"}, { status: 404});
 if (inf.status!== "APPROVED") {
 return NextResponse.json({ error: "该达人尚未通过审核，不能发起合作"}, { status: 400});
+}
+// 数据权限：PR 只能用自己登记的达人发起工单
+if (auth.role === "PR" && inf.registeredById !== auth.userId) {
+return NextResponse.json({ error: "只能选择自己登记的达人发起合作"}, { status: 403});
 }
 }
 // 达人主页ID：未手动填写时从达人库自动带入
@@ -119,11 +138,12 @@ budgetFee: body.budgetFee,
 actualFee: body.actualFee? body.actualFee: null,
 platform,
 homepageId,
-style: String(body.style ?? "").trim() || null,
+style: styles,
 contentDirection: String(body.contentDirection ?? "").trim() || null,
-coopCategory: String(body.coopCategory ?? "").trim() || null,
+coopCategory: coopCategories,
 priceNote: String(body.priceNote ?? "").trim() || null,
 contentNote: String(body.contentNote ?? "").trim() || null,
+estimatedSchedule,
 startDate: body.startDate? new Date(body.startDate): null,
 endDate: body.endDate? new Date(body.endDate): null,
 note: body.note?.trim() || null,

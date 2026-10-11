@@ -182,6 +182,36 @@ export const platformTagLabels: Record<string, string> = {
   DOUYIN: "抖音",
 };
 
+// 款式（多选，必填，可扩展）
+export const STYLE_OPTIONS = [
+  { value: "DAILY", label: "日常款" },
+  { value: "MAIN", label: "主推款" },
+  { value: "CLEARANCE", label: "清仓款" },
+  { value: "NEW", label: "新品款" },
+] as const;
+export const styleLabels: Record<string, string> = {
+  DAILY: "日常款",
+  MAIN: "主推款",
+  CLEARANCE: "清仓款",
+  NEW: "新品款",
+};
+
+// 合作类目（多选，必填，可扩展）
+export const COOP_CATEGORY_OPTIONS = [
+  { value: "CAOZHONG", label: "种草" },
+  { value: "LIVE", label: "直播" },
+  { value: "SHORT_VIDEO", label: "短视频" },
+  { value: "IMAGE_TEXT", label: "图文" },
+  { value: "TANDIAN", label: "探店" },
+] as const;
+export const coopCategoryLabels: Record<string, string> = {
+  CAOZHONG: "种草",
+  LIVE: "直播",
+  SHORT_VIDEO: "短视频",
+  IMAGE_TEXT: "图文",
+  TANDIAN: "探店",
+};
+
 export const coopTypeLabels: Record<string, string> = {
   INFLUENCER_POST: "达人挂车",
   INFLUENCER_LIVE: "达播",

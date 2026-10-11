@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { canOperateTicket } from "@/lib/ticket-permission";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 const TERMINAL = ["VOIDED", "SETTLED", "FOLLOW_UP"];
@@ -17,12 +18,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(list);
 }
 
-// 新增子任务
+// 新增子任务：仅创建人 / 审批链成员 / ADMIN
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireRoles([...WRITE_ROLES]);
   if (!auth.ok) return auth.res;
   const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
+  if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
+    return NextResponse.json({ error: "仅创建人、审批链成员或管理员可操作子任务" }, { status: 403 });
+  }
   if (TERMINAL.includes(ticket.status)) {
     return NextResponse.json({ error: "终态工单不可增改子任务" }, { status: 400 });
   }

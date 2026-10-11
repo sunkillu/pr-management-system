@@ -4,7 +4,7 @@ import { requireRoles} from "@/lib/api-auth";
 import { writeLog} from "@/lib/approval-log";
 import { notifyApprovers} from "@/lib/feishu-notify";
 
-// 列表：所有登录用户可查，支持搜索 / 平台 / 状态筛选
+// 列表：支持搜索 / 平台 / 状态 / 标签筛选；PR 角色只能看自己登记的
 export async function GET(req: NextRequest) {
 const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
@@ -14,13 +14,17 @@ const platform = searchParams.get("platform");
 const status = searchParams.get("status");
 const type = searchParams.get("type");
 const coop = searchParams.get("coop");
+const tag = searchParams.get("tag");
 
 const list = await prisma.influencer.findMany({
 where: {
+// PR 只能看到自己登记的达人；ADMIN / FINANCE / PR_MANAGER 可看全部
+...(auth.role === "PR"? { registeredById: auth.userId}: {}),
 ...(q? { name: { contains: q, mode: "insensitive" as const}}: {}),
 ...(platform? { platforms: { has: platform}}: {}),
 ...(status? { status: status as never}: {}),
 ...(type? { influencerType: type as never}: {}),
+...(tag? { tags: { has: tag}}: {}),
 ...(coop === "none"? { coopCount: 0}: {}),
 ...(coop === "active"? { coopCount: { gt: 0}}: {}),
 },
@@ -43,6 +47,19 @@ const platforms: string[] = Array.isArray(body.platforms)? body.platforms: [];
 const influencerType = ["KOL", "KOC", "AMATEUR", "MAKEUP_ARTIST"].includes(body.influencerType)
 ? body.influencerType
 : null;
+// 附件：[{fileUrl, fileName}]，简单校验结构
+const attachments = Array.isArray(body.attachments)
+? body.attachments.filter((a: unknown) => a && typeof (a as { fileUrl?: unknown }).fileUrl === "string").slice(0, 20)
+: undefined;
+// 标签：字符串数组
+const tags: string[] = [];
+if (Array.isArray(body.tags)) {
+  for (const t of body.tags) {
+    const s = String(t ?? "").trim();
+    if (s && !tags.includes(s)) tags.push(s);
+    if (tags.length >= 20) break;
+  }
+}
 const approverIds: string[] = Array.isArray(body.approverIds)
 ? Array.from(new Set(body.approverIds as string[]))
 : [];
@@ -67,6 +84,8 @@ platforms,
 contactInfo: body.contactInfo || null,
 homepageId: String(body.homepageId ?? "").trim() || null,
 bio: body.bio || null,
+attachments: attachments ?? undefined,
+tags,
 status: "PENDING",
 registeredById: auth.userId,
 },

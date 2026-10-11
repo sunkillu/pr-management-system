@@ -22,7 +22,6 @@ export type BoardTicket = {
 
 const MAIN_COLUMNS = [
   "PENDING_APPROVAL",
-  "APPROVED",
   "IN_PROGRESS",
   "SETTLING",
   "FOLLOW_UP",
@@ -65,7 +64,6 @@ export default function TicketBoard({
     : [...MAIN_COLUMNS];
 
   const canApprove = ["ADMIN", "PR_MANAGER"].includes(role);
-  const canStart = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
   async function postAction(ticketId: string, url: string, body?: Record<string, unknown>) {
     setBusyId(ticketId);
@@ -168,19 +166,6 @@ export default function TicketBoard({
                               驳回
                             </button>
                           </>
-                        )}
-                        {t.status === "APPROVED" && canStart && (
-                          <button
-                            disabled={busyId === t.id}
-                            onClick={() => {
-                              const note = prompt("请输入推进说明（必填）：");
-                              if (!note || !note.trim()) return;
-                              postAction(t.id, `/api/tickets/${t.id}/start`, { note: note.trim() });
-                            }}
-                            className={btnPrimarySm}
-                          >
-                            开始执行
-                          </button>
                         )}
                         {t.status === "IN_PROGRESS" && (
                           <Link
