@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import { formatMoney, formatDate } from "@/lib/labels";
 import ReportsClient from "./ReportsClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: { campaignId?: string };
+  searchParams: { campaignId?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -17,7 +19,8 @@ export default async function ReportsPage({
   const campaignId = searchParams.campaignId || "";
   const where = campaignId ? { campaignId } : {};
 
-  const [campaigns, contents, reports] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [campaigns, contents, reports, total] = await Promise.all([
     prisma.campaign.findMany({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
@@ -30,38 +33,46 @@ export default async function ReportsPage({
     prisma.report.findMany({
       where,
       include: { campaign: true, content: true },
-      orderBy: { recordDate: "desc" },
+      orderBy: [{ recordDate: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    prisma.report.count({ where }),
   ]);
 
-  // 按项目汇总：效果数据 + 已打款金额
-  const summary = await prisma.campaign.findMany({
-    ...(campaignId ? { where: { id: campaignId } } : {}),
-    select: {
-      id: true,
-      name: true,
-      reports: {
-        select: { impressions: true, reads: true, likes: true, comments: true, conversions: true, gmv: true },
-      },
-      paymentRequests: {
-        where: { status: "PAID" },
-        select: { amount: true },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  const agg = summary.map((c) => ({
+  const [summaryCampaigns, reportTotals, paidTotals] = await Promise.all([
+    prisma.campaign.findMany({
+      ...(campaignId ? { where: { id: campaignId } } : {}),
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.report.groupBy({
+      by: ["campaignId"],
+      where,
+      _sum: { impressions: true, reads: true, likes: true, comments: true, conversions: true, gmv: true },
+    }),
+    prisma.paymentRequest.groupBy({
+      by: ["campaignId"],
+      where: { status: "PAID", ...(campaignId ? { campaignId } : {}) },
+      _sum: { amount: true },
+    }),
+  ]);
+  const reportTotalsByCampaign = new Map(reportTotals.map((r) => [r.campaignId, r._sum]));
+  const paidTotalsByCampaign = new Map(paidTotals.map((p) => [p.campaignId, Number(p._sum.amount ?? 0)]));
+  const agg = summaryCampaigns.map((c) => {
+    const report = reportTotalsByCampaign.get(c.id);
+    return ({
     id: c.id,
     name: c.name,
-    impressions: c.reports.reduce((s, r) => s + r.impressions, 0),
-    reads: c.reports.reduce((s, r) => s + r.reads, 0),
-    likes: c.reports.reduce((s, r) => s + r.likes, 0),
-    comments: c.reports.reduce((s, r) => s + r.comments, 0),
-    conversions: c.reports.reduce((s, r) => s + r.conversions, 0),
-    gmv: c.reports.reduce((s, r) => s + Number(r.gmv), 0),
-    paid: c.paymentRequests.reduce((s, p) => s + Number(p.amount), 0),
-  }));
+    impressions: report?.impressions ?? 0,
+    reads: report?.reads ?? 0,
+    likes: report?.likes ?? 0,
+    comments: report?.comments ?? 0,
+    conversions: report?.conversions ?? 0,
+    gmv: Number(report?.gmv ?? 0),
+    paid: paidTotalsByCampaign.get(c.id) ?? 0,
+  });
+  });
 
   const exportHref = campaignId ? `/api/reports/export?campaignId=${campaignId}` : "/api/reports/export";
 
@@ -188,6 +199,7 @@ export default async function ReportsPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/reports" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

@@ -5,11 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import { contentTypeLabels, contentStatusLabels, badgeClass, formatDate } from "@/lib/labels";
 import ContentsClient from "./ContentsClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 
 export default async function ContentsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; type?: string; status?: string };
+  searchParams: { q?: string; type?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
@@ -21,12 +23,16 @@ export default async function ContentsPage({
   if (searchParams.type) where.type = searchParams.type;
   if (searchParams.status) where.status = searchParams.status;
 
-  const [contents, outlets] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [contents, total, outlets] = await Promise.all([
     prisma.content.findMany({
       where,
       include: { outlet: true },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    prisma.content.count({ where }),
     prisma.mediaOutlet.findMany({
       where: { status: "ACTIVE" },
       select: { id: true, name: true },
@@ -124,6 +130,7 @@ export default async function ContentsPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/contents" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

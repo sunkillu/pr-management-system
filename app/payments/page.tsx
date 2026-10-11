@@ -5,12 +5,14 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import { paymentStatusLabels, badgeClass, formatMoney, formatDate } from "@/lib/labels";
 import PaymentsClient from "./PaymentsClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 import type { TicketPrefill } from "@/components/PaymentForm";
 
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; newTicket?: string };
+  searchParams: { q?: string; status?: string; newTicket?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
@@ -43,12 +45,16 @@ export default async function PaymentsPage({
     }
   }
 
-  const [payments, outlets, campaigns, contents] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [payments, total, outlets, campaigns, contents] = await Promise.all([
     prisma.paymentRequest.findMany({
       where,
       include: { outlet: true, campaign: true, requester: true, _count: { select: { vouchers: true } } },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    prisma.paymentRequest.count({ where }),
     prisma.mediaOutlet.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.campaign.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.content.findMany({ select: { id: true, title: true }, orderBy: { updatedAt: "desc" }, take: 200 }),
@@ -58,7 +64,7 @@ export default async function PaymentsPage({
     <div>
       <PageHeader
         title="打款审批"
-        desc="两阶段审批：运营提交 → 管理员业务审批 → 财务审批 → 财务标记已打款。发票为选填，不阻塞流程。"
+        desc="普通打款：业务审批 → 财务审批；工单素材审批通过后直接进入财务审批。发票为选填，不阻塞流程。"
         action={
           canSubmit ? (
             <PaymentsClient role={role} outlets={outlets} campaigns={campaigns} contents={contents} ticketPrefill={ticketPrefill} />
@@ -123,7 +129,8 @@ export default async function PaymentsPage({
                     campaigns={campaigns}
                     contents={contents}
                     editTarget={
-                      canSubmit && (p.status === "PENDING_BIZ" || p.status === "REJECTED")
+                      (canSubmit || (role === "PR_MANAGER" && p.ticketId && p.requesterId === sessionUser.id)) &&
+                      (p.status === "PENDING_BIZ" || p.status === "REJECTED")
                         ? {
                             id: p.id,
                             title: p.title,
@@ -137,7 +144,7 @@ export default async function PaymentsPage({
                           }
                         : undefined
                     }
-                    actionTarget={{ id: p.id, status: p.status, isRequester: p.requesterId === sessionUser.id, voucherCount: p._count.vouchers }}
+                    actionTarget={{ id: p.id, ticketId: p.ticketId, status: p.status, isRequester: p.requesterId === sessionUser.id, voucherCount: p._count.vouchers }}
                     deleteId={canDelete ? p.id : undefined}
                   />
                 </td>
@@ -149,6 +156,7 @@ export default async function PaymentsPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/payments" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

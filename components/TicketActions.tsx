@@ -304,7 +304,7 @@ export default function TicketActions({
       {showMaterialApproveBox && (
         <Modal title="素材审批通过" onClose={() => setShowMaterialApproveBox(false)}>
           <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
-            通过后将自动生成打款单并提交业务审批，工单进入结算中。
+            通过后将自动生成打款单并直接提交财务审批，无需业务审批，工单进入结算中。
           </p>
           <Field label="审批意见（选填）">
             <textarea className={inputCls} rows={3} value={materialComment}

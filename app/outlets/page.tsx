@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
 import { outletTypeLabels, platformLabels, outletStatusLabels, badgeClass, formatMoney } from "@/lib/labels";
 import OutletsClient from "./OutletsClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 
 export default async function OutletsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; type?: string; platform?: string; status?: string };
+  searchParams: { q?: string; type?: string; platform?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -20,10 +22,16 @@ export default async function OutletsPage({
   if (searchParams.platform) where.platform = searchParams.platform;
   if (searchParams.status) where.status = searchParams.status;
 
-  const outlets = await prisma.mediaOutlet.findMany({
-    where,
-    orderBy: { updatedAt: "desc" },
-  });
+  const pagination = getPagination(searchParams.page);
+  const [outlets, total] = await Promise.all([
+    prisma.mediaOutlet.findMany({
+      where,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.mediaOutlet.count({ where }),
+  ]);
 
   return (
     <div>
@@ -120,6 +128,7 @@ export default async function OutletsPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/outlets" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

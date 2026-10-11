@@ -10,11 +10,13 @@ import {
   formatDate,
 } from "@/lib/labels";
 import InvoicesClient from "./InvoicesClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string };
+  searchParams: { q?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -30,12 +32,16 @@ export default async function InvoicesPage({
     ];
   }
 
-  const [invoices, payments] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [invoices, total, payments] = await Promise.all([
     prisma.invoice.findMany({
       where,
       include: { paymentRequest: { select: { id: true, title: true } }, uploadedBy: true },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    prisma.invoice.count({ where }),
     prisma.paymentRequest.findMany({
       select: { id: true, title: true },
       orderBy: { updatedAt: "desc" },
@@ -118,6 +124,7 @@ export default async function InvoicesPage({
           </tbody>
         </table>
       </div>
+      <Pagination pathname="/invoices" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }
