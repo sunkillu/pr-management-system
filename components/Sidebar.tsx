@@ -42,7 +42,6 @@ const entries: NavEntry[] = [
       label: "项目",
       items: [
         { href: "/campaigns", label: "项目排期", roles: ALL },
-        { href: "/reports", label: "效果报表", roles: ALL },
       ],
     },
   },
