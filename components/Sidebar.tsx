@@ -40,16 +40,6 @@ const entries: NavEntry[] = [
   {
     type: "group",
     group: {
-      key: "project",
-      label: "项目",
-      items: [
-        { href: "/campaigns", label: "项目排期", roles: ALL },
-      ],
-    },
-  },
-  {
-    type: "group",
-    group: {
       key: "finance",
       label: "财务",
       items: [

@@ -14,7 +14,6 @@ export default async function DashboardPage() {
   const [
     outletCount,
     pendingContents,
-    activeCampaigns,
     gmvAgg,
     bizPending,
     bizPendingSum,
@@ -25,7 +24,6 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     prisma.mediaOutlet.count(),
     prisma.content.count({ where: { status: "PENDING" } }),
-    prisma.campaign.count({ where: { status: "ONGOING" } }),
     prisma.report.aggregate({ _sum: { gmv: true } }),
     prisma.paymentRequest.count({ where: { status: "PENDING_BIZ" } }),
     prisma.paymentRequest.aggregate({
@@ -55,7 +53,6 @@ export default async function DashboardPage() {
   const stats = [
     { label: "媒体资源数", value: String(outletCount), href: "/partners?tab=outlet" },
     { label: "待审批内容", value: String(pendingContents), href: "/contents?status=PENDING" },
-    { label: "进行中项目", value: String(activeCampaigns), href: "/campaigns?status=ONGOING" },
     {
       label: "累计 GMV（元）",
       value: formatMoney(gmvAgg._sum.gmv),
@@ -170,7 +167,6 @@ export default async function DashboardPage() {
         {[
           { href: "/partners?tab=outlet", t: "媒体资源库", d: "维护达人 / KOC / 媒体 / 机构资源" },
           { href: "/contents", t: "内容管理", d: "种草文、新闻稿的版本与审批流" },
-          { href: "/campaigns", t: "项目排期", d: "大促、新品项目的排期与进度" },
           { href: "/payments", t: "打款审批", d: "两阶段审批：业务 → 财务 → 打款" },
           { href: "/invoices", t: "发票管理", d: "发票上传、关联打款单、财务核验" },
           { href: "/reports", t: "效果报表", d: "曝光、转化、GMV 汇总与导出" },
