@@ -43,13 +43,14 @@ if (!assigned) return NextResponse.json({ error: "你不是该登记的审批人
 
 const toStatus = action === "APPROVE"? "APPROVED": "REJECTED";
 const updated = await prisma.$transaction(async (tx) => {
-const u = await tx.influencer.update({
-where: { id: params.id},
+const claimed = await tx.influencer.updateMany({
+where: { id: params.id, status: "PENDING"},
 data: {
 status: toStatus,
 rejectReason: action === "REJECT"? body.comment.trim(): null,
 },
 });
+if (claimed.count !== 1) return null;
 // 更新审批人自己的审批记录（或签：其他审批人保持 PENDING 即可）
 await tx.requestApprover.upsert({
 where: {
@@ -78,8 +79,11 @@ fromStatus: "PENDING",
 toStatus,
 note: body.comment?.trim() || null,
 });
-return u;
+return tx.influencer.findUniqueOrThrow({ where: { id: params.id } });
 });
+if (!updated) {
+return NextResponse.json({ error: "该登记已被其他审批人处理，请刷新页面"}, { status: 409});
+}
 
 await notifyUser(
 influencer.registeredById,

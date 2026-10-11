@@ -13,6 +13,7 @@ type Preview = {
   tags: string[];
   coopCount: number;
   totalFee: string;
+  attachments: { fileUrl: string; fileName: string }[];
 };
 
 /**
@@ -83,6 +84,19 @@ export default function InfluencerHoverCard({ id, name }: { id: string; name: st
                     <span key={t} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
                       {t}
                     </span>
+                  ))}
+                </div>
+              )}
+              {data.attachments.length > 0 && (
+                <div className="mt-2 flex gap-2 overflow-x-auto">
+                  {data.attachments.map((attachment) => (
+                    <img
+                      key={attachment.fileUrl}
+                      src={attachment.fileUrl}
+                      alt={attachment.fileName}
+                      title={attachment.fileName}
+                      className="h-12 w-12 shrink-0 rounded border border-gray-200 object-cover"
+                    />
                   ))}
                 </div>
               )}

@@ -190,6 +190,9 @@ NEXTAUTH_URL="http://localhost:3000"
 
 > Windows 用户注意：如果你给 pruser 设置了别的密码，记得同步改 `DATABASE_URL`
 > 里的密码。
+>
+> Prisma 每个应用实例默认最多使用 10 个数据库连接，等待连接最长 10 秒。多副本部署时，
+> 按 `副本数 × connection_limit` 核算总连接数，确保低于 PostgreSQL 的 `max_connections`。
 
 **第 5 步：初始化数据库表 + 写入演示数据**
 

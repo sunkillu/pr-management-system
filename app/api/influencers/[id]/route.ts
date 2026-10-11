@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { canViewInfluencer, parseInfluencerAttachments } from "@/lib/influencer-access";
 
 // 详情：所有登录用户可查
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -14,6 +15,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     },
   });
   if (!influencer) return NextResponse.json({ error: "达人不存在" }, { status: 404 });
+  if (!canViewInfluencer(auth.role, auth.userId, influencer.registeredById)) {
+    return NextResponse.json({ error: "无权查看" }, { status: 403 });
+  }
   const approvers = await prisma.requestApprover.findMany({
     where: { requestType: "INFLUENCER", requestId: params.id },
     include: { approver: { select: { id: true, name: true } } },
@@ -40,8 +44,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   const existing = await prisma.influencer.findUnique({ where: { id: params.id } });
   if (!existing) return NextResponse.json({ error: "达人不存在" }, { status: 404 });
+  if (auth.role !== "ADMIN" && existing.registeredById !== auth.userId) {
+    return NextResponse.json({ error: "仅登记人本人或管理员可编辑" }, { status: 403 });
+  }
   if (!["PENDING", "REJECTED"].includes(existing.status)) {
     return NextResponse.json({ error: "仅待审核 / 已驳回的登记可编辑" }, { status: 400 });
+  }
+  const attachmentResult = parseInfluencerAttachments(body.attachments ?? existing.attachments);
+  if (!attachmentResult.ok) {
+    return NextResponse.json({ error: attachmentResult.error }, { status: 400 });
   }
   if (!body.name?.trim()) {
     return NextResponse.json({ error: "达人姓名不能为空" }, { status: 400 });
@@ -51,6 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data: {
       name: body.name.trim(),
       platforms: Array.isArray(body.platforms) ? body.platforms : [],
+      attachments: attachmentResult.attachments,
       contactInfo: body.contactInfo || null,
       bio: body.bio || null,
     },

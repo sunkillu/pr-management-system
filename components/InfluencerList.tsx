@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import InfluencerForm from "@/components/InfluencerForm";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
+import { influencerOwnerFilter } from "@/lib/influencer-access";
 
 export type InfluencerSearchParams = {
   q?: string;
@@ -40,7 +41,7 @@ export default async function InfluencerList({
 
   const where: Record<string, unknown> = {};
   // 数据权限：PR 只能看自己登记的；ADMIN / FINANCE / PR_MANAGER 可看全部
-  if (role === "PR") where.registeredById = me.id;
+  Object.assign(where, influencerOwnerFilter(role, me.id));
   if (searchParams.q) where.name = { contains: searchParams.q, mode: "insensitive" };
   if (searchParams.platform) where.platforms = { has: searchParams.platform };
   if (searchParams.status) where.status = searchParams.status;
@@ -67,7 +68,7 @@ export default async function InfluencerList({
     }),
     // 标签筛选下拉：取库内所有已用标签（同样受数据权限约束）
     prisma.influencer.findMany({
-      where: role === "PR" ? { registeredById: me.id } : {},
+      where: influencerOwnerFilter(role, me.id),
       select: { tags: true },
     }),
   ]);

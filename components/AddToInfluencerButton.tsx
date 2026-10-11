@@ -32,7 +32,7 @@ export default function AddToInfluencerButton({
       {confirm && (
         <ConfirmDialog
           title="加入达人库"
-          message={`是否将本次需求的达人加入达人库？${influencerType ? `（类型：${influencerType}）` : ""}跳转后补填姓名、联系方式即可保存。`}
+          message={`是否将本次需求的达人加入达人库？${influencerType ? `（类型：${influencerType}）` : ""}跳转后补填资料并上传至少一张参考图即可免审加入。`}
           confirmText="去加入"
           onClose={() => setConfirm(false)}
           onConfirm={go}
