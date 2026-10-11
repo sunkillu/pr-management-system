@@ -13,6 +13,7 @@ const BASE_MAP: Record<string, string> = {
   COOP_REQUEST: "/coop-requests",
   PAYMENT: "/payments",
   CONTENT: "/contents",
+  SAMPLE: "/samples",
 };
 
 export function relatedUrl(n: RelatedRef): string | null {

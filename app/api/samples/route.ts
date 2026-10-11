@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
-import { notifyApprovers, notifyUser } from "@/lib/feishu-notify";
+import { notifyUser } from "@/lib/feishu-notify";
 
 const WRITE = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
@@ -74,15 +74,11 @@ export async function POST(req: NextRequest) {
     toStatus: "PENDING",
     note: body.ticketId ? "由工单寄品明细一键生成" : null,
   });
-  // 通知仓库有新的寄件请求
-  const warehouses = await prisma.user.findMany({
-    where: { role: { in: ["WAREHOUSE", "ADMIN"] } },
-    select: { id: true },
-  });
-  await notifyApprovers(
-    warehouses.map((w) => w.id),
-    `【寄件请求待处理】${sample.productName}（${body.receiverName ?? ""}），请仓库接单备货。`,
-    { type: "SAMPLE", id: sample.id, title: "寄件请求待处理", kind: "APPROVAL_PENDING" }
+  // 创建后只通知提交人去维护收件信息，信息确认后才推给仓库
+  await notifyUser(
+    auth.userId,
+    `【寄件请求已创建】${sample.productName}，请先维护收件信息（收件人/电话/地址/明细），确认无误后推送仓库。`,
+    { type: "SAMPLE", id: sample.id, title: "寄件信息待维护", kind: "SYSTEM" }
   );
   return NextResponse.json(sample, { status: 201 });
 }

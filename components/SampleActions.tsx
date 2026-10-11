@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { btnPrimary, btnSecondary, btnDanger, inputCls } from "@/components/ui";
 
 type Props = {
-  sample: { id: string; productName: string; status: string };
+  sample: { id: string; productName: string; status: string; infoConfirmed?: boolean; createdById?: string };
   role: string;
+  userId?: string;
 };
 
-export default function SampleActions({ sample, role }: Props) {
+export default function SampleActions({ sample, role, userId }: Props) {
   const router = useRouter();
   const [modal, setModal] = useState<null | "ship" | "sign" | "cancel" | "writeoff">(null);
   const [courier, setCourier] = useState("");
@@ -48,10 +49,25 @@ export default function SampleActions({ sample, role }: Props) {
   const canFinance = ["ADMIN", "FINANCE"].includes(role);
   const canCancel = ["ADMIN", "PR", "PR_MANAGER", "WAREHOUSE"].includes(role);
   const terminal = ["SIGNED", "WRITTEN_OFF", "CANCELLED", "RETURNED"].includes(sample.status);
+  // 仅提交人或管理员可确认信息并推送仓库
+  const canConfirmInfo =
+    sample.status === "PENDING" &&
+    !sample.infoConfirmed &&
+    (role === "ADMIN" || (userId && sample.createdById === userId));
 
   return (
     <div className="flex flex-wrap gap-2">
-      {sample.status === "PENDING" && canWarehouse && (
+      {canConfirmInfo && (
+        <button className={btnPrimary} onClick={() => call("confirm-info", {})} disabled={busy}>
+          确认信息并推送仓库
+        </button>
+      )}
+      {sample.status === "PENDING" && sample.infoConfirmed && (
+        <span className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+          已推送仓库
+        </span>
+      )}
+      {sample.status === "PENDING" && canWarehouse && sample.infoConfirmed && (
         <button className={btnPrimary} onClick={() => call("accept", {})} disabled={busy}>
           接单备货
         </button>

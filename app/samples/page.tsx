@@ -14,7 +14,8 @@ export default async function SamplesPage({
   searchParams: { q?: string; status?: string };
 }) {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as unknown as { role: string }).role;
+  const me = session?.user as unknown as { id: string; role: string };
+  const role = me.role;
   const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canDelete = ["ADMIN", "PR_MANAGER"].includes(role);
   // 仓库维护寄件信息；ADMIN / PR_MANAGER 兜底
@@ -34,7 +35,7 @@ export default async function SamplesPage({
     },
     include: {
       influencer: { select: { id: true, name: true } },
-      createdBy: { select: { name: true } },
+      createdBy: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -102,7 +103,11 @@ export default async function SamplesPage({
                 </td>
                 <td className={tdCls}>{r.createdBy?.name ?? "-"}</td>
                 <td className={tdCls + " whitespace-nowrap"}>
-                  <SampleActions sample={{ id: r.id, productName: r.productName, status: r.status }} role={role} />
+                  <SampleActions
+                    sample={{ id: r.id, productName: r.productName, status: r.status, infoConfirmed: r.infoConfirmed, createdById: r.createdBy.id }}
+                    role={role}
+                    userId={me.id}
+                  />
                 </td>
                 {(canWrite || canShip) && (
                   <td className={tdCls + " whitespace-nowrap"}>

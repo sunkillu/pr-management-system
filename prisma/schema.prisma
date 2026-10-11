@@ -584,6 +584,7 @@ model SampleShipment {
   signedAt     DateTime? // 签收时间
   signedNote   String? // 签收备注
   cancelReason String? // 取消理由
+  infoConfirmed Boolean @default(false) // 寄件信息已确认（提交人维护完收件信息后推送仓库）
   status       SampleStatus @default(PENDING)
 
   createdById String

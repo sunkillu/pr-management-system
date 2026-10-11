@@ -14,6 +14,9 @@ if (!sample) return NextResponse.json({ error: "寄件请求不存在"}, { statu
 if (sample.status!== "PENDING") {
 return NextResponse.json({ error: "仅待处理的请求可接单"}, { status: 400});
 }
+if (!sample.infoConfirmed) {
+return NextResponse.json({ error: "寄件信息尚未确认，请先让提交人确认信息"}, { status: 400});
+}
 const body = await req.json().catch(() => ({}));
 const updated = await prisma.$transaction(async (tx) => {
 const u = await tx.sampleShipment.update({
