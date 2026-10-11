@@ -42,10 +42,14 @@ export async function POST(req: NextRequest) {
   if (!body.productName?.trim()) {
     return NextResponse.json({ error: "产品名称不能为空" }, { status: 400 });
   }
-  // 从工单一键生成时校验 ticketId 存在
+  // 从工单一键生成时校验 ticketId 存在，且工单已审批通过（IN_PROGRESS 及之后）
   if (body.ticketId) {
-    const ticket = await prisma.cooperationTicket.findUnique({ where: { id: body.ticketId }, select: { id: true } });
+    const ticket = await prisma.cooperationTicket.findUnique({ where: { id: body.ticketId }, select: { id: true, status: true } });
     if (!ticket) return NextResponse.json({ error: "关联工单不存在" }, { status: 400 });
+    const SAMPLE_ALLOWED = ["IN_PROGRESS", "MATERIAL_REVIEW", "COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"];
+    if (!SAMPLE_ALLOWED.includes(ticket.status)) {
+      return NextResponse.json({ error: "工单尚未审批通过，不能发起寄件" }, { status: 400 });
+    }
   }
   const sample = await prisma.sampleShipment.create({
     data: {

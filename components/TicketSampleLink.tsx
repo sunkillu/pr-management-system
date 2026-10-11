@@ -12,6 +12,7 @@ type Sample = { id: string; productName: string; status: string; trackingNo: str
 type Props = {
   ticketId: string;
   ticketTitle: string;
+  ticketStatus: string;
   shipItems: ShipItem[];
   samples: Sample[];
   influencerName: string;
@@ -19,7 +20,9 @@ type Props = {
 };
 
 // 工单寄品：从寄品明细一键生成寄件请求；已生成的显示状态
-export default function TicketSampleLink({ ticketId, ticketTitle, shipItems, samples, influencerName, canCreate }: Props) {
+// 仅工单审批通过后（IN_PROGRESS 及之后）可发起寄件
+const SAMPLE_CREATABLE = ["IN_PROGRESS", "MATERIAL_REVIEW", "COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"];
+export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, shipItems, samples, influencerName, canCreate }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [receiverName, setReceiverName] = useState(influencerName);
@@ -76,7 +79,7 @@ export default function TicketSampleLink({ ticketId, ticketTitle, shipItems, sam
             </div>
           ))}
         </div>
-      ) : canCreate && shipItems.length > 0 ? (
+      ) : canCreate && shipItems.length > 0 && SAMPLE_CREATABLE.includes(ticketStatus) ? (
         <button className={btnPrimary} onClick={() => setOpen(true)}>
           生成寄件请求
         </button>

@@ -201,12 +201,12 @@ approverIds,
 `${auth.userName}发起了合作工单「${ticket.title}」，请审批。`,
 { type: "TICKET", id: ticket.id, title: "合作工单待审批", kind: "APPROVAL_PENDING"}
 );
-// 工单有寄品明细时，提醒提交人去维护寄件信息（信息确认后才推仓库）
+// 工单有寄品明细时，提醒提交人：审批通过后可发起寄件请求
 if (shipItems && shipItems.length > 0) {
 await notifyUser(
 auth.userId,
-`【寄件信息待维护】工单「${ticket.title}」已提交审核，含寄品明细，请到寄品管理维护收件信息并确认推送仓库。`,
-{ type: "SAMPLE", id: "", title: "寄件信息待维护", kind: "SYSTEM"}
+`工单「${ticket.title}」已提交审核，审批通过后可发起寄件请求。`,
+{ type: "TICKET", id: ticket.id, title: "工单已提审", kind: "SYSTEM"}
 );
 }
 }

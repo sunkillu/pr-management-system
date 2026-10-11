@@ -265,6 +265,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   <TicketSampleLink
                     ticketId={ticket.id}
                     ticketTitle={ticket.title}
+                    ticketStatus={ticket.status}
                     shipItems={ticket.shipItems as { style: string; degree?: string; note?: string }[]}
                     samples={ticket.samples}
                     influencerName={ticket.influencer?.name ?? ticket.makeupArtist?.name ?? ""}

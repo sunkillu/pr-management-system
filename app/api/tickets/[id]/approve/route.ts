@@ -96,5 +96,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     { type: "TICKET", id: ticket.id, title: "合作工单审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
   );
 
+  // 审批通过且工单有寄品明细时，提醒提交人维护寄件信息并发起寄件请求
+  if (action === "APPROVE") {
+    const shipItems = ticket.shipItems as { style: string }[] | null;
+    if (Array.isArray(shipItems) && shipItems.length > 0) {
+      await notifyUser(
+        ticket.creatorId,
+        `工单「${ticket.title}」已通过审批，请维护寄件信息并发起寄件请求。`,
+        { type: "SAMPLE", id: "", title: "寄件信息待维护", kind: "SYSTEM" }
+      );
+    }
+  }
+
   return NextResponse.json(updated);
 }
