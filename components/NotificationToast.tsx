@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { relatedUrl } from "@/lib/notification-url";
 
 type Notice = {
   id: string;
@@ -14,18 +15,6 @@ type Notice = {
 
 const POLL_MS = 30_000;
 const AUTO_DISMISS_MS = 8_000;
-
-function relatedUrl(n: Notice): string | null {
-  if (!n.relatedType || !n.relatedId) return null;
-  const map: Record<string, string> = {
-    INFLUENCER: "/partners?tab=influencer",
-    COOP_REQUEST: "/coop-requests",
-    PAYMENT: "/payments",
-    CONTENT: "/contents",
-  };
-  const base = map[n.relatedType];
-  return base ? `${base}/${n.relatedId}` : null;
-}
 
 async function markRead(ids: string[]) {
   try {

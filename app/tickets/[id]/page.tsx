@@ -19,6 +19,7 @@ import {
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
+import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 import TicketActions from "@/components/TicketActions";
 import TicketNodes from "@/components/TicketNodes";
 import TicketSubtasks from "@/components/TicketSubtasks";
@@ -177,7 +178,13 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               </InfoRow>
               <InfoRow label="合作对象">
                 <span className="font-medium">
-                  {partnerHref ? <Link href={partnerHref} className="text-[#0071e3] hover:underline">{partnerName}</Link> : partnerName}
+                  {ticket.influencer ? (
+                    <InfluencerHoverCard id={ticket.influencer.id} name={partnerName} />
+                  ) : partnerHref ? (
+                    <Link href={partnerHref} className="text-[#0071e3] hover:underline">{partnerName}</Link>
+                  ) : (
+                    partnerName
+                  )}
                 </span>
               </InfoRow>
               {ticket.coopRequest && (

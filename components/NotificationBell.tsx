@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { relatedUrl } from "@/lib/notification-url";
 
 type Notice = {
   id: string;
@@ -20,18 +21,6 @@ const kindLabels: Record<string, string> = {
   REMIND: "催办",
   SYSTEM: "系统",
 };
-
-function relatedUrl(n: Notice): string | null {
-  if (!n.relatedType || !n.relatedId) return null;
-  const map: Record<string, string> = {
-    INFLUENCER: "/partners?tab=influencer",
-    COOP_REQUEST: "/coop-requests",
-    PAYMENT: "/payments",
-    CONTENT: "/contents",
-  };
-  const base = map[n.relatedType];
-  return base ? `${base}/${n.relatedId}` : null;
-}
 
 /** 顶部铃铛：未读数 badge + 下拉通知列表 */
 export default function NotificationBell() {

@@ -16,6 +16,7 @@ import {
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import CoopRequestActions from "@/components/CoopRequestActions";
+import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 
 export default async function CoopRequestDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -129,9 +130,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                   <>
                     <span className="text-sm text-gray-500">
                       已生成达人：
-                      <Link href={`/influencers/${request.influencer.id}`} className="text-[#0071e3] hover:underline">
-                        {request.influencer.name}
-                      </Link>
+                      <InfluencerHoverCard id={request.influencer.id} name={request.influencer.name} />
                     </span>
                     {["ADMIN", "PR", "PR_MANAGER"].includes(role) && (
                       <Link

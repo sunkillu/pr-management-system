@@ -13,6 +13,7 @@ import {
 } from "@/lib/labels";
 import Link from "next/link";
 import InfluencerForm from "@/components/InfluencerForm";
+import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 
 export type InfluencerSearchParams = {
   q?: string;
@@ -141,9 +142,7 @@ export default async function InfluencerList({
             {list.map((r) => (
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className={tdCls + " font-medium"}>
-                  <Link href={`/influencers/${r.id}`} className="text-[#0071e3] hover:underline">
-                    {r.name}
-                  </Link>
+                  <InfluencerHoverCard id={r.id} name={r.name} />
                 </td>
                 <td className={tdCls}>{r.influencerType ? influencerTypeLabels[r.influencerType] ?? r.influencerType : "-"}</td>
                 <td className={tdCls}>
