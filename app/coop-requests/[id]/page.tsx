@@ -14,6 +14,7 @@ import {
   platformTagLabels,
 } from "@/lib/labels";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
+import ApprovalRecords from "@/components/ApprovalRecords";
 import CoopRequestActions from "@/components/CoopRequestActions";
 import AddToInfluencerButton from "@/components/AddToInfluencerButton";
 
@@ -144,6 +145,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
               ))}
               {approvers.length === 0 && <li className="text-gray-400">暂无</li>}
             </ul>
+            <ApprovalRecords records={approvers} />
           </Section>
         </div>
 

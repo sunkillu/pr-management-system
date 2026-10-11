@@ -18,6 +18,7 @@ import {
 } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
+import ApprovalRecords from "@/components/ApprovalRecords";
 import TicketActions from "@/components/TicketActions";
 import TicketNodes from "@/components/TicketNodes";
 import TicketSubtasks from "@/components/TicketSubtasks";
@@ -294,6 +295,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               <p className="mb-3 text-sm text-gray-400">草稿状态，尚未提交审批</p>
             )}
             <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
+            <ApprovalRecords records={approvers} />
           </Section>
 
           {/* 关联打款单 */}

@@ -40,13 +40,14 @@ requestId: params.id,
 approverId: auth.userId,
 },
 },
-update: { status: action === "APPROVE" ? "APPROVED" : "REJECTED", decidedAt: new Date()},
+update: { status: action === "APPROVE" ? "APPROVED" : "REJECTED", decidedAt: new Date(), comment: body.comment?.trim() || null },
 create: {
 requestType: "COOP_REQUEST",
 requestId: params.id,
 approverId: auth.userId,
 status: action === "APPROVE" ? "APPROVED" : "REJECTED",
 decidedAt: new Date(),
+comment: body.comment?.trim() || null,
 },
 });
 await writeLog(tx, {

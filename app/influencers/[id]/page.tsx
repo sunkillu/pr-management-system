@@ -15,6 +15,7 @@ import {
   formatDateTime,
 } from "@/lib/labels";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
+import ApprovalRecords from "@/components/ApprovalRecords";
 import InfluencerActions from "@/components/InfluencerActions";
 
 export default async function InfluencerDetailPage({ params }: { params: { id: string } }) {
@@ -181,6 +182,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
               ))}
               {approvers.length === 0 && <li className="text-gray-400">暂无</li>}
             </ul>
+            <ApprovalRecords records={approvers} />
           </Section>
 
           <Section title="合作评价（近20条）">

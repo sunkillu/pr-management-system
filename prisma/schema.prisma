@@ -470,6 +470,7 @@ model RequestApprover {
   approver    User           @relation("AssignedApprover", fields: [approverId], references: [id], onDelete: Restrict)
   status      ApproverStatus @default(PENDING)
   decidedAt   DateTime?
+  comment     String?        @db.Text // 审批意见
   createdAt   DateTime       @default(now())
 
   @@unique([requestType, requestId, approverId])
