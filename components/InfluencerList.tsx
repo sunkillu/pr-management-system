@@ -108,6 +108,22 @@ export default async function InfluencerList({
       })
     : [];
   const ratingByInfluencer = new Map(ratings.map((r) => [r.influencerId, r._avg.rating]));
+  // 总达人库按账号ID（homepageId）去重：多平台归同一达人展示
+  // key 为 homepageId，无主页ID的按单条展示
+  const grouped = (() => {
+    const map = new Map<string, { primary: (typeof list)[number]; members: (typeof list)[number][] }>();
+    for (const r of list) {
+      const key = r.homepageId?.trim() ? `acct:${r.homepageId.trim()}` : `id:${r.id}`;
+      const g = map.get(key);
+      if (g) g.members.push(r);
+      else map.set(key, { primary: r, members: [r] });
+    }
+    return Array.from(map.values()).map((g) => {
+      const platforms = Array.from(new Set(g.members.flatMap((m: (typeof list)[number]) => m.platforms)));
+      const coopCount = g.members.reduce((s: number, m: (typeof list)[number]) => s + m.coopCount, 0);
+      return { ...g.primary, _groupSize: g.members.length, _platforms: platforms, _coopCount: coopCount, _memberIds: g.members.map((m: (typeof list)[number]) => m.id) };
+    });
+  })();
   // 筛选下拉：我的标签排前面（标"我的"），再排全部标签（去重）
   const myTagNames = Array.from(new Set(myTaggings.map((m) => m.tag.name))).sort((a, b) =>
     a.localeCompare(b, "zh-CN")
@@ -220,21 +236,26 @@ export default async function InfluencerList({
             </tr>
           </thead>
           <tbody>
-            {list.map((r) => (
+            {grouped.map((r) => (
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className={tdCls + " font-medium"}>
                   <InfluencerHoverCard id={r.id} name={r.name} />
+                  {r._groupSize > 1 && (
+                    <span className="ml-1 rounded bg-purple-50 px-1.5 py-0.5 text-[10px] text-purple-700 ring-1 ring-purple-200">
+                      {r._groupSize}平台归一
+                    </span>
+                  )}
                 </td>
                 <td className={tdCls}>{r.influencerType ? influencerTypeLabels[r.influencerType] ?? r.influencerType : "-"}</td>
                 <td className={tdCls}>
-                  {r.platforms.length > 0
-                    ? r.platforms.map((p) => platformTagLabels[p] ?? p).join("、")
+                  {r._platforms.length > 0
+                    ? r._platforms.map((p: string) => platformTagLabels[p] ?? p).join("、")
                     : "-"}
                 </td>
                 <td className={tdCls}>
                   {r.tags.length > 0 ? (
                     <span className="flex flex-wrap gap-1">
-                      {r.tags.map((t) => (
+                      {r.tags.map((t: string) => (
                         <span key={t} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
                           {t}
                         </span>
@@ -245,7 +266,7 @@ export default async function InfluencerList({
                   )}
                 </td>
                 <td className={tdCls}>
-                  {r.coopCount === 0 ? (
+                  {r._coopCount === 0 ? (
                     <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-300">
                       未合作
                     </span>
@@ -255,7 +276,7 @@ export default async function InfluencerList({
                     </span>
                   )}
                 </td>
-                <td className={tdCls}>{r.coopCount}</td>
+                <td className={tdCls}>{r._coopCount}</td>
                 <td className={tdCls}>
                   {r.cooperationRecords.length > 0 ? formatFee(r.cooperationRecords[0].fee) : "-"}
                 </td>
@@ -277,21 +298,31 @@ export default async function InfluencerList({
                 <td className={tdCls}>{r.registeredBy?.name ?? "-"}</td>
                 {canWrite && (
                   <td className={tdCls + " whitespace-nowrap"}>
-                    {r.status === "APPROVED" ? (
-                      <Link
-                        href={`/tickets/new?influencerId=${r.id}`}
-                        className="rounded border border-[#0071e3] px-2.5 py-1 text-xs text-[#0071e3] hover:bg-blue-50"
-                      >
-                        发起工单
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-gray-300">-</span>
-                    )}
+                    <div className="flex gap-1.5">
+                      {r.status === "APPROVED" ? (
+                        <>
+                          <Link
+                            href={`/tickets/new?influencerId=${r.id}`}
+                            className="rounded border border-[#0071e3] px-2.5 py-1 text-xs text-[#0071e3] hover:bg-blue-50"
+                          >
+                            发起工单
+                          </Link>
+                          <Link
+                            href={`/samples?influencerId=${r.id}&new=1`}
+                            className="rounded border border-emerald-600 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-50"
+                          >
+                            一键寄品
+                          </Link>
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-300">-</span>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
             ))}
-            {list.length === 0 && (
+            {grouped.length === 0 && (
               <tr><td colSpan={canWrite ? 12 : 11} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
             )}
           </tbody>

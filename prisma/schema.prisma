@@ -56,6 +56,7 @@ model User {
   assignedSubtasks  TicketSubtask[] @relation("SubtaskAssignee")
   followUpRecords FollowUpRecord[] @relation("FollowUpCreator")
   uploadedMaterials MaterialRecord[] @relation("MaterialUploader")
+  ledgers         InfluencerLedger[] @relation("LedgerOwner")
   handledContentComments ContentComment[] @relation("CommentHandler")
   createdContentComments ContentComment[] @relation("CommentCreator")
   taggings Tagging[] @relation("TaggingCreator")
@@ -415,6 +416,38 @@ enum InfluencerStatus {
   REJECTED // 已驳回
 }
 
+// PR达人台账状态：草稿 → 已确认入库
+enum LedgerStatus {
+  DRAFT     // 草稿（主页链接已抓取，资料待补充）
+  CONFIRMED // 已确认入库（已关联/创建总库达人）
+}
+
+// PR达人台账：每个PR自己的入库草稿本，免需求路径
+model InfluencerLedger {
+  id           String       @id @default(cuid())
+  ownerId      String
+  owner        User         @relation("LedgerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  homeUrl      String       // 主页链接
+  platform     String?      // 解析出的平台 XIAOHONGSHU / DOUYIN
+  nickname     String?      // 抓取到的昵称（mock 为"待补充_xxx"）
+  accountId    String?      // 抓取到的账号ID（用于老/新达人识别）
+  status       LedgerStatus @default(DRAFT)
+  influencerId String?      // 确认入库后关联的总库达人
+  influencer   Influencer?  @relation("LedgerInfluencer", fields: [influencerId], references: [id], onDelete: SetNull)
+  // 补充资料
+  platforms    String[]     @default([]) // 双平台（抖音+小红书）
+  photoUrl     String?      // 照片
+  budget       Decimal?     @db.Decimal(12, 2) // 预算
+  schedule     String?      // 档期
+  quote        Decimal?     @db.Decimal(12, 2) // 报价
+  sampleInfo   Json?        // 寄品位：{ diopter: 度数, styles: 需寄款式[], note: 寄品信息 }
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([ownerId, status])
+  @@index([accountId])
+}
+
 // 平台标签（多选，存 String[]，可扩展）。当前业务：小红书 / 抖音。
 // 前端常量 PLATFORM_TAG_OPTIONS 维护可选项。
 model Influencer {
@@ -445,8 +478,10 @@ model Influencer {
   tickets            CooperationTicket[]
   coopRequests       CooperationRequest[] @relation("RequestInfluencer")
   reviews            CooperationReview[]
+  ledgerEntries      InfluencerLedger[] @relation("LedgerInfluencer")
 
   @@index([status])
+  @@index([homepageId])
   @@index([updatedAt, id])
   @@index([registeredById, updatedAt, id])
   @@index([tags], type: Gin)

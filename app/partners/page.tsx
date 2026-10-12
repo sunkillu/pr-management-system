@@ -19,8 +19,8 @@ export default function PartnersPage({
   return (
     <div>
       <PageHeader
-        title="合作资源"
-        desc="达人、化妆师统一管理；合作次数与累计费用由合作记录自动累计"
+        title="合作资源 · 总达人库"
+        desc="全公司视角：按账号ID自动去重，多平台归同一达人；合作次数与累计费用由合作记录自动累计"
       />
 
       <div className="mb-5 flex gap-1 border-b border-[#e5e5e5]">

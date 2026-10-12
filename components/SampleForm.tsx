@@ -20,16 +20,20 @@ export default function SampleForm({
   influencers,
   editTarget,
   canDelete,
+  initialInfluencerId,
+  autoOpen,
 }: {
   influencers: { id: string; name: string }[];
   editTarget?: SampleInput & { id: string };
   canDelete?: boolean;
+  initialInfluencerId?: string;
+  autoOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!autoOpen);
   const [form, setForm] = useState<SampleInput>(
     editTarget ?? {
-      influencerId: "",
+      influencerId: initialInfluencerId ?? "",
       productName: "",
       quantity: 1,
       courier: "",
