@@ -4,7 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 
 // 改名（仅 ADMIN）
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const data: Record<string, unknown> = {};
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // 删除种类（仅 ADMIN，级联删标签）
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   await prisma.tagCategory.delete({ where: { id: params.id } }).catch(() => null);
   return NextResponse.json({ ok: true });

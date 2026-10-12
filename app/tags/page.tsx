@@ -8,11 +8,11 @@ export default async function TagsPage() {
   const session = await getServerSession(authOptions);
   const me = session?.user as unknown as { id: string; role: string };
 
-  if (me?.role !== "ADMIN") {
+  if (me?.role !== "ADMIN" && me?.role !== "PR") {
     return (
       <div className="bg-white rounded-2xl p-8 text-center">
         <p className="text-lg font-medium">无权限</p>
-        <p className="mt-2 text-sm text-gray-500">标签管理仅管理员可访问。</p>
+        <p className="mt-2 text-sm text-gray-500">标签管理仅管理员和PR可访问。</p>
       </div>
     );
   }

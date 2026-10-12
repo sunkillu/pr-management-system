@@ -15,7 +15,7 @@ export async function GET() {
 
 // 新增标签种类（仅 ADMIN）
 export async function POST(req: NextRequest) {
-  const auth = await requireRoles(["ADMIN"]);
+  const auth = await requireRoles(["ADMIN", "PR"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const name = String(body.name ?? "").trim();

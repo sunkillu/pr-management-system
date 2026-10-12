@@ -48,10 +48,20 @@ const entries: NavEntry[] = [
       ],
     },
   },
-  { type: "link", item: { href: "/users", label: "用户管理", roles: ["ADMIN"] } },
-  { type: "link", item: { href: "/tags", label: "标签管理", roles: ["ADMIN"] } },
-  { type: "link", item: { href: "/admin/import", label: "数据导入", roles: ["ADMIN"] } },
   { type: "link", item: { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"] } },
+  { type: "link", item: { href: "/tags", label: "标签管理", roles: ["ADMIN", "PR"] } },
+  {
+    type: "group",
+    group: {
+      key: "platform-config",
+      label: "平台配置",
+      items: [
+        { href: "/users", label: "用户管理", roles: ["ADMIN"] },
+        { href: "/admin/import", label: "数据导入", roles: ["ADMIN"] },
+        { href: "/admin/export", label: "数据导出", roles: ["ADMIN"] },
+      ],
+    },
+  },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
