@@ -65,6 +65,8 @@ model User {
   sampleConfirmedTickets CooperationTicket[] @relation("TicketSampleConfirmer")
   createdCommentRequests CommentRequest[] @relation("CommentRequestCreator")
   createdPromotionRequests PromotionRequest[] @relation("PromotionRequestCreator")
+  createdLotteries Lottery[]      @relation("LotteryCreator")
+  lotteryDraws    LotteryWinner[] @relation("LotteryDrawer")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -482,6 +484,7 @@ model Influencer {
   coopRequests       CooperationRequest[] @relation("RequestInfluencer")
   reviews            CooperationReview[]
   ledgerEntries      InfluencerLedger[] @relation("LedgerInfluencer")
+  lotteryEntries     LotteryEntry[]
 
   @@index([status])
   @@index([homepageId])
@@ -1089,4 +1092,62 @@ model ProcurementTask {
 
   @@index([requestId])
   @@index([assigneeId, status])
+}
+
+// ---------- 抽奖活动 ----------
+enum LotteryStatus {
+  DRAFT // 草稿
+  ACTIVE // 进行中
+  ENDED // 已结束
+}
+
+model Lottery {
+  id          String        @id @default(cuid())
+  title       String
+  description String?       @db.Text
+  prizeItems  Json // 奖品列表 [{name, quantity, image?}]
+  startAt     DateTime?
+  endAt       DateTime?
+  status      LotteryStatus @default(DRAFT)
+
+  createdById String
+  createdBy   User   @relation("LotteryCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  entries LotteryEntry[]
+  winners LotteryWinner[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, updatedAt, id])
+}
+
+model LotteryEntry {
+  id         String  @id @default(cuid())
+  lotteryId  String
+  lottery    Lottery @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
+  influencerId String?
+  influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
+  name       String
+  contact    String?
+  wins       LotteryWinner[]
+
+  createdAt DateTime @default(now())
+
+  @@index([lotteryId, createdAt])
+}
+
+model LotteryWinner {
+  id        String       @id @default(cuid())
+  lotteryId String
+  lottery   Lottery      @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
+  entryId   String
+  entry     LotteryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  prizeName String
+  drawnAt   DateTime     @default(now())
+  drawnById String
+  drawnBy   User         @relation("LotteryDrawer", fields: [drawnById], references: [id], onDelete: Restrict)
+
+  @@unique([lotteryId, entryId])
+  @@index([lotteryId])
 }

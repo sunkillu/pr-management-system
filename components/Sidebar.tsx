@@ -52,6 +52,7 @@ const entries: NavEntry[] = [
   },
   { type: "link", item: { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"] } },
   { type: "link", item: { href: "/tags", label: "标签管理", roles: ["ADMIN", "PR"] } },
+  { type: "link", item: { href: "/lottery", label: "抽奖活动", roles: ALL, match: ["/lottery"] } },
   {
     type: "group",
     group: {
