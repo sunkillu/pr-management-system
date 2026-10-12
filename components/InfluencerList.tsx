@@ -17,7 +17,6 @@ import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 import { influencerOwnerFilter } from "@/lib/influencer-access";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
-import { Prisma } from "@prisma/client";
 
 export type InfluencerSearchParams = {
   q?: string;
@@ -26,10 +25,10 @@ export type InfluencerSearchParams = {
   type?: string;
   coop?: string;
   tag?: string | string[];
+  page?: string;
   prefill?: string;
   ptype?: string;
   pplatforms?: string;
-  page?: string;
 };
 
 // 达人列表（查询+筛选+表格），用于 /partners 的"达人" tab
@@ -73,23 +72,22 @@ export default async function InfluencerList({
       take: pagination.take,
     }),
     prisma.influencer.count({ where }),
-    prisma.$queryRaw<{ tag: string }[]>(Prisma.sql`
-      SELECT DISTINCT tag
-      FROM "Influencer" AS i
-      CROSS JOIN LATERAL unnest(i."tags") AS tag
-      WHERE ${role === "PR" ? Prisma.sql`i."registeredById" = ${me.id}` : Prisma.sql`TRUE`}
-      ORDER BY tag
-    `),
+    // 标签筛选：从管理的达人标签取（替代原来从库内动态生成）
+    prisma.tag.findMany({
+      where: { category: { key: "INFLUENCER" } },
+      orderBy: [{ sort: "asc" }, { name: "asc" }],
+    }),
   ]);
+  // 平均评价：按当前页批量查（分页下比 include 全量 reviews 更省）
   const ratings = list.length > 0
     ? await prisma.cooperationReview.groupBy({
         by: ["influencerId"],
-        where: { influencerId: { in: list.map((influencer) => influencer.id) } },
+        where: { influencerId: { in: list.map((i) => i.id) } },
         _avg: { rating: true },
       })
     : [];
-  const ratingByInfluencer = new Map(ratings.map((rating) => [rating.influencerId, rating._avg.rating]));
-  const tagOptions = allTags.map((row) => row.tag);
+  const ratingByInfluencer = new Map(ratings.map((r) => [r.influencerId, r._avg.rating]));
+  const tagOptions = allTags.map((t) => t.name);
 
   // 从合作需求一键加入时的预填参数（ptype/pplatforms，与筛选参数区分）
   const prefill = searchParams.prefill === "1";
@@ -100,7 +98,11 @@ export default async function InfluencerList({
     <div>
       {canWrite && (
         <div className="mb-4 flex justify-end">
-          <InfluencerForm initial={{ influencerType: prefillType, platforms: prefillPlatforms }} autoOpen={prefill} />
+          <InfluencerForm
+            initial={{ influencerType: prefillType, platforms: prefillPlatforms }}
+            autoOpen={prefill}
+            influencerTags={allTags.map((t) => ({ id: t.id, name: t.name }))}
+          />
         </div>
       )}
 
@@ -254,6 +256,7 @@ export default async function InfluencerList({
           </tbody>
         </table>
       </div>
+
       <Pagination pathname="/partners" page={pagination.page} total={total} query={{ ...searchParams, tab: "influencer" }} />
     </div>
   );
