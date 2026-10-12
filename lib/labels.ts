@@ -275,6 +275,33 @@ export const coopRequestStatusLabels: Record<string, string> = {
   REJECTED: "已驳回",
 };
 
+export const procurementTypeLabels: Record<string, string> = {
+  WEEKLY_STYLE: "周维度款式采买",
+  LINK_SPECIFIC: "指定达人链接采买",
+};
+
+export const procurementStatusLabels: Record<string, string> = {
+  PENDING: "待分发",
+  DISTRIBUTED: "已分发",
+  IN_PROGRESS: "执行中",
+  DONE: "已完成",
+  CANCELLED: "已取消",
+};
+
+export const procurementTaskStatusLabels: Record<string, string> = {
+  PENDING: "待接单",
+  ACCEPTED: "已接单",
+  IN_PROGRESS: "执行中",
+  DONE: "已完成",
+  CANCELLED: "已取消",
+};
+
+export const influencerAuthStatusLabels: Record<string, string> = {
+  AUTHORIZED: "有授权",
+  COOPERATED_NO_AUTH: "已合作无授权",
+  NEW: "无合作",
+};
+
 export const approverStatusLabels: Record<string, string> = {
   PENDING: "待审批",
   APPROVED: "已通过",

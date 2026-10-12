@@ -33,6 +33,7 @@ const entries: NavEntry[] = [
         },
         { href: "/tickets", label: "合作工单", roles: ALL },
         { href: "/coop-requests", label: "合作需求", roles: ALL },
+        { href: "/procurement", label: "采买需求", roles: ["ADMIN", "OPERATOR", "PR"] },
         { href: "/samples", label: "寄品管理", roles: [...ALL, ...WAREHOUSE_ONLY] },
       ],
     },

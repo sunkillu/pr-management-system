@@ -59,6 +59,8 @@ model User {
   handledContentComments ContentComment[] @relation("CommentHandler")
   createdContentComments ContentComment[] @relation("CommentCreator")
   taggings Tagging[] @relation("TaggingCreator")
+  createdProcurements ProcurementRequest[] @relation("ProcurementCreator")
+  procurementTasks    ProcurementTask[]    @relation("ProcurementAssignee")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -899,4 +901,84 @@ model Tagging {
   @@index([entityType, entityId])
   @@index([tagId])
   @@index([createdById])
+}
+
+// ---------- 运营端采买需求 ----------
+enum ProcurementType {
+  WEEKLY_STYLE // 周维度款式采买
+  LINK_SPECIFIC // 指定达人链接采买
+}
+
+enum ProcurementStatus {
+  PENDING // 待分发
+  DISTRIBUTED // 已分发
+  IN_PROGRESS // 执行中
+  DONE // 已完成
+  CANCELLED // 已取消
+}
+
+enum ProcurementTaskStatus {
+  PENDING // 待接单
+  ACCEPTED // 已接单
+  IN_PROGRESS // 执行中
+  DONE // 已完成
+  CANCELLED // 已取消
+}
+
+enum InfluencerAuthStatus {
+  AUTHORIZED // 有授权
+  COOPERATED_NO_AUTH // 已合作无授权
+  NEW // 无合作（新达人）
+}
+
+model ProcurementRequest {
+  id           String            @id @default(cuid())
+  title        String
+  type         ProcurementType
+  styles       String[]          @default([]) // 周维度：款式多选
+  quantity     Int? // 周维度：需求数量
+  materialType String? // 链接采买：素材类型
+  reason       String?           @db.Text // 链接采买：需求理由
+  publishLinks String[]          @default([]) // 链接采买：发布链接
+  status       ProcurementStatus @default(PENDING)
+  cancelReason String?
+
+  createdById String
+  createdBy   User   @relation("ProcurementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  tasks ProcurementTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, updatedAt, id])
+  @@index([createdById, updatedAt, id])
+}
+
+model ProcurementTask {
+  id        String                @id @default(cuid())
+  requestId String
+  request   ProcurementRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  assigneeId String
+  assignee   User                 @relation("ProcurementAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  quantity   Int? // 负责数量（周维度）
+  status     ProcurementTaskStatus @default(PENDING)
+  acceptedAt DateTime?
+
+  // PR 接单后判定达人状态（链接采买）
+  influencerStatus InfluencerAuthStatus?
+  influencerName   String?
+  priceFeedback    String?              @db.Text // PR 反馈价格
+  priceConfirmed   Boolean              @default(false) // 运营确认价格
+  netdiskUploaded  Boolean              @default(false) // 已上传网盘
+  paymentId        String? // 授权费用打款单 id
+  ticketId         String? // 关联合作工单 id
+  note             String?              @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([assigneeId, status])
 }

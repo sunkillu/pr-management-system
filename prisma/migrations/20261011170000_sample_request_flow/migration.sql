@@ -1,10 +1,4 @@
--- 寄件请求状态机：新增 PENDING / PREPARING / CANCELLED（RETURNED 废弃保留）
-ALTER TYPE "SampleStatus" ADD VALUE 'PENDING';
-ALTER TYPE "SampleStatus" ADD VALUE 'PREPARING';
-ALTER TYPE "SampleStatus" ADD VALUE 'CANCELLED';
-
--- DocType 新增 SAMPLE（寄件请求单）
-ALTER TYPE "DocType" ADD VALUE 'SAMPLE';
+-- 寄件请求状态机（枚举值已在 20261011165900_sample_enum_add 中单独提交）
 
 -- SampleShipment 新增字段
 ALTER TABLE "SampleShipment" ADD COLUMN "ticketId" TEXT;
