@@ -54,6 +54,7 @@ export const subtaskStatusLabels: Record<string, string> = {
   TODO: "待办",
   DOING: "进行中",
   DONE: "已完成",
+  BLOCKED: "已阻塞",
 };
 
 export const campaignStatusLabels: Record<string, string> = {
@@ -88,7 +89,6 @@ export const docTypeLabels: Record<string, string> = {
 };
 
 export const logActionLabels: Record<string, string> = {
-  CREATE: "直接加入",
   SUBMIT: "提交审批",
   RESUBMIT: "重新提交",
   APPROVE: "通过",

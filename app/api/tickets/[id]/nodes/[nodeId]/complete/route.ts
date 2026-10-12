@@ -4,6 +4,7 @@ import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { canOperateTicket } from "@/lib/ticket-permission";
 import { classifyNode } from "@/lib/node-rules";
+import { notifyUser } from "@/lib/feishu-notify";
 
 // 标记进度节点完成（记录完成人/时间，可附推进说明记入日志）
 // 仅创建人 / 审批链成员 / ADMIN 可操作
@@ -22,9 +23,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
   }
   const node = await prisma.ticketNode.findFirst({
     where: { id: params.nodeId, ticketId: params.id },
+    include: { dependsOn: { select: { id: true, name: true, completedAt: true } } },
   });
   if (!node) return NextResponse.json({ error: "节点不存在" }, { status: 404 });
   if (node.completedAt) return NextResponse.json({ error: "该节点已完成" }, { status: 400 });
+
+  // 前置依赖校验：前置未完成时不允许完成
+  if (node.dependsOn && !node.dependsOn.completedAt) {
+    return NextResponse.json(
+      { error: `需先完成前置节点「${node.dependsOn.name}」` },
+      { status: 400 }
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const note = String(body.note ?? "").trim() || null;
@@ -65,5 +75,27 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
     });
     return u;
   });
+
+  // 解锁通知：依赖本节点的后置节点，通知工单创建人"已解锁"
+  try {
+    const dependents = await prisma.ticketNode.findMany({
+      where: { dependsOnId: node.id, ticketId: params.id, completedAt: null, unlockedNotifiedAt: null },
+      select: { id: true, name: true },
+    });
+    for (const d of dependents) {
+      await notifyUser(
+        ticket.creatorId,
+        `合作工单「${ticket.title}」的前置节点「${node.name}」已完成，节点「${d.name}」已解锁，可以继续推进。`,
+        { type: "TICKET", id: params.id, title: "节点已解锁", kind: "REMIND" }
+      );
+      await prisma.ticketNode.update({
+        where: { id: d.id },
+        data: { unlockedNotifiedAt: new Date() },
+      });
+    }
+  } catch (e) {
+    console.error("节点解锁通知失败:", e);
+  }
+
   return NextResponse.json(updated);
 }

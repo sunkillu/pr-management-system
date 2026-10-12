@@ -91,6 +91,29 @@ n.ticket.creatorId,
 await prisma.ticketNode.update({ where: { id: n.id}, data: { notifiedAt: new Date()}});
 nodeReminded++;
 }
+
+// --- 5. 子任务阻塞超 24 小时提醒 ---
+const blockedCutoff = new Date(Date.now() - 24 * 3600 * 1000);
+const blockedSubtasks = await prisma.ticketSubtask.findMany({
+where: { status: "BLOCKED", blockedNotifiedAt: null, blockedAt: { lt: blockedCutoff }},
+include: {
+ticket: { select: { id: true, title: true, creatorId: true }},
+assignee: { select: { id: true }},
+},
+});
+for (const s of blockedSubtasks) {
+const receivers: string[] = [s.ticket.creatorId];
+if (s.assignee?.id && !receivers.includes(s.assignee.id)) receivers.push(s.assignee.id);
+for (const uid of receivers) {
+await notifyUser(
+uid,
+`合作工单「${s.ticket.title}」的子任务「${s.title}」已阻塞超过 24 小时（原因：${s.blockedReason ?? "未填写"}），请及时处理。`,
+{ type: "TICKET", id: s.ticket.id, title: "子任务阻塞提醒", kind: "REMIND"}
+);
+}
+await prisma.ticketSubtask.update({ where: { id: s.id }, data: { blockedNotifiedAt: new Date() }});
+nodeReminded++;
+}
 } catch (e) {
 console.error("checkApprovalTimeouts 失败:", e);
 }
