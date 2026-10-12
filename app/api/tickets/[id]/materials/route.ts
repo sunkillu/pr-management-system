@@ -65,6 +65,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       toStatus: ticket.status,
       note: `回收素材：${url}`,
     });
+    // 同步写标签归属（谁给这条素材打了什么标签）；重复冲突自动跳过
+    if (tagIds.length > 0) {
+      await tx.tagging.createMany({
+        data: tagIds.map((tagId) => ({
+          tagId,
+          entityType: "MATERIAL" as const,
+          entityId: r.id,
+          createdById: auth.userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
     return r;
   });
   return NextResponse.json(record, { status: 201 });

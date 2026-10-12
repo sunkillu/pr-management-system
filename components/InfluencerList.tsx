@@ -51,16 +51,32 @@ export default async function InfluencerList({
   if (searchParams.type) where.influencerType = searchParams.type;
   if (searchParams.coop === "none") where.coopCount = 0;
   if (searchParams.coop === "active") where.coopCount = { gt: 0 };
-  // 标签多选筛选：命中任一标签即可
+  // 标签多选筛选：命中任一标签即可（旧 Influencer.tags 名称匹配 OR 带归属的 Tagging 匹配）
   const selectedTags = Array.isArray(searchParams.tag)
     ? searchParams.tag.filter(Boolean)
     : searchParams.tag
       ? [searchParams.tag]
       : [];
-  if (selectedTags.length > 0) where.tags = { hasSome: selectedTags };
+  if (selectedTags.length > 0) {
+    const matched = await prisma.tag.findMany({
+      where: { name: { in: selectedTags }, category: { key: "INFLUENCER" } },
+      select: { id: true },
+    });
+    const tagOr: Record<string, unknown>[] = [{ tags: { hasSome: selectedTags } }];
+    if (matched.length > 0) {
+      const rows = await prisma.tagging.findMany({
+        where: { entityType: "INFLUENCER", tagId: { in: matched.map((t) => t.id) } },
+        select: { entityId: true },
+      });
+      const taggedEntityIds = Array.from(new Set(rows.map((r) => r.entityId)));
+      if (taggedEntityIds.length > 0) tagOr.push({ id: { in: taggedEntityIds } });
+    }
+    // 与现有平铺条件（数据权限等）为 AND 关系；where 此前未设置过 AND
+    where.AND = [{ OR: tagOr }];
+  }
 
   const pagination = getPagination(searchParams.page);
-  const [list, total, allTags] = await Promise.all([
+  const [list, total, allTags, myTaggings] = await Promise.all([
     prisma.influencer.findMany({
       where,
       include: {
@@ -77,6 +93,11 @@ export default async function InfluencerList({
       where: { category: { key: "INFLUENCER" } },
       orderBy: [{ sort: "asc" }, { name: "asc" }],
     }),
+    // 当前用户打过（带归属）的达人标签，用于下拉"我的优先"
+    prisma.tagging.findMany({
+      where: { createdById: me.id, entityType: "INFLUENCER" },
+      select: { tag: { select: { id: true, name: true } } },
+    }),
   ]);
   // 平均评价：按当前页批量查（分页下比 include 全量 reviews 更省）
   const ratings = list.length > 0
@@ -87,7 +108,12 @@ export default async function InfluencerList({
       })
     : [];
   const ratingByInfluencer = new Map(ratings.map((r) => [r.influencerId, r._avg.rating]));
-  const tagOptions = allTags.map((t) => t.name);
+  // 筛选下拉：我的标签排前面（标"我的"），再排全部标签（去重）
+  const myTagNames = Array.from(new Set(myTaggings.map((m) => m.tag.name))).sort((a, b) =>
+    a.localeCompare(b, "zh-CN")
+  );
+  const myTagNameSet = new Set(myTagNames);
+  const otherTagNames = allTags.map((t) => t.name).filter((n) => !myTagNameSet.has(n));
 
   // 从合作需求一键加入时的预填参数（ptype/pplatforms，与筛选参数区分）
   const prefill = searchParams.prefill === "1";
@@ -131,8 +157,23 @@ export default async function InfluencerList({
             {selectedTags.length > 0 ? `标签（${selectedTags.length}）` : "全部标签"}
           </summary>
           <div className="absolute z-10 mt-1 max-h-56 w-48 overflow-auto rounded-lg border border-[#e5e5e5] bg-white p-2 shadow-lg">
-            {tagOptions.length === 0 && <p className="px-2 py-1 text-xs text-gray-400">暂无标签</p>}
-            {tagOptions.map((t) => (
+            {myTagNames.length === 0 && otherTagNames.length === 0 && (
+              <p className="px-2 py-1 text-xs text-gray-400">暂无标签</p>
+            )}
+            {myTagNames.map((t) => (
+              <label key={t} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-[#f5f5f7]">
+                <input
+                  type="checkbox"
+                  name="tag"
+                  value={t}
+                  defaultChecked={selectedTags.includes(t)}
+                  className="h-4 w-4 accent-[#0071e3]"
+                />
+                {t}
+                <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600 ring-1 ring-blue-200">我的</span>
+              </label>
+            ))}
+            {otherTagNames.map((t) => (
               <label key={t} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-[#f5f5f7]">
                 <input
                   type="checkbox"

@@ -17,6 +17,7 @@ import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import CoopRequestActions from "@/components/CoopRequestActions";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
+import TaggingSection from "@/components/TaggingSection";
 
 export default async function CoopRequestDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -163,6 +164,16 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
         </div>
 
         <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+          <Section title="标签（谁打的）">
+            <TaggingSection
+              entityType="COOP_REQUEST"
+              entityId={request.id}
+              categoryKey="INFLUENCER"
+              meId={me.id}
+              isAdmin={role === "ADMIN"}
+              canTag={["ADMIN", "PR", "OPERATOR"].includes(role)}
+            />
+          </Section>
           <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
           </Section>

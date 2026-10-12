@@ -58,6 +58,7 @@ model User {
   uploadedMaterials MaterialRecord[] @relation("MaterialUploader")
   handledContentComments ContentComment[] @relation("CommentHandler")
   createdContentComments ContentComment[] @relation("CommentCreator")
+  taggings Tagging[] @relation("TaggingCreator")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -871,7 +872,31 @@ model Tag {
   categoryId String
   category   TagCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   sort       Int         @default(0)
+  taggings   Tagging[]
 
   @@unique([categoryId, name])
   @@index([categoryId, sort])
+}
+
+// ---------- 标签归属：记录谁给哪个实体打了什么标签 ----------
+enum TaggingEntityType {
+  INFLUENCER
+  COOP_REQUEST
+  MATERIAL
+}
+
+model Tagging {
+  id          String           @id @default(cuid())
+  tagId       String
+  tag         Tag              @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  entityType  TaggingEntityType
+  entityId    String
+  createdById String
+  createdBy   User             @relation("TaggingCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime         @default(now())
+
+  @@unique([tagId, entityType, entityId, createdById])
+  @@index([entityType, entityId])
+  @@index([tagId])
+  @@index([createdById])
 }
