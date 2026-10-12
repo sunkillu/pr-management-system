@@ -205,6 +205,37 @@ async function main() {
   });
   console.log("发票 OK");
 
+  // 标签种类与示例标签（幂等）
+  const materialCat = await prisma.tagCategory.upsert({
+    where: { key: "MATERIAL" },
+    update: { name: "素材标签" },
+    create: { name: "素材标签", key: "MATERIAL", sort: 1 },
+  });
+  const influencerCat = await prisma.tagCategory.upsert({
+    where: { key: "INFLUENCER" },
+    update: { name: "达人标签" },
+    create: { name: "达人标签", key: "INFLUENCER", sort: 2 },
+  });
+  const materialTagNames = ["种草", "测评", "开箱", "好物推荐"];
+  for (let i = 0; i < materialTagNames.length; i++) {
+    const name = materialTagNames[i];
+    await prisma.tag.upsert({
+      where: { categoryId_name: { categoryId: materialCat.id, name } },
+      update: {},
+      create: { name, categoryId: materialCat.id, sort: i },
+    });
+  }
+  const influencerTagNames = ["美妆垂类", "母婴", "高转化", "新锐"];
+  for (let i = 0; i < influencerTagNames.length; i++) {
+    const name = influencerTagNames[i];
+    await prisma.tag.upsert({
+      where: { categoryId_name: { categoryId: influencerCat.id, name } },
+      update: {},
+      create: { name, categoryId: influencerCat.id, sort: i },
+    });
+  }
+  console.log("标签 OK");
+
   console.log("演示数据写入完成！");
 }
 

@@ -140,6 +140,9 @@ model Content {
   ticketId     String? // 关联合作工单（工单详情页内维护的内容）
   ticket       CooperationTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
   link         String? // 内容链接（笔记/视频链接）
+  platform     String? // 子内容所属平台：XIAOHONGSHU / DOUYIN（用于平台汇总）
+  style        String? // 子内容款式
+  cost         Decimal? @db.Decimal(12, 2) // 子内容花费（元，用于汇总单）
   attachments  Json? // 内容附件 [{fileUrl, fileName}]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -824,6 +827,7 @@ model MaterialRecord {
   uploadedById String
   uploadedBy  User         @relation("MaterialUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt   DateTime     @default(now())
+  tagIds      String[]     @default([]) // 素材标签 id（多选）
 
   @@index([ticketId])
 }
@@ -840,4 +844,26 @@ model TicketComment {
   createdAt   DateTime @default(now())
 
   @@index([ticketId, createdAt])
+}
+
+// ---------- 标签管理 ----------
+model TagCategory {
+  id    String @id @default(cuid())
+  name  String // 如：素材标签、达人标签
+  key   String @unique // 如：MATERIAL、INFLUENCER
+  sort  Int    @default(0)
+  tags  Tag[]
+
+  @@index([sort])
+}
+
+model Tag {
+  id         String      @id @default(cuid())
+  name       String
+  categoryId String
+  category   TagCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  sort       Int         @default(0)
+
+  @@unique([categoryId, name])
+  @@index([categoryId, sort])
 }

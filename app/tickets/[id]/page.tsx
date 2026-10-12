@@ -89,6 +89,14 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     include: { approver: { select: { id: true, name: true } } },
     orderBy: { createdAt: "asc" },
   });
+  // 素材标签（MATERIAL 种类，供打标签与展示）
+  const materialTags = await prisma.tag.findMany({
+    where: { category: { key: "MATERIAL" } },
+    orderBy: [{ sort: "asc" }, { name: "asc" }],
+  });
+  const materialTagMap: Record<string, string> = Object.fromEntries(
+    materialTags.map((t) => [t.id, t.name])
+  );
   const logs = await prisma.approvalLog.findMany({
     where: { docType: "TICKET", docId: params.id },
     include: { actor: { select: { name: true } } },
@@ -330,7 +338,19 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           </Section>
 
           {/* 内容（工单内维护） */}
-          <Section title={`内容（${ticket.contents.length}）`}>
+          <Section
+            title={`内容（${ticket.contents.length}）`}
+            action={
+              ticket.contents.length > 0 ? (
+                <a
+                  href={`/api/tickets/${ticket.id}/summary`}
+                  className="text-sm text-[#0071e3] hover:underline"
+                >
+                  生成汇总单
+                </a>
+              ) : undefined
+            }
+          >
             <TicketContents
               ticketId={ticket.id}
               contents={ticket.contents.map((c): TicketContent => ({
@@ -340,6 +360,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 status: c.status,
                 link: c.link,
                 body: c.body,
+                platform: c.platform,
+                style: c.style,
+                cost: c.cost != null ? Number(c.cost) : null,
                 rejectReason: c.rejectReason,
                 version: c.version,
                 createdAt: c.createdAt.toISOString(),
@@ -365,11 +388,14 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           <Section title={`回收素材（${ticket.materials.length}）`}>
             <TicketMaterials
               ticketId={ticket.id}
+              materialTags={materialTags.map((t) => ({ id: t.id, name: t.name }))}
+              tagMap={materialTagMap}
               initial={ticket.materials.map((m) => ({
                 id: m.id,
                 type: m.type,
                 url: m.url,
                 note: m.note,
+                tagIds: m.tagIds,
                 createdAt: m.createdAt.toISOString(),
                 uploadedBy: m.uploadedBy,
               }))}
