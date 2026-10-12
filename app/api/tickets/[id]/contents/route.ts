@@ -24,6 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         ticketId: params.id,
         createdById: auth.userId,
         status: "DRAFT",
+        platform: ["XIAOHONGSHU", "DOUYIN"].includes(body.platform) ? body.platform : null,
+        style: body.style?.trim() || null,
+        cost: body.cost != null && !isNaN(Number(body.cost)) ? Number(body.cost) : null,
       },
     });
     await writeLog(tx, {

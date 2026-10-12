@@ -86,16 +86,23 @@ export function Section({
   children,
   first = false,
   id,
+  action,
 }: {
   title?: string;
   children: React.ReactNode;
   first?: boolean;
   id?: string;
+  action?: React.ReactNode;
 }) {
   return (
     <section id={id} className={first ? "" : "border-t border-[#e5e5e5]"}>
       <div className="px-6 py-5">
-        {title && <h3 className="mb-4 text-[15px] font-semibold tracking-tight">{title}</h3>}
+        {title && (
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-[15px] font-semibold tracking-tight">{title}</h3>
+            {action}
+          </div>
+        )}
         {children}
       </div>
     </section>

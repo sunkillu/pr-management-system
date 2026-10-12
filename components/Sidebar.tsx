@@ -49,6 +49,9 @@ const entries: NavEntry[] = [
     },
   },
   { type: "link", item: { href: "/users", label: "用户管理", roles: ["ADMIN"] } },
+  { type: "link", item: { href: "/tags", label: "标签管理", roles: ["ADMIN"] } },
+  { type: "link", item: { href: "/admin/import", label: "数据导入", roles: ["ADMIN"] } },
+  { type: "link", item: { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"] } },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {

@@ -27,6 +27,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!url) {
     return NextResponse.json({ error: "请填写素材链接" }, { status: 400 });
   }
+  // 标签：只接受 MATERIAL 种类下的合法 id
+  const rawTagIds: unknown[] = Array.isArray(body.tagIds) ? body.tagIds : [];
+  const tagIds: string[] = Array.from(
+    new Set(rawTagIds.map((t) => String(t)).filter(Boolean))
+  ).slice(0, 20);
+  if (tagIds.length > 0) {
+    const valid = await prisma.tag.findMany({
+      where: { id: { in: tagIds }, category: { key: "MATERIAL" } },
+      select: { id: true },
+    });
+    const validIds = new Set(valid.map((t) => t.id));
+    for (const id of tagIds) {
+      if (!validIds.has(id)) {
+        return NextResponse.json({ error: "存在无效的素材标签" }, { status: 400 });
+      }
+    }
+  }
   const record = await prisma.$transaction(async (tx) => {
     const r = await tx.materialRecord.create({
       data: {
@@ -34,6 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         type: type as "NOTE_LINK" | "VIDEO" | "IMAGE" | "OTHER",
         url,
         note: String(body.note ?? "").trim() || null,
+        tagIds,
         uploadedById: auth.userId,
       },
       include: { uploadedBy: { select: { name: true } } },
