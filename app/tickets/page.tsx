@@ -51,6 +51,7 @@ export default async function TicketsPage({
         makeupArtist: { select: { name: true } },
         creator: { select: { name: true } },
         subtasks: { select: { status: true } },
+        nodes: { select: { completedAt: true } },
         paymentRequests: { select: { id: true }, orderBy: { createdAt: "desc" }, take: 1 },
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -68,6 +69,7 @@ export default async function TicketsPage({
       creator: t.creator,
       overdue: t.status === "PENDING_APPROVAL" && t.updatedAt < cutoff,
       subtasks: t.subtasks.map((s) => ({ status: s.status })),
+      nodes: t.nodes.map((n) => ({ completedAt: n.completedAt ? n.completedAt.toISOString() : null })),
       paymentRequests: t.paymentRequests,
     }));
     return (

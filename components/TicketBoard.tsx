@@ -17,6 +17,7 @@ export type BoardTicket = {
   creator: { name: string } | null;
   overdue: boolean;
   subtasks: { status: string }[];
+  nodes: { completedAt: string | null }[];
   paymentRequests: { id: string }[];
 };
 
@@ -30,10 +31,29 @@ const MAIN_COLUMNS = [
 ] as const;
 const EXTRA_COLUMNS = ["DRAFT", "REJECTED", "VOIDED"] as const;
 
-function SubtaskBar({ subtasks }: { subtasks: { status: string }[] }) {
-  if (subtasks.length === 0) return null;
-  const done = subtasks.filter((s) => s.status === "DONE").length;
-  const pct = Math.round((done / subtasks.length) * 100);
+// 进度条：子任务 DONE 数 / 子任务总数；无子任务时按节点完成比例
+function SubtaskBar({
+  subtasks,
+  nodes,
+}: {
+  subtasks: { status: string }[];
+  nodes: { completedAt: string | null }[];
+}) {
+  let done = 0;
+  let total = 0;
+  let label = "";
+  if (subtasks.length > 0) {
+    done = subtasks.filter((s) => s.status === "DONE").length;
+    total = subtasks.length;
+    label = `${done}/${total}`;
+  } else if (nodes.length > 0) {
+    done = nodes.filter((n) => n.completedAt).length;
+    total = nodes.length;
+    label = `${done}/${total} 节点`;
+  } else {
+    return null;
+  }
+  const pct = Math.round((done / total) * 100);
   return (
     <div className="mt-2 flex items-center gap-2">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e5e5e5]">
@@ -43,7 +63,7 @@ function SubtaskBar({ subtasks }: { subtasks: { status: string }[] }) {
         />
       </div>
       <span className="text-xs tabular-nums text-gray-500">
-        {done}/{subtasks.length}
+        {label}
       </span>
     </div>
   );
@@ -147,7 +167,7 @@ export default function TicketBoard({
                         <div>{partner} · {coopTypeLabels[t.type] ?? t.type}</div>
                         <div>¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
                       </div>
-                      <SubtaskBar subtasks={t.subtasks} />
+                      <SubtaskBar subtasks={t.subtasks} nodes={t.nodes} />
                       {/* 快捷操作 */}
                       <div className="mt-2 flex flex-wrap gap-1.5 border-t border-[#f0f0f0] pt-2">
                         {t.status === "PENDING_APPROVAL" && canApprove && (

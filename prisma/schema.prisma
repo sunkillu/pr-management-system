@@ -762,6 +762,10 @@ model TicketNode {
   completedById String?
   completedBy   User?   @relation("NodeCompleter", fields: [completedById], references: [id], onDelete: SetNull)
   notifiedAt  DateTime? // 节点超时提醒标记（防重复提醒）
+  dependsOnId String?   // 前置节点 id（自关联）
+  dependsOn   TicketNode? @relation("NodeDependency", fields: [dependsOnId], references: [id], onDelete: SetNull)
+  dependents  TicketNode[] @relation("NodeDependency")
+  unlockedNotifiedAt DateTime? // 前置完成解锁提醒标记（防重复）
 
   @@index([ticketId, sort])
 }
@@ -771,6 +775,7 @@ enum SubtaskStatus {
   TODO
   DOING
   DONE
+  BLOCKED
 }
 
 // 工单子任务：执行阶段可拆解的待办事项，支持负责人/截止日期/进度追踪
@@ -784,6 +789,9 @@ model TicketSubtask {
   assignee    User?         @relation("SubtaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   dueDate     DateTime?     @db.Date
   sortOrder   Int           @default(0)
+  blockedReason String?    // 阻塞原因（BLOCKED 时必填）
+  blockedAt   DateTime?    // 阻塞开始时间
+  blockedNotifiedAt DateTime? // 阻塞超24h提醒标记（防重复）
   createdAt   DateTime      @default(now())
 
   @@index([ticketId, sortOrder])

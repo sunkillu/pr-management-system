@@ -22,6 +22,7 @@ import ApprovalRecords from "@/components/ApprovalRecords";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 import TicketActions from "@/components/TicketActions";
 import TicketNodes from "@/components/TicketNodes";
+import NodeTimeline from "@/components/NodeTimeline";
 import TicketSubtasks from "@/components/TicketSubtasks";
 import TicketComments from "@/components/TicketComments";
 import TicketFollowUps from "@/components/TicketFollowUps";
@@ -44,7 +45,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       coopRequest: { select: { id: true, title: true } },
       nodes: {
         orderBy: { sort: "asc" },
-        include: { completedBy: { select: { name: true } } },
+        include: {
+          completedBy: { select: { name: true } },
+          dependsOn: { select: { id: true, name: true, completedAt: true } },
+        },
       },
       subtasks: {
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -313,9 +317,29 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 expectedAt: n.expectedAt ? n.expectedAt.toISOString() : null,
                 completedAt: n.completedAt ? n.completedAt.toISOString() : null,
                 completedBy: n.completedBy,
+                dependsOnId: n.dependsOnId,
+                dependsOn: n.dependsOn
+                  ? {
+                      id: n.dependsOn.id,
+                      name: n.dependsOn.name,
+                      completedAt: n.dependsOn.completedAt ? n.dependsOn.completedAt.toISOString() : null,
+                    }
+                  : null,
               }))}
               canUpdate={canUpdateNodes}
               materialsCount={ticket.materials.length}
+            />
+          </Section>
+
+          {/* 节点时间线：计划 vs 实际 */}
+          <Section title="节点时间线">
+            <NodeTimeline
+              nodes={ticket.nodes.map((n) => ({
+                id: n.id,
+                name: n.name,
+                expectedAt: n.expectedAt ? n.expectedAt.toISOString() : null,
+                completedAt: n.completedAt ? n.completedAt.toISOString() : null,
+              }))}
             />
           </Section>
 
@@ -331,6 +355,8 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 assignee: s.assignee,
                 dueDate: s.dueDate ? s.dueDate.toISOString() : null,
                 sortOrder: s.sortOrder,
+                blockedReason: s.blockedReason,
+                blockedAt: s.blockedAt ? s.blockedAt.toISOString() : null,
               }))}
               users={users}
               canManage={canManageSubtasks}

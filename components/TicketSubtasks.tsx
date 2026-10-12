@@ -8,23 +8,27 @@ import ConfirmDialog from "./ConfirmDialog";
 type Subtask = {
   id: string;
   title: string;
-  status: "TODO" | "DOING" | "DONE";
+  status: "TODO" | "DOING" | "DONE" | "BLOCKED";
   assigneeId: string | null;
   assignee: { id: string; name: string } | null;
   dueDate: string | null;
   sortOrder: number;
+  blockedReason: string | null;
+  blockedAt: string | null;
 };
 
 const NEXT_STATUS: Record<Subtask["status"], Subtask["status"]> = {
   TODO: "DOING",
   DOING: "DONE",
   DONE: "TODO",
+  BLOCKED: "TODO",
 };
 
 const statusPill: Record<Subtask["status"], string> = {
   TODO: "bg-gray-100 text-gray-600",
   DOING: "bg-blue-100 text-blue-700",
   DONE: "bg-green-100 text-green-700",
+  BLOCKED: "bg-red-100 text-red-700",
 };
 
 export default function TicketSubtasks({
@@ -43,6 +47,7 @@ export default function TicketSubtasks({
   const [newTitle, setNewTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [doneConfirm, setDoneConfirm] = useState<Subtask | null>(null);
+  const [blockTarget, setBlockTarget] = useState<Subtask | null>(null);
 
   const done = items.filter((s) => s.status === "DONE").length;
   const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
@@ -123,32 +128,46 @@ export default function TicketSubtasks({
       {/* 清单 */}
       <div className="space-y-2">
         {items.map((s) => {
-          const overdue = s.status !== "DONE" && s.dueDate && s.dueDate < today;
+          const overdue = s.status !== "DONE" && s.status !== "BLOCKED" && s.dueDate && s.dueDate < today;
+          const blocked = s.status === "BLOCKED";
           return (
             <div
               key={s.id}
               className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 transition-colors ${
-                overdue ? "border-red-300 bg-red-50" : "border-[#e5e5e5] bg-white hover:border-gray-300"
+                blocked
+                  ? "border-red-300 bg-red-50"
+                  : overdue
+                    ? "border-red-300 bg-red-50"
+                    : "border-[#e5e5e5] bg-white hover:border-gray-300"
               }`}
             >
               {canManage ? (
                 <input
                   type="checkbox"
                   checked={s.status === "DONE"}
+                  disabled={blocked}
                   onChange={() => requestStatusChange(s, s.status === "DONE" ? "TODO" : "DONE")}
-                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#0071e3]"
-                  title="勾选完成 / 取消完成"
+                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#0071e3] disabled:cursor-not-allowed disabled:opacity-40"
+                  title={blocked ? "阻塞中，先解除阻塞" : "勾选完成 / 取消完成"}
                 />
               ) : (
-                <span className={`text-sm ${s.status === "DONE" ? "text-green-600" : "text-gray-300"}`}>
-                  {s.status === "DONE" ? "✓" : "○"}
+                <span className={`text-sm ${s.status === "DONE" ? "text-green-600" : blocked ? "text-red-500" : "text-gray-300"}`}>
+                  {s.status === "DONE" ? "✓" : blocked ? "⛔" : "○"}
                 </span>
               )}
-              <span
-                className={`flex-1 text-sm ${s.status === "DONE" ? "text-gray-400 line-through" : "text-gray-800"}`}
-              >
-                {s.title}
-              </span>
+              <div className="flex-1">
+                <span
+                  className={`text-sm ${s.status === "DONE" ? "text-gray-400 line-through" : blocked ? "text-red-700" : "text-gray-800"}`}
+                >
+                  {s.title}
+                </span>
+                {blocked && s.blockedReason && (
+                  <p className="mt-0.5 text-xs text-red-600">阻塞原因：{s.blockedReason}</p>
+                )}
+              </div>
+              {blocked && (
+                <span className="rounded bg-red-600 px-1.5 py-0.5 text-xs text-white">已阻塞</span>
+              )}
               {overdue && (
                 <span className="rounded bg-red-600 px-1.5 py-0.5 text-xs text-white">已超时</span>
               )}
@@ -167,6 +186,23 @@ export default function TicketSubtasks({
               )}
               {canManage ? (
                 <>
+                  {blocked ? (
+                    <button
+                      onClick={() => patch(s.id, { status: "TODO" })}
+                      className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white transition-all hover:opacity-80 active:scale-95"
+                      title="解除阻塞，回到待办"
+                    >
+                      解除阻塞
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setBlockTarget(s)}
+                      className="rounded-full px-2 py-0.5 text-xs font-medium text-gray-400 transition-all hover:bg-red-50 hover:text-red-600 active:scale-95"
+                      title="标为阻塞（需填原因）"
+                    >
+                      阻塞
+                    </button>
+                  )}
                   <select
                     value={s.assigneeId ?? ""}
                     onChange={(e) => patch(s.id, { assigneeId: e.target.value || null })}
@@ -230,6 +266,23 @@ export default function TicketSubtasks({
           confirmText="确认完成"
           onClose={() => setDoneConfirm(null)}
           onConfirm={async () => { const s = doneConfirm; setDoneConfirm(null); await patch(s.id, { status: "DONE" }); }}
+        />
+      )}
+
+      {blockTarget && (
+        <ConfirmDialog
+          title={`阻塞子任务「${blockTarget.title}」`}
+          message="标为阻塞后，阻塞超 24 小时未解除将提醒工单负责人。请填写阻塞原因："
+          needReason
+          reasonLabel="阻塞原因"
+          reasonPlaceholder="如：等达人回复档期"
+          confirmText="确认阻塞"
+          onClose={() => setBlockTarget(null)}
+          onConfirm={async (reason) => {
+            const s = blockTarget;
+            setBlockTarget(null);
+            await patch(s.id, { status: "BLOCKED", blockedReason: reason });
+          }}
         />
       )}
     </div>

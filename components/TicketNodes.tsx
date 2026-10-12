@@ -12,7 +12,19 @@ type Node = {
   expectedAt: string | null;
   completedAt: string | null;
   completedBy: { name: string } | null;
+  dependsOnId: string | null;
+  dependsOn: { id: string; name: string; completedAt: string | null } | null;
 };
+
+// 时间偏差：计划 expectedAt vs 实际 completedAt，返回天数（正=延迟，负=提前）
+function dayDiff(expectedAt: string | null, completedAt: string | null): number | null {
+  if (!expectedAt || !completedAt) return null;
+  const e = new Date(expectedAt);
+  const c = new Date(completedAt);
+  e.setHours(0, 0, 0, 0);
+  c.setHours(0, 0, 0, 0);
+  return Math.round((c.getTime() - e.getTime()) / 86400000);
+}
 
 export default function TicketNodes({
   ticketId,
@@ -49,6 +61,23 @@ export default function TicketNodes({
     router.refresh();
   }
 
+  async function setDependsOn(node: Node, dependsOnId: string | null) {
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/tickets/${ticketId}/nodes/${node.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dependsOnId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(data.error || "操作失败");
+      return;
+    }
+    router.refresh();
+  }
+
   return (
     <div className="space-y-0">
       {nodes.map((n, i) => {
@@ -59,6 +88,12 @@ export default function TicketNodes({
         const dataBlocked = kind === "DATA" && materialsCount === 0;
         // 寄品节点：仓库发货自动完成，不显示手动按钮
         const autoNode = kind === "SHIP";
+        // 前置依赖未完成：禁用标记完成
+        const depBlocked = !!n.dependsOn && !n.dependsOn.completedAt;
+        // 时间偏差
+        const diff = dayDiff(n.expectedAt, n.completedAt);
+        // 可选的前置节点：同工单其他未完成节点（排除自己）
+        const depOptions = nodes.filter((x) => x.id !== n.id && !x.completedAt);
 
         return (
           <div key={n.id} className="flex gap-3">
@@ -75,30 +110,61 @@ export default function TicketNodes({
             <div className={`flex-1 pb-5 ${overdue ? "rounded border border-red-300 bg-red-50 p-2" : ""}`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{n.name}</span>
-                {overdue && <span className="rounded bg-red-600 px-2 py-0.5 text-xs text-white">已超时</span>}
-                {n.completedAt && <span className="text-xs text-green-600">已完成</span>}
+                <div className="flex items-center gap-2">
+                  {diff !== null && (
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                        diff <= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                      }`}
+                      title={`计划 ${formatDate(n.expectedAt)}，实际 ${formatDate(n.completedAt)}`}
+                    >
+                      {diff === 0 ? "按时完成" : diff < 0 ? `提前 ${-diff} 天` : `延迟 ${diff} 天`}
+                    </span>
+                  )}
+                  {overdue && <span className="rounded bg-red-600 px-2 py-0.5 text-xs text-white">已超时</span>}
+                  {n.completedAt && <span className="text-xs text-green-600">已完成</span>}
+                </div>
               </div>
               <div className="mt-1 text-xs text-gray-500">
                 预期：{formatDate(n.expectedAt)}
                 {n.completedAt && (
                   <> · 完成于 {formatDateTime(n.completedAt)}{n.completedBy ? `（${n.completedBy.name}）` : ""}</>
                 )}
+                {n.dependsOn && (
+                  <> · 前置：{n.dependsOn.name}{n.dependsOn.completedAt ? "（已完成）" : "（未完成）"}</>
+                )}
               </div>
               {!n.completedAt && hint && (
                 <p className="mt-1 text-xs text-gray-400">{hint}</p>
               )}
+              {!n.completedAt && canUpdate && (
+                <div className="mt-1 flex items-center gap-2">
+                  <select
+                    value={n.dependsOnId ?? ""}
+                    onChange={(e) => setDependsOn(n, e.target.value || null)}
+                    disabled={busy}
+                    className="rounded-lg border border-gray-300 px-1 py-0.5 text-xs transition-colors focus:border-[#0071e3] focus:outline-none"
+                    title="设置前置节点：前置完成后才能完成本节点"
+                  >
+                    <option value="">无前置</option>
+                    {depOptions.map((x) => (
+                      <option key={x.id} value={x.id}>前置：{x.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {!n.completedAt && canUpdate && !autoNode && (
                 <button
                   className={`mt-1 rounded border px-2 py-0.5 text-xs ${
-                    dataBlocked
+                    dataBlocked || depBlocked
                       ? "cursor-not-allowed border-gray-300 text-gray-400"
                       : "border-green-500 text-green-600 hover:bg-green-50"
                   }`}
-                  disabled={dataBlocked}
-                  title={dataBlocked ? "需先上传回收素材" : undefined}
+                  disabled={dataBlocked || depBlocked}
+                  title={depBlocked ? `需先完成：${n.dependsOn!.name}` : dataBlocked ? "需先上传回收素材" : undefined}
                   onClick={() => { setError(""); setConfirmNode(n); }}
                 >
-                  {dataBlocked ? "需先上传素材" : "标记完成"}
+                  {depBlocked ? `需先完成：${n.dependsOn!.name}` : dataBlocked ? "需先上传素材" : "标记完成"}
                 </button>
               )}
               {!n.completedAt && autoNode && (
