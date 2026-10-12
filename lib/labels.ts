@@ -244,8 +244,13 @@ export const materialTypeLabels: Record<string, string> = {
 // 合作工单状态
 export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
   PENDING_APPROVAL: "待审批",
-  APPROVED: "已通过（待执行）",
+  APPROVED: "已通过（待寄品）",
+  PENDING_SAMPLE: "待寄品",
   IN_PROGRESS: "执行中",
+  SAMPLED: "已寄品",
+  PENDING_MANUSCRIPT: "待返稿",
+  PENDING_PUBLISH: "已返稿待发布",
+  PUBLISHED: "已发布",
   MATERIAL_REVIEW: "待素材审批",
   COMPLETED: "已完成",
   SETTLING: "结算中",
@@ -253,6 +258,26 @@ export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
   SETTLED: "已结算",
   REJECTED: "已驳回",
   VOIDED: "已作废",
+};
+
+export const promotionPlatformLabels: Record<string, string> = {
+  XIAOHONGSHU_DOUPLUS: "小红书薯条",
+  DOUYIN_QIANCHUAN: "抖音千帆",
+  OTHER: "其他",
+};
+
+export const commentRequestStatusLabels: Record<string, string> = {
+  PENDING: "待处理",
+  APPROVED: "已通过",
+  REJECTED: "已驳回",
+  DONE: "已完成",
+};
+
+export const promotionRequestStatusLabels: Record<string, string> = {
+  PENDING: "待处理",
+  APPROVED: "已通过",
+  REJECTED: "已驳回",
+  DONE: "已完成",
 };
 
 // 达人类型（合作需求 / 达人库共用）

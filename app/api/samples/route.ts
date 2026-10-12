@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   if (body.ticketId) {
     const ticket = await prisma.cooperationTicket.findUnique({ where: { id: body.ticketId }, select: { id: true, status: true } });
     if (!ticket) return NextResponse.json({ error: "关联工单不存在" }, { status: 400 });
-    const SAMPLE_ALLOWED = ["IN_PROGRESS", "MATERIAL_REVIEW", "COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"];
+    const SAMPLE_ALLOWED = ["PENDING_SAMPLE", "IN_PROGRESS", "SAMPLED", "PENDING_MANUSCRIPT", "PENDING_PUBLISH", "PUBLISHED", "MATERIAL_REVIEW", "COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"];
     if (!SAMPLE_ALLOWED.includes(ticket.status)) {
       return NextResponse.json({ error: "工单尚未审批通过，不能发起寄件" }, { status: 400 });
     }

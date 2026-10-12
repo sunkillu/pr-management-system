@@ -27,6 +27,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       toStatus: "WRITTEN_OFF",
       note: body.note?.trim() ? `核销：${body.note.trim()}` : "样品核销",
     });
+    // 关联工单自动进入已寄品（SAMPLED）
+    if (sample.ticketId) {
+      const ticket = await tx.cooperationTicket.findUnique({
+        where: { id: sample.ticketId },
+        select: { id: true, status: true, title: true, creatorId: true },
+      });
+      if (ticket && ticket.status === "IN_PROGRESS") {
+        await tx.cooperationTicket.update({
+          where: { id: ticket.id },
+          data: { status: "SAMPLED" },
+        });
+        await writeLog(tx, {
+          docType: "TICKET",
+          docId: ticket.id,
+          action: "APPROVE",
+          actorId: auth.userId,
+          fromStatus: "IN_PROGRESS",
+          toStatus: "SAMPLED",
+          note: "寄件核销，工单自动进入已寄品",
+        });
+      }
+    }
     return u;
   });
   return NextResponse.json(updated);
