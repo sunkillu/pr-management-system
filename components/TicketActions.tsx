@@ -42,6 +42,16 @@ export default function TicketActions({
   const [showMaterialApproveBox, setShowMaterialApproveBox] = useState(false);
   const [showMaterialRejectBox, setShowMaterialRejectBox] = useState(false);
   const [materialComment, setMaterialComment] = useState("");
+  // 待寄品 / 档期 / 发布
+  const [showSampleBox, setShowSampleBox] = useState(false);
+  const [sampleItems, setSampleItems] = useState([{ style: "", degree: "", quantity: "1", note: "" }]);
+  const [showScheduleBox, setShowScheduleBox] = useState(false);
+  const [scheduleStart, setScheduleStart] = useState("");
+  const [scheduleEnd, setScheduleEnd] = useState("");
+  const [showPublishScheduleBox, setShowPublishScheduleBox] = useState(false);
+  const [publishScheduleDate, setPublishScheduleDate] = useState("");
+  const [showPublishBox, setShowPublishBox] = useState(false);
+  const [publishLink, setPublishLink] = useState("");
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [actualFee, setActualFee] = useState("");
@@ -98,9 +108,58 @@ export default function TicketActions({
         })}>提醒审批人</button>
     );
   }
-  // 审批通过后自动进入执行中，无需手动"开始执行"
-  // 标记完成（含评价）：仅创建人 / 审批链成员 / ADMIN；完成后进入待素材审批
+  // 审批通过后进入待寄品，需 PR 处理寄品环节
+  // 待寄品：手动确认已寄品 / 一键寄品
+  if (ticket.status === "PENDING_SAMPLE" && canOperate) {
+    btns.push(
+      <button key="sample-confirm" className={btnPrimary}
+        onClick={() => ask("确认已寄品", "确认无需系统寄品单（已寄出或无需寄品），进入执行中？", async () => {
+          if (await call(`/api/tickets/${ticket.id}/sample-confirm`, {})) refresh();
+        })}>手动确认已寄品</button>
+    );
+    btns.push(
+      <button key="sample-create" className="rounded border border-blue-500 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+        onClick={() => setShowSampleBox(true)}>一键寄品</button>
+    );
+  }
+  // 标记已寄品：执行中 → 已寄品（有系统单需已核销，无单可直接标记）
   if (ticket.status === "IN_PROGRESS" && canOperate) {
+    btns.push(
+      <button key="mark-sampled" className={btnPrimary}
+        onClick={() => ask("标记已寄品", "确认寄品环节已完成，进入已寄品？", async () => {
+          if (await call(`/api/tickets/${ticket.id}/mark-sampled`, {})) refresh();
+        })}>标记已寄品</button>
+    );
+  }
+  // 档期判定：已寄品 → 待返稿
+  if (ticket.status === "SAMPLED" && canOperate) {
+    btns.push(
+      <button key="confirm-schedule" className={btnPrimary}
+        onClick={() => setShowScheduleBox(true)}>确认档期进入待返稿</button>
+    );
+  }
+  // 达人返稿：待返稿 → 已返稿待发布
+  if (ticket.status === "PENDING_MANUSCRIPT" && canOperate) {
+    btns.push(
+      <button key="manuscript-received" className={btnPrimary}
+        onClick={() => ask("确认已返稿", "达人已返稿（素材已回收），进入已返稿待发布？", async () => {
+          if (await call(`/api/tickets/${ticket.id}/manuscript-received`, {})) refresh();
+        })}>确认已返稿</button>
+    );
+  }
+  // 发布环节：已返稿待发布
+  if (ticket.status === "PENDING_PUBLISH" && canOperate) {
+    btns.push(
+      <button key="confirm-publish-schedule" className="rounded border border-blue-500 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+        onClick={() => setShowPublishScheduleBox(true)}>确认发布档期</button>
+    );
+    btns.push(
+      <button key="publish" className={btnPrimary}
+        onClick={() => setShowPublishBox(true)}>提交发布链接</button>
+    );
+  }
+  // 标记完成（含评价）：仅已发布工单；完成后进入待素材审批
+  if (ticket.status === "PUBLISHED" && canOperate) {
     btns.push(
       <button key="complete" className={btnPrimary}
         onClick={() => setShowCompleteBox(true)}>标记完成</button>
@@ -342,6 +401,111 @@ export default function TicketActions({
                   action: "REJECT", reason: materialComment.trim(),
                 })) { setShowMaterialRejectBox(false); setMaterialComment(""); refresh(); }
               }}>确认驳回</button>
+          </div>
+        </Modal>
+      )}
+
+      {showSampleBox && (
+        <Modal title="一键寄品" onClose={() => setShowSampleBox(false)}>
+          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+            生成寄品单并自动创建寄件请求，提交后工单进入执行中。请先维护收件信息，确认后仓库才会接单。
+          </p>
+          {sampleItems.map((it, i) => (
+            <div key={i} className="mb-2 flex gap-2">
+              <input className={inputCls} placeholder="款式*" value={it.style}
+                onChange={(e) => { const arr = [...sampleItems]; arr[i].style = e.target.value; setSampleItems(arr); }} />
+              <input className={inputCls} placeholder="度数" value={it.degree}
+                onChange={(e) => { const arr = [...sampleItems]; arr[i].degree = e.target.value; setSampleItems(arr); }} />
+              <input className={inputCls} type="number" min="1" placeholder="盒数*" value={it.quantity}
+                onChange={(e) => { const arr = [...sampleItems]; arr[i].quantity = e.target.value; setSampleItems(arr); }} />
+              <button className={btnSecondary} onClick={() => setSampleItems(sampleItems.filter((_, j) => j !== i))}>删</button>
+            </div>
+          ))}
+          <button className="mb-3 text-sm text-blue-600 hover:underline"
+            onClick={() => setSampleItems([...sampleItems, { style: "", degree: "", quantity: "1", note: "" }])}>+ 加一行</button>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowSampleBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy}
+              onClick={async () => {
+                const items = sampleItems.map((it) => ({
+                  style: it.style.trim(), degree: it.degree.trim() || undefined,
+                  quantity: Number(it.quantity), note: it.note.trim() || undefined,
+                }));
+                if (await call(`/api/tickets/${ticket.id}/sample-create`, { items })) {
+                  setShowSampleBox(false); refresh();
+                }
+              }}>生成寄品单</button>
+          </div>
+        </Modal>
+      )}
+
+      {showScheduleBox && (
+        <Modal title="确认档期" onClose={() => setShowScheduleBox(false)}>
+          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+            确认档期后进入待返稿，将展示返稿倒计时。
+          </p>
+          <Field label="档期开始" required>
+            <input type="date" className={inputCls} value={scheduleStart}
+              onChange={(e) => setScheduleStart(e.target.value)} />
+          </Field>
+          <Field label="档期结束（返稿截止）" required>
+            <input type="date" className={inputCls} value={scheduleEnd}
+              onChange={(e) => setScheduleEnd(e.target.value)} />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowScheduleBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy}
+              onClick={async () => {
+                if (!scheduleStart || !scheduleEnd) { setError("请填写档期"); return; }
+                if (await call(`/api/tickets/${ticket.id}/confirm-schedule`, {
+                  startDate: scheduleStart, endDate: scheduleEnd,
+                })) { setShowScheduleBox(false); refresh(); }
+              }}>进入待返稿</button>
+          </div>
+        </Modal>
+      )}
+
+      {showPublishScheduleBox && (
+        <Modal title="确认发布档期" onClose={() => setShowPublishScheduleBox(false)}>
+          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+            确认后进入发布档期倒计时，提前1天提醒跟进，当天提醒提交发布链接。
+          </p>
+          <Field label="发布日期" required>
+            <input type="date" className={inputCls} value={publishScheduleDate}
+              onChange={(e) => setPublishScheduleDate(e.target.value)} />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowPublishScheduleBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy}
+              onClick={async () => {
+                if (!publishScheduleDate) { setError("请选择发布日期"); return; }
+                if (await call(`/api/tickets/${ticket.id}/confirm-publish-schedule`, {
+                  publishScheduleDate,
+                })) { setShowPublishScheduleBox(false); refresh(); }
+              }}>确认</button>
+          </div>
+        </Modal>
+      )}
+
+      {showPublishBox && (
+        <Modal title="提交发布链接" onClose={() => setShowPublishBox(false)}>
+          <Field label="发布链接" required>
+            <input className={inputCls} value={publishLink}
+              onChange={(e) => setPublishLink(e.target.value)} placeholder="https://" />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowPublishBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy}
+              onClick={async () => {
+                if (!publishLink.trim()) { setError("请填写发布链接"); return; }
+                if (await call(`/api/tickets/${ticket.id}/publish`, {
+                  publishLink: publishLink.trim(),
+                })) { setShowPublishBox(false); setPublishLink(""); refresh(); }
+              }}>确认发布</button>
           </div>
         </Modal>
       )}

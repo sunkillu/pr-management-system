@@ -21,6 +21,7 @@ import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 import TicketActions from "@/components/TicketActions";
+import TicketPublishTrack from "@/components/TicketPublishTrack";
 import TicketNodes from "@/components/TicketNodes";
 import NodeTimeline from "@/components/NodeTimeline";
 import TicketSubtasks from "@/components/TicketSubtasks";
@@ -83,6 +84,14 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       materials: {
         include: { uploadedBy: { select: { name: true } } },
         orderBy: { createdAt: "asc" },
+      },
+      commentRequests: {
+        include: { createdBy: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+      promotionRequests: {
+        include: { createdBy: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
@@ -186,6 +195,30 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           该工单已超过 {APPROVAL_TIMEOUT_HOURS} 小时未审批，已升级通知管理员。
         </div>
       )}
+      {/* 返稿倒计时 / 发布倒计时 */}
+      {(() => {
+        const now = new Date();
+        if (ticket.status === "PENDING_MANUSCRIPT" && ticket.endDate) {
+          const days = Math.ceil((new Date(ticket.endDate).getTime() - now.getTime()) / 86400000);
+          const urgent = days <= 7;
+          return (
+            <div className={`mb-4 rounded-lg border p-3 text-sm ${urgent ? "border-orange-300 bg-orange-50 text-orange-800" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
+              ⏱ 返稿倒计时：{days >= 0 ? `剩余 ${days} 天` : `已逾期 ${-days} 天`}
+              {urgent && days >= 0 && "（档期前一周，请跟进一次：延后档期或提交催稿记录）"}
+            </div>
+          );
+        }
+        if (ticket.status === "PENDING_PUBLISH" && ticket.publishScheduleDate) {
+          const days = Math.ceil((new Date(ticket.publishScheduleDate).getTime() - now.getTime()) / 86400000);
+          return (
+            <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-purple-800">
+              📅 发布倒计时：{days > 0 ? `剩余 ${days} 天` : days === 0 ? "今天发布，请提交发布链接" : `已逾期 ${-days} 天`}
+              {ticket.publishLink ? ` · 链接：${ticket.publishLink}` : ""}
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="bg-white rounded-2xl lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
@@ -433,6 +466,24 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               </p>
             )}
           </Section>
+
+          {/* 发布后双通路：评论需求 / 投放需求 */}
+          {["PUBLISHED", "MATERIAL_REVIEW", "COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"].includes(ticket.status) && (
+            <Section title="发布后：评论 / 投放需求">
+              <TicketPublishTrack
+                ticketId={ticket.id}
+                canCreate={["ADMIN", "PR", "PR_MANAGER", "OPERATOR"].includes(role)}
+                commentRequests={ticket.commentRequests.map((c) => ({
+                  id: c.id, content: c.content, status: c.status,
+                  createdBy: c.createdBy, createdAt: c.createdAt.toISOString(),
+                }))}
+                promotionRequests={ticket.promotionRequests.map((p) => ({
+                  id: p.id, platform: p.platform, budget: p.budget, plan: p.plan, status: p.status,
+                  createdBy: p.createdBy, createdAt: p.createdAt.toISOString(),
+                }))}
+              />
+            </Section>
+          )}
 
           {/* 审批区 */}
           <Section id="approval-section" title="审批">
