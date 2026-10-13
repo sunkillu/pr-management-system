@@ -19,6 +19,7 @@ export type EditTicketData = {
   id: string;
   title: string;
   type: string;
+  brandId: string;
   platform: string[];
   style: string[];
   budgetFee: string;
@@ -84,6 +85,9 @@ export default function TicketForm({
   const [endDate, setEndDate] = useState(editTicket?.endDate ?? "");
   const [tagOptions, setTagOptions] = useState<{ id: string; name: string }[]>([]);
   const [tagIds, setTagIds] = useState<string[]>([]);
+  // 品牌：单选必填
+  const [brandId, setBrandId] = useState(editTicket?.brandId ?? "");
+  const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
   const [platforms, setPlatforms] = useState<string[]>(editTicket?.platform ?? []);
   const [homepageId, setHomepageId] = useState(editTicket?.homepageId ?? "");
   const [coopCategories, setCoopCategories] = useState<string[]>(editTicket?.coopCategory ?? []);
@@ -140,6 +144,10 @@ export default function TicketForm({
         .then((r) => r.json())
         .then((d) => setTagOptions(Array.isArray(d) ? d.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : []))
         .catch(() => setTagOptions([]));
+      fetch("/api/brands?active=1")
+        .then((r) => r.json())
+        .then((d) => setBrandOptions(Array.isArray(d) ? d : []))
+        .catch(() => setBrandOptions([]));
     }
   }, [open ]);
 
@@ -165,6 +173,7 @@ export default function TicketForm({
 
   async function validate(): Promise<string | null> {
     if (!title.trim()) return "标题不能为空";
+    if (!brandId) return "请选择所属品牌";
     if (!budgetFee || Number(budgetFee) <= 0) return "预算费用必须大于 0";
     // 采买工单：字段为合作工单子集，按子类型校验
     if (ticketKind === "PROCUREMENT" && !isEdit) {
@@ -289,6 +298,7 @@ export default function TicketForm({
         title: title.trim(),
         ticketKind,
         type,
+        brandId,
         ...(isProcurement ? { procurementType } : {}),
         influencerId: type === "MAKEUP" ? null : partnerId,
         makeupArtistId: type === "MAKEUP" ? partnerId : null,
@@ -349,6 +359,18 @@ export default function TicketForm({
               </div>
             </Field>
           )}
+          <Field label="所属品牌" required>
+            <select
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              value={brandId}
+              onChange={(e) => setBrandId(e.target.value)}
+            >
+              <option value="">请选择品牌</option>
+              {brandOptions.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </Field>
           {ticketKind === "PROCUREMENT" && !isEdit ? (
             <>
               <Field label="采买子类型" required>
