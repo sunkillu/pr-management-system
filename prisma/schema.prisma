@@ -56,17 +56,9 @@ model User {
   assignedSubtasks  TicketSubtask[] @relation("SubtaskAssignee")
   followUpRecords FollowUpRecord[] @relation("FollowUpCreator")
   uploadedMaterials MaterialRecord[] @relation("MaterialUploader")
-  ledgers         InfluencerLedger[] @relation("LedgerOwner")
   handledContentComments ContentComment[] @relation("CommentHandler")
   createdContentComments ContentComment[] @relation("CommentCreator")
   taggings Tagging[] @relation("TaggingCreator")
-  createdProcurements ProcurementRequest[] @relation("ProcurementCreator")
-  procurementTasks    ProcurementTask[]    @relation("ProcurementAssignee")
-  sampleConfirmedTickets CooperationTicket[] @relation("TicketSampleConfirmer")
-  createdCommentRequests CommentRequest[] @relation("CommentRequestCreator")
-  createdPromotionRequests PromotionRequest[] @relation("PromotionRequestCreator")
-  createdLotteries Lottery[]      @relation("LotteryCreator")
-  lotteryDraws    LotteryWinner[] @relation("LotteryDrawer")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -421,38 +413,6 @@ enum InfluencerStatus {
   REJECTED // 已驳回
 }
 
-// PR达人台账状态：草稿 → 已确认入库
-enum LedgerStatus {
-  DRAFT     // 草稿（主页链接已抓取，资料待补充）
-  CONFIRMED // 已确认入库（已关联/创建总库达人）
-}
-
-// PR达人台账：每个PR自己的入库草稿本，免需求路径
-model InfluencerLedger {
-  id           String       @id @default(cuid())
-  ownerId      String
-  owner        User         @relation("LedgerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  homeUrl      String       // 主页链接
-  platform     String?      // 解析出的平台 XIAOHONGSHU / DOUYIN
-  nickname     String?      // 抓取到的昵称（mock 为"待补充_xxx"）
-  accountId    String?      // 抓取到的账号ID（用于老/新达人识别）
-  status       LedgerStatus @default(DRAFT)
-  influencerId String?      // 确认入库后关联的总库达人
-  influencer   Influencer?  @relation("LedgerInfluencer", fields: [influencerId], references: [id], onDelete: SetNull)
-  // 补充资料
-  platforms    String[]     @default([]) // 双平台（抖音+小红书）
-  photoUrl     String?      // 照片
-  budget       Decimal?     @db.Decimal(12, 2) // 预算
-  schedule     String?      // 档期
-  quote        Decimal?     @db.Decimal(12, 2) // 报价
-  sampleInfo   Json?        // 寄品位：{ diopter: 度数, styles: 需寄款式[], note: 寄品信息 }
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  @@index([ownerId, status])
-  @@index([accountId])
-}
-
 // 平台标签（多选，存 String[]，可扩展）。当前业务：小红书 / 抖音。
 // 前端常量 PLATFORM_TAG_OPTIONS 维护可选项。
 model Influencer {
@@ -483,11 +443,8 @@ model Influencer {
   tickets            CooperationTicket[]
   coopRequests       CooperationRequest[] @relation("RequestInfluencer")
   reviews            CooperationReview[]
-  ledgerEntries      InfluencerLedger[] @relation("LedgerInfluencer")
-  lotteryEntries     LotteryEntry[]
 
   @@index([status])
-  @@index([homepageId])
   @@index([updatedAt, id])
   @@index([registeredById, updatedAt, id])
   @@index([tags], type: Gin)
@@ -701,21 +658,14 @@ model NotificationLog {
 }
 
 // ---------- 12. 合作工单 ----------
-// 状态机：DRAFT 草稿 → PENDING_APPROVAL 待审批 → APPROVED 已通过 → PENDING_SAMPLE 待寄品
-//        → IN_PROGRESS 执行中 → SAMPLED 已寄品 → PENDING_MANUSCRIPT 待返稿
-//        → PENDING_PUBLISH 已返稿待发布 → PUBLISHED 已发布 → MATERIAL_REVIEW 待素材审批
-//        → COMPLETED 已完成 → SETTLING 结算中 → FOLLOW_UP 跟进中 → SETTLED 已结算
+// 状态机：DRAFT 草稿 → PENDING_APPROVAL 待审批 → APPROVED 已通过(待执行) → IN_PROGRESS 执行中
+//        → COMPLETED 已完成 → SETTLING 结算中 → SETTLED 已结算
 // 另有 REJECTED（驳回，可重提）、VOIDED（已作废）
 enum TicketStatus {
   DRAFT            // 草稿
   PENDING_APPROVAL // 待审批
-  APPROVED         // 已通过（待寄品）
-  PENDING_SAMPLE   // 待寄品（PR确认寄品或一键生成寄品单）
+  APPROVED         // 已通过（待执行）
   IN_PROGRESS      // 执行中
-  SAMPLED          // 已寄品（仓库核销后）
-  PENDING_MANUSCRIPT // 待返稿（返稿倒计时中）
-  PENDING_PUBLISH  // 已返稿待发布（确认发布档期倒计时）
-  PUBLISHED        // 已发布（可发起评论/投放需求）
   MATERIAL_REVIEW  // 待素材审批（标记完成后，PR负责人审批回收素材）
   COMPLETED        // 已完成
   SETTLING         // 结算中
@@ -751,15 +701,6 @@ model CooperationTicket {
   escalatedAt DateTime? // 超时升级标记（防重复升级）
   followUpDueDate DateTime? // 跟进到期日（打款后15天）
   attachments Json? // 附件/插图 [{fileUrl, fileName}]
-  // 待寄品环节
-  sampleConfirmedAt DateTime? // 手动确认已寄品/无需寄品时间
-  sampleConfirmedById String?
-  sampleConfirmedBy User? @relation("TicketSampleConfirmer", fields: [sampleConfirmedById], references: [id], onDelete: SetNull)
-  // 发布环节
-  publishScheduleDate DateTime? @db.Date // 确认的发布档期
-  publishLink String? // 发布链接
-  publishAt DateTime? // 发布时间
-  publishScheduleNotifiedAt DateTime? // 发布档期提醒标记（防重复）
 
   influencerId String?
   influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
@@ -782,8 +723,6 @@ model CooperationTicket {
   contents Content[] // 工单内维护的内容
   materials MaterialRecord[] // 回收素材（执行中上传，PR负责人审批后才能生成打款单）
   samples   SampleShipment[] @relation("TicketSamples") // 关联寄件请求
-  commentRequests CommentRequest[] // 发布后评论需求
-  promotionRequests PromotionRequest[] // 发布后投放需求
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -792,58 +731,6 @@ model CooperationTicket {
   @@index([creatorId])
   @@index([status, updatedAt, id])
   @@index([updatedAt, id])
-}
-
-// 发布后评论需求：已发布工单可发起，关联工单
-enum CommentRequestStatus {
-  PENDING   // 待处理
-  APPROVED  // 已通过
-  REJECTED  // 已驳回
-  DONE      // 已完成
-}
-
-model CommentRequest {
-  id        String              @id @default(cuid())
-  ticketId  String
-  ticket    CooperationTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  content   String              @db.Text // 评论需求内容
-  status    CommentRequestStatus @default(PENDING)
-  createdById String
-  createdBy   User @relation("CommentRequestCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([ticketId])
-}
-
-// 发布后投放需求：按平台分类（小红书薯条/抖音千帆/其他），填预算与计划
-enum PromotionPlatform {
-  XIAOHONGSHU_DOUPLUS // 小红书薯条
-  DOUYIN_QIANCHUAN    // 抖音千帆
-  OTHER               // 其他
-}
-
-enum PromotionRequestStatus {
-  PENDING   // 待处理
-  APPROVED  // 已通过
-  REJECTED  // 已驳回
-  DONE      // 已完成
-}
-
-model PromotionRequest {
-  id        String                @id @default(cuid())
-  ticketId  String
-  ticket    CooperationTicket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  platform  PromotionPlatform
-  budget    Decimal               @db.Decimal(12, 2) // 投放预算
-  plan      String                @db.Text // 投放计划
-  status    PromotionRequestStatus @default(PENDING)
-  createdById String
-  createdBy   User @relation("PromotionRequestCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([ticketId])
 }
 
 // 跟进记录：打款后15天数据跟进，平均3次
@@ -1012,142 +899,4 @@ model Tagging {
   @@index([entityType, entityId])
   @@index([tagId])
   @@index([createdById])
-}
-
-// ---------- 运营端采买需求 ----------
-enum ProcurementType {
-  WEEKLY_STYLE // 周维度款式采买
-  LINK_SPECIFIC // 指定达人链接采买
-}
-
-enum ProcurementStatus {
-  PENDING // 待分发
-  DISTRIBUTED // 已分发
-  IN_PROGRESS // 执行中
-  DONE // 已完成
-  CANCELLED // 已取消
-}
-
-enum ProcurementTaskStatus {
-  PENDING // 待接单
-  ACCEPTED // 已接单
-  IN_PROGRESS // 执行中
-  DONE // 已完成
-  CANCELLED // 已取消
-}
-
-enum InfluencerAuthStatus {
-  AUTHORIZED // 有授权
-  COOPERATED_NO_AUTH // 已合作无授权
-  NEW // 无合作（新达人）
-}
-
-model ProcurementRequest {
-  id           String            @id @default(cuid())
-  title        String
-  type         ProcurementType
-  styles       String[]          @default([]) // 周维度：款式多选
-  quantity     Int? // 周维度：需求数量
-  materialType String? // 链接采买：素材类型
-  reason       String?           @db.Text // 链接采买：需求理由
-  publishLinks String[]          @default([]) // 链接采买：发布链接
-  status       ProcurementStatus @default(PENDING)
-  cancelReason String?
-
-  createdById String
-  createdBy   User   @relation("ProcurementCreator", fields: [createdById], references: [id], onDelete: Restrict)
-
-  tasks ProcurementTask[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, updatedAt, id])
-  @@index([createdById, updatedAt, id])
-}
-
-model ProcurementTask {
-  id        String                @id @default(cuid())
-  requestId String
-  request   ProcurementRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  assigneeId String
-  assignee   User                 @relation("ProcurementAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
-  quantity   Int? // 负责数量（周维度）
-  status     ProcurementTaskStatus @default(PENDING)
-  acceptedAt DateTime?
-
-  // PR 接单后判定达人状态（链接采买）
-  influencerStatus InfluencerAuthStatus?
-  influencerName   String?
-  priceFeedback    String?              @db.Text // PR 反馈价格
-  priceConfirmed   Boolean              @default(false) // 运营确认价格
-  netdiskUploaded  Boolean              @default(false) // 已上传网盘
-  paymentId        String? // 授权费用打款单 id
-  ticketId         String? // 关联合作工单 id
-  note             String?              @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([requestId])
-  @@index([assigneeId, status])
-}
-
-// ---------- 抽奖活动 ----------
-enum LotteryStatus {
-  DRAFT // 草稿
-  ACTIVE // 进行中
-  ENDED // 已结束
-}
-
-model Lottery {
-  id          String        @id @default(cuid())
-  title       String
-  description String?       @db.Text
-  prizeItems  Json // 奖品列表 [{name, quantity, image?}]
-  startAt     DateTime?
-  endAt       DateTime?
-  status      LotteryStatus @default(DRAFT)
-
-  createdById String
-  createdBy   User   @relation("LotteryCreator", fields: [createdById], references: [id], onDelete: Restrict)
-
-  entries LotteryEntry[]
-  winners LotteryWinner[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, updatedAt, id])
-}
-
-model LotteryEntry {
-  id         String  @id @default(cuid())
-  lotteryId  String
-  lottery    Lottery @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
-  influencerId String?
-  influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
-  name       String
-  contact    String?
-  wins       LotteryWinner[]
-
-  createdAt DateTime @default(now())
-
-  @@index([lotteryId, createdAt])
-}
-
-model LotteryWinner {
-  id        String       @id @default(cuid())
-  lotteryId String
-  lottery   Lottery      @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
-  entryId   String
-  entry     LotteryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  prizeName String
-  drawnAt   DateTime     @default(now())
-  drawnById String
-  drawnBy   User         @relation("LotteryDrawer", fields: [drawnById], references: [id], onDelete: Restrict)
-
-  @@unique([lotteryId, entryId])
-  @@index([lotteryId])
 }
