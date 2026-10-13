@@ -3,6 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatMoney, paymentStatusLabels, badgeClass } from "@/lib/labels";
 
 type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR";
@@ -93,13 +103,17 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s) => (
-          <Link
-            key={s.label}
-            href={s.href}
-            className="bg-white rounded-2xl p-5 transition-colors hover:bg-[#f0f7ff]"
-          >
-            <div className="text-sm text-gray-500">{s.label}</div>
-            <div className="mt-2 text-2xl font-bold">{s.value}</div>
+          <Link key={s.label} href={s.href}>
+            <Card className="transition-colors hover:bg-accent">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {s.label}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{s.value}</div>
+              </CardContent>
+            </Card>
           </Link>
         ))}
       </div>
@@ -107,18 +121,18 @@ export default async function DashboardPage() {
       <h2 className="mb-3 mt-8 text-lg font-semibold">打款与发票</h2>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {payStats.map((s) => (
-          <Link
-            key={s.label}
-            href={s.href}
-            className={`bg-white rounded-2xl p-5 transition-colors hover:bg-[#f0f7ff] ${
-              s.highlight ? "border-2 border-orange-400" : ""
-            }`}
-          >
-            <div className="text-sm text-gray-500">
-              {s.label}
-              {s.highlight && <span className="ml-2 text-xs text-orange-600">● 待您处理</span>}
-            </div>
-            <div className="mt-2 text-xl font-bold">{s.value}</div>
+          <Link key={s.label} href={s.href}>
+            <Card className="transition-colors hover:bg-accent">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  {s.label}
+                  {s.highlight && <Badge>待您处理</Badge>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold">{s.value}</div>
+              </CardContent>
+            </Card>
           </Link>
         ))}
       </div>
@@ -128,38 +142,36 @@ export default async function DashboardPage() {
           <h2 className="mb-3 text-lg font-semibold">
             待您审批的打款（{paymentStatusLabels[queueStatus as string]}）
           </h2>
-          <div className="overflow-x-auto bg-white rounded-2xl">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">标题</th>
-                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">金额（元）</th>
-                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">收款方</th>
-                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">申请人</th>
-                  <th className="border-b border-[#f0f0f0] px-4 py-3 text-left text-xs font-medium text-gray-400 whitespace-nowrap">状态</th>
-                </tr>
-              </thead>
-              <tbody>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>标题</TableHead>
+                  <TableHead>金额（元）</TableHead>
+                  <TableHead>收款方</TableHead>
+                  <TableHead>申请人</TableHead>
+                  <TableHead>状态</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {queue.map((p) => (
-                  <tr key={p.id} className="hover:bg-[#f5f5f7]">
-                    <td className="border-b px-3 py-2">
-                      <Link href={`/payments/${p.id}`} className="text-[#0071e3] hover:underline">
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <Link href={`/payments/${p.id}`} className="text-primary hover:underline">
                         {p.title}
                       </Link>
-                    </td>
-                    <td className="border-b px-3 py-2">{formatMoney(p.amount)}</td>
-                    <td className="border-b px-3 py-2">{p.payeeName}</td>
-                    <td className="border-b px-3 py-2">{p.requester.name}</td>
-                    <td className="border-b px-3 py-2">
-                      <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(p.status)}`}>
-                        {paymentStatusLabels[p.status]}
-                      </span>
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell>{formatMoney(p.amount)}</TableCell>
+                    <TableCell>{p.payeeName}</TableCell>
+                    <TableCell>{p.requester.name}</TableCell>
+                    <TableCell>
+                      <Badge className={badgeClass(p.status)}>{paymentStatusLabels[p.status]}</Badge>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Card>
         </div>
       )}
 
@@ -171,13 +183,15 @@ export default async function DashboardPage() {
           { href: "/invoices", t: "发票管理", d: "发票上传、关联打款单、财务核验" },
           { href: "/reports", t: "效果报表", d: "曝光、转化、GMV 汇总与导出" },
         ].map((c) => (
-          <Link
-            key={c.href}
-            href={c.href}
-            className="bg-white rounded-2xl p-5 transition-colors hover:bg-[#f0f7ff]"
-          >
-            <div className="font-medium">{c.t}</div>
-            <div className="mt-1 text-sm text-gray-500">{c.d}</div>
+          <Link key={c.href} href={c.href}>
+            <Card className="transition-colors hover:bg-accent">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{c.t}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{c.d}</p>
+              </CardContent>
+            </Card>
           </Link>
         ))}
       </div>

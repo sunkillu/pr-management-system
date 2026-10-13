@@ -1,12 +1,26 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney } from "@/lib/labels";
 import { PLATFORM_TAG_OPTIONS, platformTagLabels } from "@/lib/labels";
 
 // 平台数据汇总：按平台（小红书/抖音）汇总内容数、总花费、平均费用、达人数
 // 数据来源：Content.platform / Content.cost（子内容）；达人数经工单关联去重
+const selectCls =
+  "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
 export default async function PlatformReportsPage({
   searchParams,
 }: {
@@ -17,10 +31,12 @@ export default async function PlatformReportsPage({
   const role = me?.role ?? "";
   if (!["ADMIN", "PR_MANAGER", "FINANCE"].includes(role)) {
     return (
-      <div className="bg-white rounded-2xl p-8 text-center">
-        <p className="text-lg font-medium">无权限</p>
-        <p className="mt-2 text-sm text-gray-500">平台数据汇总仅管理员 / PR负责人 / 财务可查看。</p>
-      </div>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <p className="text-lg font-medium">无权限</p>
+          <p className="mt-2 text-sm text-muted-foreground">平台数据汇总仅管理员 / PR负责人 / 财务可查看。</p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -94,12 +110,11 @@ export default async function PlatformReportsPage({
         title="平台数据汇总"
         desc={`按平台汇总子内容数据：内容数 ${totalCount} · 总花费 ¥${formatMoney(totalCost)}`}
         action={
-          <a
-            href={`/api/admin/export?type=contents${qs ? `&${qs}` : ""}`}
-            className="rounded-full bg-[#0071e3] px-4 py-1.5 text-sm text-white"
-          >
-            导出明细
-          </a>
+          <Button asChild>
+            <a href={`/api/admin/export?type=contents${qs ? `&${qs}` : ""}`}>
+              导出明细
+            </a>
+          </Button>
         }
       />
 
@@ -107,7 +122,7 @@ export default async function PlatformReportsPage({
         <select
           name="platform"
           defaultValue={platformFilter}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className={selectCls}
         >
           <option value="">全部平台</option>
           {PLATFORM_TAG_OPTIONS.map((p) => (
@@ -116,56 +131,54 @@ export default async function PlatformReportsPage({
             </option>
           ))}
         </select>
-        <input
+        <Input
           type="date"
           name="from"
           defaultValue={from}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-auto"
         />
-        <span className="text-sm text-gray-400">至</span>
-        <input
+        <span className="text-sm text-muted-foreground">至</span>
+        <Input
           type="date"
           name="to"
           defaultValue={to}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-auto"
         />
-        <button className="rounded-full bg-[#0071e3] px-4 py-2 text-sm text-white">筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[#e5e5e5]">
-              <th className={thCls}>平台</th>
-              <th className={thCls}>内容数</th>
-              <th className={thCls}>总花费（元）</th>
-              <th className={thCls}>平均费用（元）</th>
-              <th className={thCls}>合作达人数</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>平台</TableHead>
+              <TableHead className="tabular-nums">内容数</TableHead>
+              <TableHead className="tabular-nums">总花费（元）</TableHead>
+              <TableHead className="tabular-nums">平均费用（元）</TableHead>
+              <TableHead className="tabular-nums">合作达人数</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.platform} className="border-b border-[#f0f0f0] hover:bg-[#fafafa]">
-                <td className={tdCls}>
-                  <span className="font-medium">{r.label}</span>
-                </td>
-                <td className={tdCls}>{r.count}</td>
-                <td className={tdCls}>¥{formatMoney(r.totalCost)}</td>
-                <td className={tdCls}>¥{formatMoney(r.avgCost)}</td>
-                <td className={tdCls}>{r.influencerCount}</td>
-              </tr>
+              <TableRow key={r.platform}>
+                <TableCell className="font-medium">{r.label}</TableCell>
+                <TableCell className="tabular-nums">{r.count}</TableCell>
+                <TableCell className="tabular-nums">¥{formatMoney(r.totalCost)}</TableCell>
+                <TableCell className="tabular-nums">¥{formatMoney(r.avgCost)}</TableCell>
+                <TableCell className="tabular-nums">{r.influencerCount}</TableCell>
+              </TableRow>
             ))}
             {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="py-8 text-center text-sm text-gray-400">
+              <TableRow>
+                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
                   暂无数据（子内容需填写平台后才会统计）
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
-      <p className="mt-2 text-xs text-gray-400">
+      <p className="mt-2 text-xs text-muted-foreground">
         说明：统计口径为工单下的子内容（Content.platform / cost）；平均费用按有花费的子内容计算。
       </p>
     </div>

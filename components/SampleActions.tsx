@@ -66,7 +66,7 @@ export default function SampleActions({ sample, role, userId }: Props) {
         </button>
       )}
       {sample.status === "PENDING" && sample.infoConfirmed && (
-        <span className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+        <span className="rounded bg-primary/10 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
           已推送仓库
         </span>
       )}
@@ -98,7 +98,7 @@ export default function SampleActions({ sample, role, userId }: Props) {
 
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setModal(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md rounded-lg bg-card p-5" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-3 text-base font-semibold">
               {modal === "ship" && "标记寄出"}
               {modal === "sign" && "确认签收"}
@@ -107,7 +107,7 @@ export default function SampleActions({ sample, role, userId }: Props) {
             </h3>
             {modal === "ship" && (
               <div className="space-y-3">
-                <p className="text-xs text-gray-500">寄件：{sample.productName}</p>
+                <p className="text-xs text-muted-foreground">寄件：{sample.productName}</p>
                 <input className={inputCls} placeholder="快递公司（必填）" value={courier} onChange={(e) => setCourier(e.target.value)} />
                 <input className={inputCls} placeholder="快递单号（必填）" value={trackingNo} onChange={(e) => setTrackingNo(e.target.value)} />
               </div>

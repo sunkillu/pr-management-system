@@ -2,8 +2,19 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
-import { paymentStatusLabels, badgeClass, formatMoney, formatDate } from "@/lib/labels";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
+import { paymentStatusLabels, formatMoney, formatDate } from "@/lib/labels";
 import PaymentsClient from "./PaymentsClient";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
@@ -73,56 +84,54 @@ export default async function PaymentsPage({
       />
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
-        <input
+        <Input
           name="q"
           placeholder="按标题搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-64"
         />
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="">全部状态</option>
           {Object.entries(paymentStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>标题</th>
-              <th className={thCls}>金额（元）</th>
-              <th className={thCls}>收款方</th>
-              <th className={thCls}>关联</th>
-              <th className={thCls}>状态</th>
-              <th className={thCls}>申请人</th>
-              <th className={thCls}>更新时间</th>
-              <th className={thCls}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>标题</TableHead>
+              <TableHead className="tabular-nums">金额（元）</TableHead>
+              <TableHead>收款方</TableHead>
+              <TableHead>关联</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>申请人</TableHead>
+              <TableHead>更新时间</TableHead>
+              <TableHead>操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {payments.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>
-                  <Link href={`/payments/${p.id}`} className="text-[#0071e3] hover:underline">
+              <TableRow key={p.id}>
+                <TableCell className="font-medium">
+                  <Link href={`/payments/${p.id}`} className="text-primary hover:underline">
                     {p.title}
                   </Link>
-                </td>
-                <td className={tdCls}>{formatMoney(p.amount)}</td>
-                <td className={tdCls}>{p.payeeName}</td>
-                <td className={tdCls + " text-xs text-gray-500"}>
+                </TableCell>
+                <TableCell className="tabular-nums">{formatMoney(p.amount)}</TableCell>
+                <TableCell>{p.payeeName}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
                   {[p.outlet?.name, p.campaign?.name].filter(Boolean).join(" / ") || "-"}
-                </td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(p.status)}`}>
-                    {paymentStatusLabels[p.status]}
-                  </span>
-                </td>
-                <td className={tdCls}>{p.requester.name}</td>
-                <td className={tdCls}>{formatDate(p.updatedAt)}</td>
-                <td className={tdCls + " whitespace-nowrap"}>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={p.status} label={paymentStatusLabels[p.status]} />
+                </TableCell>
+                <TableCell>{p.requester.name}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatDate(p.updatedAt)}</TableCell>
+                <TableCell className="whitespace-nowrap">
                   <PaymentsClient
                     role={role}
                     outlets={outlets}
@@ -147,14 +156,14 @@ export default async function PaymentsPage({
                     actionTarget={{ id: p.id, ticketId: p.ticketId, status: p.status, isRequester: p.requesterId === sessionUser.id, voucherCount: p._count.vouchers }}
                     deleteId={canDelete ? p.id : undefined}
                   />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {payments.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       <Pagination pathname="/payments" page={pagination.page} total={total} query={searchParams} />
     </div>

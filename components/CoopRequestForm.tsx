@@ -130,11 +130,11 @@ export default function CoopRequestForm() {
               }}
               className="text-sm"
             />
-            {uploading && <p className="mt-1 text-xs text-gray-500">上传中…</p>}
+            {uploading && <p className="mt-1 text-xs text-muted-foreground">上传中…</p>}
             <ul className="mt-2 space-y-1 text-sm">
               {attachments.map((a, i) => (
                 <li key={i} className="flex items-center justify-between">
-                  <a href={a.fileUrl} target="_blank" className="text-[#0071e3] hover:underline">
+                  <a href={a.fileUrl} target="_blank" className="text-primary hover:underline">
                     {a.fileName}
                   </a>
                   <button
@@ -148,7 +148,7 @@ export default function CoopRequestForm() {
             </ul>
           </Field>
           <Field label="审批人（多选，仅管理员，任一通过即通过）" required>
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-border p-2">
               {approvers.map((a) => (
                 <label key={a.id} className="flex items-center gap-2 text-sm">
                   <input
@@ -157,10 +157,10 @@ export default function CoopRequestForm() {
                     onChange={() => setSelected(toggle(selected, a.id))}
                   />
                   {a.name}
-                  <span className="text-xs text-gray-500">（{roleLabels[a.role] ?? a.role}）</span>
+                  <span className="text-xs text-muted-foreground">（{roleLabels[a.role] ?? a.role}）</span>
                 </label>
               ))}
-              {approvers.length === 0 && <p className="text-xs text-gray-400">暂无可选审批人</p>}
+              {approvers.length === 0 && <p className="text-xs text-muted-foreground">暂无可选审批人</p>}
             </div>
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}

@@ -93,7 +93,7 @@ export default function ContentActions({
                   run: () => call(`/api/contents/${id}/submit`),
                 })
           }
-          className="rounded bg-[#0071e3] px-3 py-1 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
+          className="rounded bg-primary px-3 py-1 text-sm text-white hover:bg-primary/90 disabled:opacity-50"
         >
           {status === "REJECTED" ? "重新提交" : "提交审批"}
         </button>

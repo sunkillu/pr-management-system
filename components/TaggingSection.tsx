@@ -133,13 +133,13 @@ export default function TaggingSection({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-sm font-semibold">{title}</h4>
-        {list.length > 0 && <span className="text-xs text-gray-400">{list.length} 条</span>}
+        {list.length > 0 && <span className="text-xs text-muted-foreground">{list.length} 条</span>}
       </div>
 
       {canTag && (
-        <div className="mb-4 rounded-[10px] bg-[#f5f5f7] p-3">
+        <div className="mb-4 rounded-[10px] bg-muted p-3">
           {available.length === 0 ? (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               {options.length === 0 ? "暂无可用标签，请联系管理员维护" : "你已打过全部标签"}
             </p>
           ) : (
@@ -154,8 +154,8 @@ export default function TaggingSection({
                       onClick={() => toggle(o.id)}
                       className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
                         on
-                          ? "bg-[#0071e3] text-white"
-                          : "bg-white text-gray-700 ring-1 ring-[#e5e5e5] hover:ring-[#0071e3]"
+                          ? "bg-primary text-white"
+                          : "bg-card text-foreground ring-1 ring-border hover:ring-primary"
                       }`}
                     >
                       {o.name}
@@ -167,7 +167,7 @@ export default function TaggingSection({
                 type="button"
                 onClick={addTags}
                 disabled={selected.length === 0 || saving}
-                className="rounded-full bg-[#0071e3] px-4 py-1.5 text-xs font-medium text-white disabled:opacity-40 hover:bg-[#0077ed]"
+                className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-white disabled:opacity-40 hover:bg-primary/90"
               >
                 {saving ? "添加中…" : selected.length > 0 ? `添加标签（${selected.length}）` : "添加标签"}
               </button>
@@ -179,16 +179,16 @@ export default function TaggingSection({
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
       {loading ? (
-        <p className="text-xs text-gray-400">加载中…</p>
+        <p className="text-xs text-muted-foreground">加载中…</p>
       ) : groups.length === 0 ? (
-        <p className="text-xs text-gray-400">暂无标签</p>
+        <p className="text-xs text-muted-foreground">暂无标签</p>
       ) : (
         <ul className="space-y-3">
           {groups.map(([uid, g]) => (
             <li key={uid} className="text-sm">
               <div className="mb-1 flex items-center gap-2">
                 <span className="font-medium text-gray-900">{g.name}</span>
-                <span className="text-xs text-gray-400">{relTime(g.latest)}</span>
+                <span className="text-xs text-muted-foreground">{relTime(g.latest)}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {g.items.map((item) => {
@@ -196,7 +196,7 @@ export default function TaggingSection({
                   return (
                     <span
                       key={item.id}
-                      className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200"
+                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200"
                     >
                       {item.tag.name}
                       {canDel && (

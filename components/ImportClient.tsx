@@ -102,8 +102,8 @@ export default function ImportClient() {
               }}
               className={`rounded-full px-4 py-1.5 text-sm ${
                 kind === k.value
-                  ? "bg-[#0071e3] text-white"
-                  : "bg-[#f5f5f7] text-gray-700 hover:bg-gray-200"
+                  ? "bg-primary text-white"
+                  : "bg-muted text-foreground hover:bg-gray-200"
               }`}
             >
               {k.label}
@@ -112,45 +112,45 @@ export default function ImportClient() {
         </div>
         <a
           href={`/api/admin/import/template?kind=${kind}`}
-          className="text-sm text-[#0071e3] hover:underline"
+          className="text-sm text-primary hover:underline"
         >
           下载CSV模板
         </a>
       </div>
 
-      <div className="rounded-2xl bg-white p-4">
-        <label className="block text-sm font-medium text-gray-700">上传 CSV 文件</label>
+      <div className="rounded-lg bg-card p-4">
+        <label className="block text-sm font-medium text-foreground">上传 CSV 文件</label>
         <input
           type="file"
           accept=".csv"
           onChange={(e) => handleFile(e.target.files?.[0])}
           className="mt-2 text-sm"
         />
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-muted-foreground">
           请使用 UTF-8 编码。达人按"姓名+平台"去重，已存在的会跳过；合作记录的达人必须已在库中。
         </p>
         <button
           onClick={doPreview}
           disabled={!csv.trim() || loading}
-          className="mt-3 rounded-full bg-[#0071e3] px-5 py-2 text-sm text-white disabled:opacity-40"
+          className="mt-3 rounded-full bg-primary px-5 py-2 text-sm text-white disabled:opacity-40"
         >
           {loading ? "处理中…" : "解析预览"}
         </button>
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
       {result && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">
           {result}
         </div>
       )}
 
       {preview && (
-        <div className="rounded-2xl bg-white p-4">
+        <div className="rounded-lg bg-card p-4">
           <div className="mb-3 flex flex-wrap items-center gap-4 text-sm">
             <span>
               共 <b>{preview.total}</b> 行
@@ -171,7 +171,7 @@ export default function ImportClient() {
             <button
               onClick={doImport}
               disabled={preview.validCount === 0 || loading}
-              className="ml-auto rounded-full bg-[#0071e3] px-5 py-2 text-sm text-white disabled:opacity-40"
+              className="ml-auto rounded-full bg-primary px-5 py-2 text-sm text-white disabled:opacity-40"
             >
               确认导入
             </button>
@@ -185,7 +185,7 @@ export default function ImportClient() {
           )}
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#e5e5e5] text-left text-xs text-gray-500">
+              <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="py-2">行号</th>
                 <th className="py-2">名称</th>
                 <th className="py-2">状态</th>
@@ -193,7 +193,7 @@ export default function ImportClient() {
             </thead>
             <tbody>
               {preview.preview.map((r, i) => (
-                <tr key={i} className="border-b border-[#f0f0f0]">
+                <tr key={i} className="border-b border-border">
                   <td className="py-2">{r.row}</td>
                   <td className="py-2">{r.name ?? r.influencerName ?? "-"}</td>
                   <td className="py-2">
@@ -210,7 +210,7 @@ export default function ImportClient() {
             </tbody>
           </table>
           {preview.total > 10 && (
-            <p className="mt-2 text-xs text-gray-400">仅显示前 10 行</p>
+            <p className="mt-2 text-xs text-muted-foreground">仅显示前 10 行</p>
           )}
         </div>
       )}
