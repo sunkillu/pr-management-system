@@ -216,6 +216,11 @@ async function main() {
     update: { name: "达人标签" },
     create: { name: "达人标签", key: "INFLUENCER", sort: 2 },
   });
+  const ticketCat = await prisma.tagCategory.upsert({
+    where: { key: "TICKET" },
+    update: { name: "工单标签" },
+    create: { name: "工单标签", key: "TICKET", sort: 3 },
+  });
   const materialTagNames = ["种草", "测评", "开箱", "好物推荐"];
   for (let i = 0; i < materialTagNames.length; i++) {
     const name = materialTagNames[i];
@@ -232,6 +237,15 @@ async function main() {
       where: { categoryId_name: { categoryId: influencerCat.id, name } },
       update: {},
       create: { name, categoryId: influencerCat.id, sort: i },
+    });
+  }
+  const ticketTagNames = ["重点合作", "大促", "新品", "常规"];
+  for (let i = 0; i < ticketTagNames.length; i++) {
+    const name = ticketTagNames[i];
+    await prisma.tag.upsert({
+      where: { categoryId_name: { categoryId: ticketCat.id, name } },
+      update: {},
+      create: { name, categoryId: ticketCat.id, sort: i },
     });
   }
   console.log("标签 OK");

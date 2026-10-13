@@ -64,14 +64,14 @@ const entries: NavEntry[] = [
       ],
     },
   },
-  { type: "link", item: { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"], icon: BarChart3 } },
-  { type: "link", item: { href: "/tags", label: "标签管理", roles: ["ADMIN", "PR"], icon: Tags } },
   {
     type: "group",
     group: {
       key: "platform-config",
       label: "平台配置",
       items: [
+        { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"], icon: BarChart3 },
+        { href: "/tags", label: "标签管理", roles: ["ADMIN", "PR"], icon: Tags },
         { href: "/users", label: "用户管理", roles: ["ADMIN"], icon: UserCog },
         { href: "/admin/import", label: "数据导入", roles: ["ADMIN"], icon: Upload },
         { href: "/admin/export", label: "数据导出", roles: ["ADMIN"], icon: Download },

@@ -32,7 +32,7 @@ const VIEWS = [
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; type?: string; view?: string; page?: string };
+  searchParams: { q?: string; status?: string; type?: string; view?: string; page?: string; tagId?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -113,6 +113,20 @@ export default async function TicketsPage({
   }
 
   // 列表视图
+  // 标签筛选：先查出打了该标签的工单 id
+  const ticketTags = await prisma.tag.findMany({
+    where: { category: { key: "TICKET" } },
+    orderBy: [{ sort: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  });
+  let tagTicketIds: string[] | null = null;
+  if (searchParams.tagId) {
+    const recs = await prisma.tagging.findMany({
+      where: { entityType: "TICKET", tagId: searchParams.tagId },
+      select: { entityId: true },
+    });
+    tagTicketIds = recs.map((r) => r.entityId);
+  }
   const where: Prisma.CooperationTicketWhereInput = {
       ...(searchParams.q
         ? {
@@ -124,6 +138,7 @@ export default async function TicketsPage({
         : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { type: searchParams.type as never } : {}),
+      ...(tagTicketIds ? { id: { in: tagTicketIds } } : {}),
   };
   const pagination = getPagination(searchParams.page);
   const [list, total] = await Promise.all([
@@ -183,6 +198,12 @@ export default async function TicketsPage({
           <option value="">全部类型</option>
           {Object.entries(coopTypeLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+        <select name="tagId" defaultValue={searchParams.tagId ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <option value="">全部标签</option>
+          {ticketTags.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
         <Button type="submit">筛选</Button>

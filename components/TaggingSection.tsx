@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type EntityType = "INFLUENCER" | "COOP_REQUEST" | "MATERIAL";
+type EntityType = "INFLUENCER" | "COOP_REQUEST" | "MATERIAL" | "TICKET";
 
 type TaggingItem = {
   id: string;

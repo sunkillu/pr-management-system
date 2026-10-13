@@ -211,5 +211,25 @@ auth.userId,
 }
 }
 
+// 工单标签：tagIds 可选，创建 Tagging 记录（打标签人=创建人）
+const tagIds: string[] = Array.isArray(body.tagIds)
+  ? Array.from(new Set<string>(body.tagIds.map((s: unknown) => String(s)).filter(Boolean))).slice(0, 20)
+  : [];
+if (tagIds.length > 0) {
+  const tags = await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true } });
+  const validIds = tags.map((t) => t.id);
+  if (validIds.length > 0) {
+    await prisma.tagging.createMany({
+      data: validIds.map((tagId) => ({
+        tagId,
+        entityType: "TICKET" as const,
+        entityId: ticket.id,
+        createdById: auth.userId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+}
+
 return NextResponse.json(ticket, { status: 201});
 }

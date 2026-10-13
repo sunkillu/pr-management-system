@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 
 const ALL_ROLES = ["ADMIN", "PR", "PR_MANAGER", "OPERATOR", "FINANCE", "VIEWER", "WAREHOUSE"] as const;
-const ENTITY_TYPES = ["INFLUENCER", "COOP_REQUEST", "MATERIAL"] as const;
+const ENTITY_TYPES = ["INFLUENCER", "COOP_REQUEST", "MATERIAL", "TICKET"] as const;
 
 // 取某实体的打标签记录（全部角色可读）
 export async function GET(req: NextRequest) {
