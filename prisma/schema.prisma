@@ -701,10 +701,7 @@ model CooperationTicket {
   type        CoopType
   ticketKind  TicketKind   @default(COOPERATION) // 工单类型：合作工单 / 采买工单
   procurementType ProcurementSubType? // 采买子类型（仅 ticketKind=PROCUREMENT 时有效）
-  quantity    Int?         // 采买数量（周维度款式采买用）
-  materialType String?     // 素材类型（指定达人链接采买用）
-  reason      String?      @db.Text // 需求理由（指定达人链接采买用）
-  publishLinks String[]    @default([]) // 发布链接（指定达人链接采买用，多条）
+  // 采买特有信息（数量/素材类型/需求理由/发布链接）统一写入 note 结构化文本 / contentDirection，与合作工单字段保持子集关系
   budgetFee   Decimal      @db.Decimal(12, 2) // 预算费用
   actualFee   Decimal?     @db.Decimal(12, 2) // 实际费用（结算用）
   budgetOverridden Boolean @default(false) // 超预算已特批
@@ -736,10 +733,7 @@ model CooperationTicket {
   coopRequestId String?
   coopRequest   CooperationRequest? @relation("TicketSourceRequest", fields: [coopRequestId], references: [id], onDelete: SetNull)
 
-  // 来源采买工单（采买审批通过后一键转合作工单时带入）
-  sourceTicketId String?
-  sourceTicket   CooperationTicket? @relation("TicketSourceTicket", fields: [sourceTicketId], references: [id], onDelete: SetNull)
-  derivedTickets CooperationTicket[] @relation("TicketSourceTicket")
+  // 采买工单接单后同单流转：ticketKind 直接改为 COOPERATION，进入合作工单流程（无需新建工单）
 
   // 采买工单接单/分发（ticketKind=PROCUREMENT 审批通过后）
   assigneeId String? // 归属 PR（接单或人工分配）
