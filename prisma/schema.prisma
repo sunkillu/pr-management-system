@@ -43,6 +43,8 @@ model User {
   approvalLogs      ApprovalLog[]    @relation("LogActor")
   createdLinks      ApprovalLink[]   @relation("LinkCreator")
   registeredInfluencers Influencer[] @relation("InfluencerRegistrar")
+  submitLogsBy      InfluencerSubmitLog[] @relation("SubmitBy")
+  submitLogsHandled InfluencerSubmitLog[] @relation("SubmitHandledBy")
   createdCooperations  CooperationRecord[] @relation("CooperationCreator")
   createdSamples    SampleShipment[] @relation("SampleCreator")
   submittedRequests CooperationRequest[] @relation("RequestSubmitter")
@@ -65,6 +67,7 @@ model User {
   assigneeLogChanges TicketAssigneeLog[] @relation("AssigneeLogChanger")
   forcedTickets      CooperationTicket[] @relation("TicketForceCreator")
   scheduleChangeLogs ScheduleChangeLog[] @relation("ScheduleChangeLogger")
+  brandChangeLogs    BrandChangeLog[] @relation("BrandChangeLogger")
   sensitiveAccessLogs SensitiveAccessLog[] @relation("SensitiveAccessViewer")
 }
 
@@ -226,6 +229,8 @@ enum PaymentStatus {
 model PaymentRequest {
   id           String        @id @default(cuid())
   title        String
+  brandId      String? // 所属品牌（从关联工单自动带入）
+  brand        Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
   amount       Decimal       @db.Decimal(12, 2) // 金额（元）
   payeeName    String // 收款方
   payeeAccount String? // 收款账号
@@ -311,6 +316,10 @@ enum LogAction {
   UNLINK    // 解除关联
   ACCEPT    // 接单（采买工单）
   ASSIGN    // 人工分配（采买工单）
+  DUP_DETECTED // 检测到重复（达人去重）
+  DUP_MERGED   // 去重合并
+  DUP_KEPT     // 去重保留原有
+  DUP_REJECTED // 去重拒绝
 }
 
 model ApprovalLog {
@@ -417,9 +426,26 @@ enum InfluencerType {
 }
 
 enum InfluencerStatus {
-  PENDING  // 待审核
+  PENDING  // 待审核（历史）
   APPROVED // 已通过
-  REJECTED // 已驳回
+  REJECTED // 已驳回（历史）
+}
+
+// 达人去重状态
+enum DupStatus {
+  NORMAL        // 正常
+  PENDING_DEDUP // 待去重确认
+  MERGED        // 已合并到已有记录
+  KEPT          // 已处理-保留原有
+  REJECTED_DUP  // 已处理-拒绝
+}
+
+// 去重处理结果
+enum DupResult {
+  PENDING  // 待处理
+  MERGED   // 已合并
+  KEPT     // 保留原有
+  REJECTED // 已拒绝
 }
 
 // 平台标签（多选，存 String[]，可扩展）。当前业务：小红书 / 抖音。
@@ -439,9 +465,10 @@ model Influencer {
   occupiedByTicketId String? // 当前占用该达人的工单 id（null = 未占用）
   lastPublishDate DateTime? @db.Date // 最近发布日期（用于30天占用判断）
   bio          String?          @db.Text // 简介
-  status       InfluencerStatus @default(PENDING)
+  status       InfluencerStatus @default(APPROVED)
   rejectReason String? // 驳回理由
   escalatedAt DateTime? // 审批超时升级标记
+  dupStatus    DupStatus @default(NORMAL) // 去重状态
   coopCount    Int              @default(0) // 合作次数（由合作记录自动累计）
   totalFee     Decimal          @default(0) @db.Decimal(12, 2) // 累计合作费用（自动累计）
 
@@ -450,6 +477,7 @@ model Influencer {
 
   attachments Json? // 附件（参考图）[{fileUrl, fileName}]
   tags        String[] // 达人标签
+  brands      String[] // 合作品牌（多选，品牌名称）
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -459,12 +487,36 @@ model Influencer {
   tickets            CooperationTicket[]
   coopRequests       CooperationRequest[] @relation("RequestInfluencer")
   reviews            CooperationReview[]
+  submitLogsNew      InfluencerSubmitLog[] @relation("SubmitNew")
+  submitLogsExisting InfluencerSubmitLog[] @relation("SubmitExisting")
 
   @@index([status])
   @@index([updatedAt, id])
   @@index([registeredById, updatedAt, id])
   @@index([tags], type: Gin)
   @@index([platforms], type: Gin)
+  @@index([dupStatus])
+}
+
+// 达人提交记录（去重用）：所有提交保留，重复提交进入去重流程
+model InfluencerSubmitLog {
+  id                 String    @id @default(cuid())
+  newInfluencerId    String // 新提交的达人记录
+  newInfluencer      Influencer @relation("SubmitNew", fields: [newInfluencerId], references: [id], onDelete: Cascade)
+  existingInfluencerId String // 库存已存在的达人记录
+  existingInfluencer Influencer @relation("SubmitExisting", fields: [existingInfluencerId], references: [id], onDelete: Cascade)
+  submittedById      String // 提交人
+  submittedBy        User      @relation("SubmitBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  submittedAt        DateTime  @default(now())
+  newData            Json // 提交时的数据快照
+  result             DupResult @default(PENDING)
+  handledById        String? // 处理人
+  handledBy          User?     @relation("SubmitHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  handledAt          DateTime?
+  reason             String?   @db.Text // 处理理由（拒绝时必填）
+
+  @@index([result])
+  @@index([newInfluencerId])
 }
 
 model MakeupArtist {
@@ -613,6 +665,8 @@ model SampleShipment {
   influencer   Influencer?  @relation(fields: [influencerId], references: [id], onDelete: SetNull)
   ticketId     String? // 关联工单（从工单寄品明细一键生成）
   ticket       CooperationTicket? @relation("TicketSamples", fields: [ticketId], references: [id], onDelete: SetNull)
+  brandId      String? // 所属品牌（从关联工单自动带入，可手动改）
+  brand        Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
   productName  String // 产品名称
   quantity     Int          @default(1)
   items        Json? // 寄品明细 [{style, degree?, note?}]（从工单带入）
@@ -749,11 +803,28 @@ enum DataTaskStatus {
   MISSING   // 数据待补（异常保留）
 }
 
+// 品牌：每张工单归属一个品牌；达人可关联多个合作品牌
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tickets   CooperationTicket[]
+  samples   SampleShipment[]
+  payments  PaymentRequest[]
+  materials MaterialRecord[]
+  dataTasks DataCollectionTask[]
+  brandChangesOld BrandChangeLog[] @relation("BrandChangeOld")
+  brandChangesNew BrandChangeLog[] @relation("BrandChangeNew")
+}
+
 model CooperationTicket {
   id          String       @id @default(cuid())
   ticketNo    String       @unique // 工单编号 PR-YYYYMMDD-XXX
   title       String
   type        CoopType
+  brandId     String // 所属品牌（必填）
+  brand       Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
   ticketKind  TicketKind   @default(COOPERATION) // 工单类型：合作工单 / 采买工单
   procurementType ProcurementSubType? // 采买子类型（仅 ticketKind=PROCUREMENT 时有效）
   // 采买特有信息（数量/素材类型/需求理由/发布链接）统一写入 note 结构化文本 / contentDirection，与合作工单字段保持子集关系
@@ -880,6 +951,23 @@ model ScheduleChangeLog {
   @@index([ticketId, createdAt])
 }
 
+// 品牌变更审计：各环节品牌手动修改留痕
+model BrandChangeLog {
+  id          String   @id @default(cuid())
+  targetType  String   // TICKET / SAMPLE / PAYMENT / MATERIAL / DATA_TASK
+  targetId    String
+  oldBrandId  String?
+  oldBrand    Brand?   @relation("BrandChangeOld", fields: [oldBrandId], references: [id], onDelete: SetNull)
+  newBrandId  String?
+  newBrand    Brand?   @relation("BrandChangeNew", fields: [newBrandId], references: [id], onDelete: SetNull)
+  changedById String
+  changedBy   User     @relation("BrandChangeLogger", fields: [changedById], references: [id], onDelete: Restrict)
+  reason      String   @db.Text // 修改原因（必填）
+  createdAt   DateTime @default(now())
+
+  @@index([targetType, targetId, createdAt])
+}
+
 // ---------- v2: 敏感信息访问日志 ----------
 // A级敏感信息（手机号/微信号/邮箱/报价）被查看时记录：查看人/时间/对象/字段/来源
 model SensitiveAccessLog {
@@ -920,6 +1008,8 @@ model DataCollectionTask {
   id          String         @id @default(cuid())
   ticketId    String
   ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  brandId     String? // 所属品牌（从工单自动带入）
+  brand       Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
   platform    String         // XIAOHONGSHU / DOUYIN
   publishLink String?        @db.Text
   metrics     Json?          // 小红书：{views,likes,comments,favorites}；抖音：{exposures,views,likes,comments,favorites}
@@ -1036,6 +1126,8 @@ model MaterialRecord {
   id          String       @id @default(cuid())
   ticketId    String
   ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  brandId     String? // 所属品牌（从工单自动带入）
+  brand       Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
   type        MaterialType
   url         String       @db.Text // 素材链接
   note        String?      @db.Text // 备注
