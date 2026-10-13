@@ -62,6 +62,15 @@ async function createProcurementTicket(
   if (!budgetFee || budgetFee <= 0) {
     return NextResponse.json({ error: "预算费用必须大于 0" }, { status: 400 });
   }
+  // 品牌必填：校验 brandId 存在且启用
+  const brandId = String(body.brandId ?? "").trim();
+  if (!brandId) {
+    return NextResponse.json({ error: "请选择所属品牌" }, { status: 400 });
+  }
+  const brand = await prisma.brand.findFirst({ where: { id: brandId, isActive: true } });
+  if (!brand) {
+    return NextResponse.json({ error: "品牌不存在或已停用" }, { status: 400 });
+  }
   const platform: string[] = Array.isArray(body.platform)
     ? (body.platform as unknown[]).map(String).filter(Boolean)
     : [];
@@ -125,6 +134,7 @@ async function createProcurementTicket(
         ticketNo,
         title: (body.title as string).trim(),
         type: "INFLUENCER_POST",
+        brandId,
         ticketKind: "PROCUREMENT",
         procurementType: procurementType as "WEEKLY_STYLE" | "LINK_SPECIFIC",
         style: styles,
@@ -208,6 +218,15 @@ return NextResponse.json({ error: "合作类型非法"}, { status: 400});
 const budgetFee = Number(body.budgetFee);
 if (!budgetFee || budgetFee <= 0) {
 return NextResponse.json({ error: "预算费用必须大于 0"}, { status: 400});
+}
+// 品牌必填
+const brandId = String(body.brandId ?? "").trim();
+if (!brandId) {
+return NextResponse.json({ error: "请选择所属品牌"}, { status: 400});
+}
+const brand = await prisma.brand.findFirst({ where: { id: brandId, isActive: true }});
+if (!brand) {
+return NextResponse.json({ error: "品牌不存在或已停用"}, { status: 400});
 }
 // 合作平台多选必填
 const platforms: string[] = Array.isArray(body.platform) ? body.platform.map((s: unknown) => String(s)).filter((s: string) => ["XIAOHONGSHU", "DOUYIN"].includes(s)) : [];
@@ -315,6 +334,7 @@ data: {
 ticketNo,
 title: body.title.trim(),
 type,
+brandId,
 budgetFee: body.budgetFee,
 actualFee: body.actualFee? body.actualFee: null,
 platform: platforms,

@@ -32,7 +32,7 @@ const VIEWS = [
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; type?: string; ticketKind?: string; view?: string; page?: string; tagId?: string };
+  searchParams: { q?: string; status?: string; type?: string; ticketKind?: string; view?: string; page?: string; tagId?: string; brandId?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -120,6 +120,11 @@ export default async function TicketsPage({
     orderBy: [{ sort: "asc" }, { name: "asc" }],
     select: { id: true, name: true },
   });
+  const brands = await prisma.brand.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
   let tagTicketIds: string[] | null = null;
   if (searchParams.tagId) {
     const recs = await prisma.tagging.findMany({
@@ -140,6 +145,7 @@ export default async function TicketsPage({
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { type: searchParams.type as never } : {}),
       ...(searchParams.ticketKind ? { ticketKind: searchParams.ticketKind as never } : {}),
+      ...(searchParams.brandId ? { brandId: searchParams.brandId } : {}),
       ...(tagTicketIds ? { id: { in: tagTicketIds } } : {}),
   };
   const pagination = getPagination(searchParams.page);
@@ -151,6 +157,7 @@ export default async function TicketsPage({
         makeupArtist: { select: { name: true } },
         creator: { select: { name: true } },
         assignee: { select: { name: true } },
+        brand: { select: { name: true } },
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       skip: pagination.skip,
@@ -217,6 +224,12 @@ export default async function TicketsPage({
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
+        <select name="brandId" defaultValue={searchParams.brandId ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <option value="">全部品牌</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
         <Button type="submit">筛选</Button>
       </form>
 
@@ -226,6 +239,7 @@ export default async function TicketsPage({
             <TableRow>
               <TableHead>工单编号</TableHead>
               <TableHead>标题</TableHead>
+              <TableHead>品牌</TableHead>
               <TableHead>工单类型</TableHead>
               <TableHead>合作类型</TableHead>
               <TableHead>平台</TableHead>
@@ -254,6 +268,9 @@ export default async function TicketsPage({
                     {overdue && (
                       <Badge variant="destructive" className="ml-2">已超时</Badge>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{t.brand?.name ?? "-"}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={t.ticketKind === "PROCUREMENT" ? "secondary" : "outline"}>

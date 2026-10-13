@@ -261,6 +261,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   id: ticket.id,
                   title: ticket.title,
                   type: ticket.type,
+                  brandId: ticket.brandId,
                   platform: ticket.platform as string[],
                   style: ticket.style as string[],
                   budgetFee: String(ticket.budgetFee),

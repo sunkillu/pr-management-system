@@ -35,6 +35,7 @@ export type InfluencerSearchParams = {
   type?: string;
   coop?: string;
   tag?: string | string[];
+  brand?: string;
   page?: string;
   prefill?: string;
   ptype?: string;
@@ -61,6 +62,7 @@ export default async function InfluencerList({
   if (searchParams.type) where.influencerType = searchParams.type;
   if (searchParams.coop === "none") where.coopCount = 0;
   if (searchParams.coop === "active") where.coopCount = { gt: 0 };
+  if (searchParams.brand) where.brands = { has: searchParams.brand };
   // 标签多选筛选：命中任一标签即可（旧 Influencer.tags 名称匹配 OR 带归属的 Tagging 匹配）
   const selectedTags = Array.isArray(searchParams.tag)
     ? searchParams.tag.filter(Boolean)
@@ -86,7 +88,7 @@ export default async function InfluencerList({
   }
 
   const pagination = getPagination(searchParams.page);
-  const [list, total, allTags, myTaggings] = await Promise.all([
+  const [list, total, allTags, myTaggings, brands] = await Promise.all([
     prisma.influencer.findMany({
       where,
       include: {
@@ -107,6 +109,11 @@ export default async function InfluencerList({
     prisma.tagging.findMany({
       where: { createdById: me.id, entityType: "INFLUENCER" },
       select: { tag: { select: { id: true, name: true } } },
+    }),
+    prisma.brand.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
     }),
   ]);
   // 平均评价：按当前页批量查（分页下比 include 全量 reviews 更省）
@@ -160,6 +167,12 @@ export default async function InfluencerList({
           <option value="">全部平台</option>
           {PLATFORM_TAG_OPTIONS.map((p) => (
             <option key={p.value} value={p.value}>{p.label}</option>
+          ))}
+        </select>
+        <select name="brand" defaultValue={searchParams.brand ?? ""} className="rounded border border-input px-3 py-2 text-sm">
+          <option value="">全部品牌</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.name}>{b.name}</option>
           ))}
         </select>
         <details className="relative">

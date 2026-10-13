@@ -7,6 +7,16 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("开始写入演示数据…");
 
+  // ---------- 品牌 ----------
+  for (const name of ["坚果力", "BOM POP"]) {
+    await prisma.brand.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+  console.log("品牌已预置：坚果力、BOM POP");
+
   // ---------- 用户（岗位占位） ----------
   const password = async (p: string) => bcrypt.hash(p, 10);
   const admin = await prisma.user.upsert({
