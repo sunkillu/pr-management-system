@@ -45,7 +45,7 @@ export default async function NewTicketPage({
       <PageHeader
         title="发起合作工单"
         action={
-          <Link href="/tickets" className="text-sm text-[#0071e3] hover:underline">
+          <Link href="/tickets" className="text-sm text-primary hover:underline">
             ← 返回工单列表
           </Link>
         }

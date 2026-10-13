@@ -33,14 +33,14 @@ export default function UsersClient({
     <span className="space-x-3">
       {editTarget && (
         <>
-          <button onClick={() => setShowEdit(true)} className="text-sm text-[#0071e3] hover:underline">
+          <button onClick={() => setShowEdit(true)} className="text-sm text-primary hover:underline">
             编辑
           </button>
           {showEdit && <UserForm initial={editTarget} onClose={() => setShowEdit(false)} />}
         </>
       )}
       {deleteId && !isSelf && <DeleteButton url={`/api/users/${deleteId}`} />}
-      {deleteId && isSelf && <span className="text-xs text-gray-400">不能删除自己</span>}
+      {deleteId && isSelf && <span className="text-xs text-muted-foreground">不能删除自己</span>}
     </span>
   );
 }

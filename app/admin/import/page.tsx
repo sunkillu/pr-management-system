@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { PageHeader } from "@/components/ui";
+import { Card, CardContent } from "@/components/ui/card";
 import ImportClient from "@/components/ImportClient";
 
 export default async function ImportPage() {
@@ -9,10 +10,12 @@ export default async function ImportPage() {
 
   if (me?.role !== "ADMIN") {
     return (
-      <div className="bg-white rounded-2xl p-8 text-center">
-        <p className="text-lg font-medium">无权限</p>
-        <p className="mt-2 text-sm text-gray-500">数据导入仅管理员可访问。</p>
-      </div>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <p className="text-lg font-medium">无权限</p>
+          <p className="mt-2 text-sm text-muted-foreground">数据导入仅管理员可访问。</p>
+        </CardContent>
+      </Card>
     );
   }
 

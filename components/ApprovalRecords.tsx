@@ -1,5 +1,13 @@
-import { approverStatusLabels, badgeClass } from "@/lib/labels";
-import { tdCls, thCls } from "./ui";
+import { approverStatusLabels } from "@/lib/labels";
+import StatusBadge from "./StatusBadge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export type ApproverRecord = {
   id: string;
@@ -15,41 +23,39 @@ export default function ApprovalRecords({ records }: { records: ApproverRecord[]
   if (records.length === 0) return null;
   return (
     <div className="mt-4">
-      <h4 className="mb-2 text-sm font-semibold text-gray-800">审批记录</h4>
-      <div className="overflow-x-auto rounded-2xl bg-white">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>审批人</th>
-              <th className={thCls}>决定</th>
-              <th className={thCls}>决定时间</th>
-              <th className={thCls}>审批意见</th>
-            </tr>
-          </thead>
-          <tbody>
+      <h4 className="mb-2 text-sm font-semibold text-foreground">审批记录</h4>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>审批人</TableHead>
+              <TableHead>决定</TableHead>
+              <TableHead>决定时间</TableHead>
+              <TableHead>审批意见</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {records.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>{r.approver.name}</td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(r.status)}`}>
-                    {approverStatusLabels[r.status] ?? r.status}
-                  </span>
-                </td>
-                <td className={tdCls}>
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">{r.approver.name}</TableCell>
+                <TableCell>
+                  <StatusBadge status={r.status} label={approverStatusLabels[r.status] ?? r.status} />
+                </TableCell>
+                <TableCell>
                   {r.decidedAt ? new Date(r.decidedAt).toLocaleString("zh-CN") : "-"}
-                </td>
-                <td className={tdCls}>{r.comment || "-"}</td>
-              </tr>
+                </TableCell>
+                <TableCell>{r.comment || "-"}</TableCell>
+              </TableRow>
             ))}
             {decided.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-3 py-4 text-center text-xs text-gray-400">
+              <TableRow>
+                <TableCell colSpan={4} className="py-4 text-center text-xs text-muted-foreground">
                   审批人尚未作出决定
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

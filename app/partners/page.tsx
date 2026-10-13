@@ -23,15 +23,15 @@ export default function PartnersPage({
         desc="达人、化妆师统一管理；合作次数与累计费用由合作记录自动累计"
       />
 
-      <div className="mb-5 flex gap-1 border-b border-[#e5e5e5]">
+      <div className="mb-5 flex gap-1 border-b">
         {TABS.map((t) => (
           <Link
             key={t.key}
             href={`/partners?tab=${t.key}`}
-            className={`tab-link -mb-px px-4 py-2.5 text-sm font-medium ${
+            className={`-mb-px px-4 py-2.5 text-sm font-medium transition-colors ${
               tab === t.key
-                ? "border-b-2 border-[#0071e3] text-[#0071e3]"
-                : "text-gray-500 hover:text-gray-800"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {t.label}
