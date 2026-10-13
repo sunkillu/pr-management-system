@@ -35,6 +35,8 @@ import AutoRefresh from "@/components/AutoRefresh";
 import TaggingSection from "@/components/TaggingSection";
 import ProcurementAssignee from "@/components/ProcurementAssignee";
 import TicketForm from "@/components/TicketForm";
+import TicketChildren from "@/components/TicketChildren";
+import ScheduleChangeTimeline from "@/components/ScheduleChangeTimeline";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -49,6 +51,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       creator: { select: { id: true, name: true } },
       coopRequest: { select: { id: true, title: true } },
       assignee: { select: { id: true, name: true } },
+      forceBy: { select: { id: true, name: true } },
       assigneeLogs: {
         include: {
           fromUser: { select: { name: true } },
@@ -135,6 +138,49 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
+
+  // 子工单（v2 父子工单模型）：仅父工单拉取其子工单；子工单则拉取父工单入口
+  const childTicketsRaw = ticket.parentId
+    ? []
+    : await prisma.cooperationTicket.findMany({
+        where: { parentId: ticket.id },
+        include: {
+          influencer: { select: { name: true } },
+          assignee: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+  const childTickets = childTicketsRaw.map((c) => ({
+    id: c.id,
+    ticketNo: c.ticketNo,
+    title: c.title,
+    subType: c.subType,
+    status: c.status,
+    influencer: c.influencer,
+    assignee: c.assignee,
+    createdAt: c.createdAt.toISOString(),
+  }));
+  const parentTicket = ticket.parentId
+    ? await prisma.cooperationTicket.findUnique({
+        where: { id: ticket.parentId },
+        select: { id: true, ticketNo: true, title: true },
+      })
+    : null;
+
+  // v2: 档期修改审计
+  const scheduleLogsRaw = await prisma.scheduleChangeLog.findMany({
+    where: { ticketId: ticket.id },
+    include: { changedBy: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const scheduleLogs = scheduleLogsRaw.map((l) => ({
+    id: l.id,
+    oldDate: l.oldDate ? l.oldDate.toISOString().slice(0, 10) : null,
+    newDate: l.newDate ? l.newDate.toISOString().slice(0, 10) : null,
+    changedByName: l.changedBy.name,
+    reason: l.reason,
+    createdAt: l.createdAt.toISOString(),
+  }));
 
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
@@ -223,6 +269,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   priceNote: ticket.priceNote ?? "",
                   contentNote: ticket.contentNote ?? "",
                   estimatedSchedule: ticket.estimatedSchedule === "-" ? "" : ticket.estimatedSchedule,
+                  estimatedPublishMonth: ticket.estimatedPublishMonth ?? "",
+                  quoteAmount: ticket.quoteAmount != null ? String(ticket.quoteAmount) : "",
+                  confirmedDate: ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : "",
                   coopCategory: ticket.coopCategory as string[],
                   homepageId: ticket.homepageId ?? "",
                   startDate: ticket.startDate ? new Date(ticket.startDate).toISOString().slice(0, 10) : "",
@@ -330,6 +379,32 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   </span>
                 )}
               </InfoRow>
+              {/* v2: 预估发布年月 / 确定档期 / 报价（A级敏感，仅授权角色） */}
+              {ticket.estimatedPublishMonth && (
+                <InfoRow label="预估发布年月"><span>{ticket.estimatedPublishMonth}</span></InfoRow>
+              )}
+              <InfoRow label="确定档期">
+                <span>{ticket.confirmedDate ? formatDate(ticket.confirmedDate) : "暂不确认"}</span>
+              </InfoRow>
+              {(role === "ADMIN" || role === "PR_MANAGER" || ticket.creatorId === me.id || ticket.assigneeId === me.id) && ticket.quoteAmount != null && (
+                <InfoRow label="合作报价">
+                  <span>¥{Number(ticket.quoteAmount).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span>
+                </InfoRow>
+              )}
+              {ticket.occupiesResource && (
+                <InfoRow label="资源占用">
+                  <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 ring-1 ring-green-300">
+                    占用中
+                  </span>
+                </InfoRow>
+              )}
+              {ticket.forceCreated && (
+                <InfoRow label="强制创建">
+                  <span className="text-xs text-muted-foreground">
+                    {ticket.forceBy?.name ?? "管理员"} 于 {ticket.forceAt ? formatDateTime(ticket.forceAt) : "-"} 强制创建，原因：{ticket.forceReason ?? "-"}
+                  </span>
+                </InfoRow>
+              )}
               <InfoRow label="发起人">{ticket.creator.name}</InfoRow>
               {ticket.rejectReason && (
                 <InfoRow label="驳回理由" wide><span className="text-red-600">{ticket.rejectReason}</span></InfoRow>
@@ -647,6 +722,32 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               currentUserId={me.id}
             />
           </Section>
+
+          {/* 子工单（v2 父子工单模型） */}
+          <Section title={ticket.parentId ? "父工单" : `子工单（${childTickets.length}）`}>
+            <TicketChildren
+              ticketId={ticket.id}
+              isParent={!ticket.parentId}
+              parentTicket={parentTicket}
+              initial={childTickets}
+              users={users}
+              canCreate={canOperate}
+              context={{
+                influencerId: ticket.influencerId,
+                influencerName: partnerName,
+                styles: ticket.style,
+                platforms: ticket.platform as string[],
+                confirmedDate: ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : null,
+                publishDate: ticket.publishDate ? new Date(ticket.publishDate).toISOString().slice(0, 10) : null,
+              }}
+            />
+          </Section>
+          {/* v2: 档期修改记录 */}
+          {scheduleLogs.length > 0 && (
+            <Section title={`档期修改记录（${scheduleLogs.length}）`}>
+              <ScheduleChangeTimeline items={scheduleLogs} />
+            </Section>
+          )}
         </div>
 
         <div className="bg-card rounded-lg h-fit [&>section:first-child]:border-t-0">
