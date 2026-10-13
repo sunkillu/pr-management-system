@@ -108,7 +108,7 @@ export default function TicketContents({
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs text-gray-500">内容在工单内维护：新建 → 提交审批 → 通过 → 发布</p>
+        <p className="text-xs text-muted-foreground">内容在工单内维护：新建 → 提交审批 → 通过 → 发布</p>
         {canManage && (
           <button className={btnPrimarySm} onClick={() => setShowNew(true)}>
             新建内容
@@ -117,37 +117,37 @@ export default function TicketContents({
       </div>
 
       {contents.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-400">
+        <p className="rounded-lg border border-dashed border-input p-6 text-center text-sm text-muted-foreground">
           暂无内容，点击右上角新建
         </p>
       ) : (
         <div className="space-y-2">
           {contents.map((c) => (
-            <div key={c.id} className="rounded-xl bg-[#f5f5f7] p-3">
+            <div key={c.id} className="rounded-xl bg-muted p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate text-sm font-medium text-gray-900">{c.title}</span>
-                    <span className="text-xs text-gray-500">{contentTypeLabels[c.type] ?? c.type}</span>
+                    <span className="text-xs text-muted-foreground">{contentTypeLabels[c.type] ?? c.type}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ring-black/[0.04] ${badgeClass(c.status)}`}>
                       {contentStatusLabels[c.status] ?? c.status}
                     </span>
                     {c.platform && (
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
                         {c.platform === "XIAOHONGSHU" ? "小红书" : c.platform === "DOUYIN" ? "抖音" : c.platform}
                       </span>
                     )}
-                    {c.style && <span className="text-xs text-gray-500">款式：{c.style}</span>}
+                    {c.style && <span className="text-xs text-muted-foreground">款式：{c.style}</span>}
                     {c.cost != null && c.cost !== "" && (
-                      <span className="text-xs text-gray-500">花费：¥{Number(c.cost).toFixed(2)}</span>
+                      <span className="text-xs text-muted-foreground">花费：¥{Number(c.cost).toFixed(2)}</span>
                     )}
                   </div>
                   {c.link && (
-                    <a href={c.link} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-[#0071e3] hover:underline">
+                    <a href={c.link} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-primary hover:underline">
                       {c.link}
                     </a>
                   )}
-                  {c.body && <p className="mt-1 text-xs text-gray-500 line-clamp-2">{c.body}</p>}
+                  {c.body && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{c.body}</p>}
                   {c.status === "REJECTED" && c.rejectReason && (
                     <p className="mt-1 text-xs text-red-600">驳回理由：{c.rejectReason}</p>
                   )}
@@ -157,7 +157,7 @@ export default function TicketContents({
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {(c.status === "DRAFT" || c.status === "REJECTED") && (
                   <>
-                    <button className="text-xs text-[#0071e3] hover:underline" onClick={() => setEditing(c)}>
+                    <button className="text-xs text-primary hover:underline" onClick={() => setEditing(c)}>
                       编辑
                     </button>
                     <button

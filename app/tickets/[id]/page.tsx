@@ -176,7 +176,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         title={ticket.title}
         desc={`${ticket.ticketNo} · ${coopTypeLabels[ticket.type]} · ${ticketStatusLabels[ticket.status]}`}
         action={
-          <Link href="/tickets" className="text-sm text-[#0071e3] hover:underline">
+          <Link href="/tickets" className="text-sm text-primary hover:underline">
             ← 返回合作工单
           </Link>
         }
@@ -188,7 +188,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="bg-white rounded-2xl lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           {/* 基本信息 */}
           <Section title="基本信息">
             <dl>
@@ -200,7 +200,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   {ticket.influencer ? (
                     <InfluencerHoverCard id={ticket.influencer.id} name={partnerName} />
                   ) : partnerHref ? (
-                    <Link href={partnerHref} className="text-[#0071e3] hover:underline">{partnerName}</Link>
+                    <Link href={partnerHref} className="text-primary hover:underline">{partnerName}</Link>
                   ) : (
                     partnerName
                   )}
@@ -208,7 +208,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               </InfoRow>
               {ticket.coopRequest && (
                 <InfoRow label="来源需求">
-                  <Link href={`/coop-requests/${ticket.coopRequest.id}`} className="text-[#0071e3] hover:underline">
+                  <Link href={`/coop-requests/${ticket.coopRequest.id}`} className="text-primary hover:underline">
                     {ticket.coopRequest.title}
                   </Link>
                 </InfoRow>
@@ -249,7 +249,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 <InfoRow label="驳回理由" wide><span className="text-red-600">{ticket.rejectReason}</span></InfoRow>
               )}
               {ticket.voidReason && (
-                <InfoRow label="作废理由" wide><span className="text-gray-600">{ticket.voidReason}</span></InfoRow>
+                <InfoRow label="作废理由" wide><span className="text-muted-foreground">{ticket.voidReason}</span></InfoRow>
               )}
               {ticket.note && (
                 <InfoRow label="备注" wide><span className="whitespace-pre-wrap">{ticket.note}</span></InfoRow>
@@ -258,7 +258,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 <InfoRow label="寄品明细" wide>
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-xs text-gray-500">
+                      <tr className="text-left text-xs text-muted-foreground">
                         <th className="py-1 pr-3 font-medium">款式名</th>
                         <th className="py-1 pr-3 font-medium">度数</th>
                         <th className="py-1 font-medium">寄品备注</th>
@@ -266,10 +266,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                     </thead>
                     <tbody>
                       {(ticket.shipItems as { style: string; degree?: string; note?: string }[]).map((s, i) => (
-                        <tr key={i} className="border-t border-[#f0f0f0]">
+                        <tr key={i} className="border-t border-border">
                           <td className="py-1.5 pr-3 font-medium">{s.style}</td>
                           <td className="py-1.5 pr-3">{s.degree || "-"}</td>
-                          <td className="py-1.5 text-gray-600">{s.note || "-"}</td>
+                          <td className="py-1.5 text-muted-foreground">{s.note || "-"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -291,11 +291,11 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                     {(ticket.attachments as { fileUrl: string; fileName: string }[]).map((a, i) =>
                       /\.(jpe?g|png|webp|gif)$/i.test(a.fileName) ? (
                         <a key={i} href={a.fileUrl} target="_blank" title={a.fileName}>
-                          <img src={a.fileUrl} alt={a.fileName} className="h-24 w-24 rounded-[10px] border border-[#e5e5e5] object-cover" />
+                          <img src={a.fileUrl} alt={a.fileName} className="h-24 w-24 rounded-[10px] border border-border object-cover" />
                         </a>
                       ) : (
                         <a key={i} href={a.fileUrl} target="_blank"
-                          className="rounded-[10px] border border-[#e5e5e5] bg-[#f5f5f7] px-3 py-2 text-sm text-[#0071e3] hover:underline">
+                          className="rounded-[10px] border border-border bg-muted px-3 py-2 text-sm text-primary hover:underline">
                           {a.fileName}
                         </a>
                       )
@@ -370,7 +370,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               ticket.contents.length > 0 ? (
                 <a
                   href={`/api/tickets/${ticket.id}/summary`}
-                  className="text-sm text-[#0071e3] hover:underline"
+                  className="text-sm text-primary hover:underline"
                 >
                   生成汇总单
                 </a>
@@ -445,7 +445,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 ))}
               </div>
             ) : (
-              <p className="mb-3 text-sm text-gray-400">草稿状态，尚未提交审批</p>
+              <p className="mb-3 text-sm text-muted-foreground">草稿状态，尚未提交审批</p>
             )}
             <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
             <ApprovalRecords records={approvers} />
@@ -457,7 +457,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               <div className="space-y-2">
                 {ticket.paymentRequests.map((p) => (
                   <div key={p.id} className="flex items-center justify-between text-sm">
-                    <Link href={`/payments/${p.id}`} className="text-[#0071e3] hover:underline">{p.title}</Link>
+                    <Link href={`/payments/${p.id}`} className="text-primary hover:underline">{p.title}</Link>
                     <span>¥{formatMoney(p.amount)}</span>
                   </div>
                 ))}
@@ -491,10 +491,10 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           {ticket.reviews.length > 0 && (
             <Section title="合作评价">
               {ticket.reviews.map((r) => (
-                <div key={r.id} className="rounded bg-[#f5f5f7] p-3 text-sm">
+                <div key={r.id} className="rounded bg-muted p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-yellow-400">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
-                    <span className="text-xs text-gray-500">{r.reviewer.name} · {formatDateTime(r.createdAt)}</span>
+                    <span className="text-xs text-muted-foreground">{r.reviewer.name} · {formatDateTime(r.createdAt)}</span>
                   </div>
                   {r.comment && <p className="mt-1 whitespace-pre-wrap">{r.comment}</p>}
                 </div>
@@ -520,7 +520,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           </Section>
         </div>
 
-        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg h-fit [&>section:first-child]:border-t-0">
           {/* 推进记录 */}
           <Section title="推进记录">
             <ApprovalTimeline items={timeline} />
@@ -530,12 +530,12 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             <Section title="通知记录">
               <div className="space-y-2 text-xs">
                 {notifications.map((n) => (
-                  <div key={n.id} className="rounded bg-[#f5f5f7] p-2">
-                    <div className="flex justify-between text-gray-500">
+                  <div key={n.id} className="rounded bg-muted p-2">
+                    <div className="flex justify-between text-muted-foreground">
                       <span>{n.receiver?.name ?? "未知"}</span>
                       <span>{formatDateTime(n.createdAt)}</span>
                     </div>
-                    <p className="mt-0.5 text-gray-700">{n.content.slice(0, 80)}</p>
+                    <p className="mt-0.5 text-foreground">{n.content.slice(0, 80)}</p>
                   </div>
                 ))}
               </div>

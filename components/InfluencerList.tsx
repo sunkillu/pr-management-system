@@ -1,14 +1,24 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { thCls, tdCls, btnPrimary } from "@/components/ui";
+import { btnPrimary } from "@/components/ui";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
 import {
   influencerStatusLabels,
   influencerTypeLabels,
   INFLUENCER_TYPE_OPTIONS,
   platformTagLabels,
   PLATFORM_TAG_OPTIONS,
-  badgeClass,
+
   formatFee,
 } from "@/lib/labels";
 import Link from "next/link";
@@ -138,61 +148,61 @@ export default async function InfluencerList({
           name="q"
           placeholder="按姓名搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="rounded border border-input px-3 py-2 text-sm"
         />
-        <select name="type" defaultValue={searchParams.type ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="type" defaultValue={searchParams.type ?? ""} className="rounded border border-input px-3 py-2 text-sm">
           <option value="">全部类型</option>
           {INFLUENCER_TYPE_OPTIONS.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
-        <select name="platform" defaultValue={searchParams.platform ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="platform" defaultValue={searchParams.platform ?? ""} className="rounded border border-input px-3 py-2 text-sm">
           <option value="">全部平台</option>
           {PLATFORM_TAG_OPTIONS.map((p) => (
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
         <details className="relative">
-          <summary className="cursor-pointer list-none rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 [&::-webkit-details-marker]:hidden">
+          <summary className="cursor-pointer list-none rounded border border-input px-3 py-2 text-sm text-foreground [&::-webkit-details-marker]:hidden">
             {selectedTags.length > 0 ? `标签（${selectedTags.length}）` : "全部标签"}
           </summary>
-          <div className="absolute z-10 mt-1 max-h-56 w-48 overflow-auto rounded-lg border border-[#e5e5e5] bg-white p-2 shadow-lg">
+          <div className="absolute z-10 mt-1 max-h-56 w-48 overflow-auto rounded-lg border border-border bg-card p-2 shadow-lg">
             {myTagNames.length === 0 && otherTagNames.length === 0 && (
-              <p className="px-2 py-1 text-xs text-gray-400">暂无标签</p>
+              <p className="px-2 py-1 text-xs text-muted-foreground">暂无标签</p>
             )}
             {myTagNames.map((t) => (
-              <label key={t} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-[#f5f5f7]">
+              <label key={t} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
                 <input
                   type="checkbox"
                   name="tag"
                   value={t}
                   defaultChecked={selectedTags.includes(t)}
-                  className="h-4 w-4 accent-[#0071e3]"
+                  className="h-4 w-4 accent-primary"
                 />
                 {t}
-                <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600 ring-1 ring-blue-200">我的</span>
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-blue-600 ring-1 ring-blue-200">我的</span>
               </label>
             ))}
             {otherTagNames.map((t) => (
-              <label key={t} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-[#f5f5f7]">
+              <label key={t} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
                 <input
                   type="checkbox"
                   name="tag"
                   value={t}
                   defaultChecked={selectedTags.includes(t)}
-                  className="h-4 w-4 accent-[#0071e3]"
+                  className="h-4 w-4 accent-primary"
                 />
                 {t}
               </label>
             ))}
           </div>
         </details>
-        <select name="coop" defaultValue={searchParams.coop ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="coop" defaultValue={searchParams.coop ?? ""} className="rounded border border-input px-3 py-2 text-sm">
           <option value="">全部合作状态</option>
           <option value="none">未合作</option>
           <option value="active">合作中</option>
         </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-input px-3 py-2 text-sm">
           <option value="">全部审核状态</option>
           {Object.entries(influencerStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
@@ -201,66 +211,62 @@ export default async function InfluencerList({
         <button className={btnPrimary}>筛选</button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>姓名</th>
-              <th className={thCls}>达人类型</th>
-              <th className={thCls}>平台</th>
-              <th className={thCls}>标签</th>
-              <th className={thCls}>合作状态</th>
-              <th className={thCls}>合作次数</th>
-              <th className={thCls}>最近合作金额</th>
-              <th className={thCls}>累计费用</th>
-              <th className={thCls}>平均评价</th>
-              <th className={thCls}>审核状态</th>
-              <th className={thCls}>登记人</th>
-              {canWrite && <th className={thCls}>操作</th>}
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>姓名</TableHead>
+              <TableHead>达人类型</TableHead>
+              <TableHead>平台</TableHead>
+              <TableHead>标签</TableHead>
+              <TableHead>合作状态</TableHead>
+              <TableHead>合作次数</TableHead>
+              <TableHead>最近合作金额</TableHead>
+              <TableHead>累计费用</TableHead>
+              <TableHead>平均评价</TableHead>
+              <TableHead>审核状态</TableHead>
+              <TableHead>登记人</TableHead>
+              {canWrite && <TableHead>操作</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {list.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">
                   <InfluencerHoverCard id={r.id} name={r.name} />
-                </td>
-                <td className={tdCls}>{r.influencerType ? influencerTypeLabels[r.influencerType] ?? r.influencerType : "-"}</td>
-                <td className={tdCls}>
+                </TableCell>
+                <TableCell>{r.influencerType ? influencerTypeLabels[r.influencerType] ?? r.influencerType : "-"}</TableCell>
+                <TableCell>
                   {r.platforms.length > 0
                     ? r.platforms.map((p) => platformTagLabels[p] ?? p).join("、")
                     : "-"}
-                </td>
-                <td className={tdCls}>
+                </TableCell>
+                <TableCell>
                   {r.tags.length > 0 ? (
                     <span className="flex flex-wrap gap-1">
                       {r.tags.map((t) => (
-                        <span key={t} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
+                        <Badge key={t} variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/10">
                           {t}
-                        </span>
+                        </Badge>
                       ))}
                     </span>
                   ) : (
                     "-"
                   )}
-                </td>
-                <td className={tdCls}>
+                </TableCell>
+                <TableCell>
                   {r.coopCount === 0 ? (
-                    <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-300">
-                      未合作
-                    </span>
+                    <StatusBadge status="TODO" label="未合作" />
                   ) : (
-                    <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                      合作中
-                    </span>
+                    <StatusBadge status="IN_PROGRESS" label="合作中" />
                   )}
-                </td>
-                <td className={tdCls}>{r.coopCount}</td>
-                <td className={tdCls}>
+                </TableCell>
+                <TableCell>{r.coopCount}</TableCell>
+                <TableCell>
                   {r.cooperationRecords.length > 0 ? formatFee(r.cooperationRecords[0].fee) : "-"}
-                </td>
-                <td className={tdCls}>{formatFee(r.totalFee)}</td>
-                <td className={tdCls}>
+                </TableCell>
+                <TableCell>{formatFee(r.totalFee)}</TableCell>
+                <TableCell>
                   {ratingByInfluencer.get(r.id) != null ? (
                     <span className="text-yellow-600">
                       ★ {ratingByInfluencer.get(r.id)!.toFixed(1)}
@@ -268,34 +274,32 @@ export default async function InfluencerList({
                   ) : (
                     "-"
                   )}
-                </td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(r.status)}`}>
-                    {influencerStatusLabels[r.status]}
-                  </span>
-                </td>
-                <td className={tdCls}>{r.registeredBy?.name ?? "-"}</td>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={r.status} label={influencerStatusLabels[r.status]} />
+                </TableCell>
+                <TableCell>{r.registeredBy?.name ?? "-"}</TableCell>
                 {canWrite && (
-                  <td className={tdCls + " whitespace-nowrap"}>
+                  <TableCell className="whitespace-nowrap">
                     {r.status === "APPROVED" ? (
                       <Link
                         href={`/tickets/new?influencerId=${r.id}`}
-                        className="rounded border border-[#0071e3] px-2.5 py-1 text-xs text-[#0071e3] hover:bg-blue-50"
+                        className="rounded-md border border-primary px-2.5 py-1 text-xs text-primary hover:bg-primary/10"
                       >
                         发起工单
                       </Link>
                     ) : (
-                      <span className="text-xs text-gray-300">-</span>
+                      <span className="text-xs text-muted-foreground">-</span>
                     )}
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={canWrite ? 12 : 11} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={canWrite ? 12 : 11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <Pagination pathname="/partners" page={pagination.page} total={total} query={{ ...searchParams, tab: "influencer" }} />

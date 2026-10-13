@@ -278,21 +278,21 @@ export default function TicketForm({
           <Field label="寄品明细" hint="需要寄样时填写，可寄多个款式；与合作款式独立">
             <div className="space-y-2">
               {shipItems.map((s, i) => (
-                <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg bg-[#f5f5f7] p-2">
+                <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted p-2">
                   <div className="min-w-[120px] flex-1">
-                    <label className="mb-1 block text-xs text-gray-500">款式名 *</label>
+                    <label className="mb-1 block text-xs text-muted-foreground">款式名 *</label>
                     <input className={inputCls} value={s.style}
                       onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, style: e.target.value } : x))}
                       placeholder="如：A款-红色" />
                   </div>
                   <div className="w-24">
-                    <label className="mb-1 block text-xs text-gray-500">度数</label>
+                    <label className="mb-1 block text-xs text-muted-foreground">度数</label>
                     <input className={inputCls} value={s.degree}
                       onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, degree: e.target.value } : x))}
                       placeholder="选填" />
                   </div>
                   <div className="min-w-[140px] flex-1">
-                    <label className="mb-1 block text-xs text-gray-500">寄品备注</label>
+                    <label className="mb-1 block text-xs text-muted-foreground">寄品备注</label>
                     <input className={inputCls} value={s.note}
                       onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, note: e.target.value } : x))}
                       placeholder="选填" />
@@ -308,7 +308,7 @@ export default function TicketForm({
               ))}
               <button
                 type="button"
-                className="rounded border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 hover:border-[#0071e3] hover:text-[#0071e3]"
+                className="rounded border border-dashed border-input px-3 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary"
                 onClick={() => setShipItems([...shipItems, { style: "", degree: "", note: "" }])}
               >
                 + 增加一款
@@ -328,18 +328,18 @@ export default function TicketForm({
               }}
               className="text-sm"
             />
-            {uploading && <p className="mt-1 text-xs text-gray-500">上传中…</p>}
+            {uploading && <p className="mt-1 text-xs text-muted-foreground">上传中…</p>}
             {attachments.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {attachments.map((a, i) => (
-                  <div key={i} className="relative h-20 w-20 overflow-hidden rounded border border-gray-200">
+                  <div key={i} className="relative h-20 w-20 overflow-hidden rounded border border-border">
                     {isImage(a.fileName) ? (
                       <a href={a.fileUrl} target="_blank" title={a.fileName}>
                         <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover" />
                       </a>
                     ) : (
                       <a href={a.fileUrl} target="_blank" title={a.fileName}
-                        className="flex h-full w-full items-center justify-center bg-[#f5f5f7] px-1 text-center text-[10px] text-[#0071e3]">
+                        className="flex h-full w-full items-center justify-center bg-muted px-1 text-center text-[10px] text-primary">
                         {a.fileName}
                       </a>
                     )}
@@ -357,7 +357,7 @@ export default function TicketForm({
             )}
           </Field>
           <Field label="审批人（可多选，或签）" hint="提交审批时必填">
-            <div className="max-h-36 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
+            <div className="max-h-36 space-y-1 overflow-y-auto rounded border border-border p-2">
               {approvers.map((a) => (
                 <label key={a.id} className="flex items-center gap-2 text-sm">
                   <input
@@ -367,13 +367,13 @@ export default function TicketForm({
                       setSelected(selected.includes(a.id) ? selected.filter((x) => x !== a.id) : [...selected, a.id])
                     }
                   />
-                  {a.name} <span className="text-xs text-gray-500">({roleLabels[a.role as never] ?? a.role})</span>
+                  {a.name} <span className="text-xs text-muted-foreground">({roleLabels[a.role as never] ?? a.role})</span>
                 </label>
               ))}
-              {approvers.length === 0 && <p className="text-xs text-gray-400">暂无可选审批人</p>}
+              {approvers.length === 0 && <p className="text-xs text-muted-foreground">暂无可选审批人</p>}
             </div>
           </Field>
-          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+          <p className="mb-3 rounded bg-primary/10 p-2 text-xs text-blue-800">
             提交审批后将按合作类型自动生成进度节点（寄品→执行→发布→数据回收）。
           </p>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}

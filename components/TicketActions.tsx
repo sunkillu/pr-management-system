@@ -128,7 +128,7 @@ export default function TicketActions({
   // 重提：仅创建人 / 审批链成员 / ADMIN
   if (ticket.status === "REJECTED" && canOperate) {
     btns.push(
-      <button key="resubmit" className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed]"
+      <button key="resubmit" className="rounded bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90"
         onClick={() => ask("重新提交", "确认重新提交审批吗？将通知原审批人。", async () => {
           if (await call(`/api/tickets/${ticket.id}/resubmit`, {})) refresh();
         })}>重新提交</button>
@@ -137,7 +137,7 @@ export default function TicketActions({
   // 作废：ADMIN 可作废非终态；创建人/审批链成员仅可作废早期待办状态
   if (!["SETTLED", "VOIDED"].includes(ticket.status) && (isAdmin || (canOperate && ["DRAFT", "PENDING_APPROVAL", "REJECTED"].includes(ticket.status)))) {
     btns.push(
-      <button key="void" className="rounded border border-gray-400 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+      <button key="void" className="rounded border border-gray-400 px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
         onClick={() => setShowVoidBox(true)}>作废</button>
     );
   }
@@ -259,15 +259,15 @@ export default function TicketActions({
             <textarea className={inputCls} rows={3} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+          <p className="mb-3 rounded bg-primary/10 p-2 text-xs text-blue-800">
             确认后将提交素材审批，PR负责人审批通过后自动生成打款单。
           </p>
-          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
+          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
             <input
               type="checkbox"
               checked={amountConfirmed}
               onChange={(e) => setAmountConfirmed(e.target.checked)}
-              className="h-4 w-4 accent-[#0071e3]"
+              className="h-4 w-4 accent-primary"
             />
             我确认以上金额为最终打款金额
           </label>
@@ -303,7 +303,7 @@ export default function TicketActions({
       )}
       {showMaterialApproveBox && (
         <Modal title="素材审批通过" onClose={() => setShowMaterialApproveBox(false)}>
-          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+          <p className="mb-3 rounded bg-primary/10 p-2 text-xs text-blue-800">
             通过后将自动生成打款单并直接提交财务审批，无需业务审批，工单进入结算中。
           </p>
           <Field label="审批意见（选填）">
