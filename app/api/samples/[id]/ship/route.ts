@@ -27,6 +27,7 @@ status: "SHIPPED",
 courier,
 trackingNo,
 shippedDate: new Date(),
+shippedAt: new Date(), // 发货精确时间，供 T+1 物流检测使用
 shippedBy: body.shippedBy?.trim() || null,
 },
 });

@@ -15,6 +15,6 @@ ALTER TABLE "SampleShipment" ADD COLUMN "receiverAddress" TEXT;
 ALTER TABLE "SampleShipment" ADD COLUMN "signedAt" TIMESTAMP(3);
 ALTER TABLE "SampleShipment" ADD COLUMN "signedNote" TEXT;
 ALTER TABLE "SampleShipment" ADD COLUMN "cancelReason" TEXT;
-ALTER TABLE "SampleShipment" ALTER COLUMN "status" SET DEFAULT 'PENDING';
+-- 注意：status 默认值 PENDING 需在枚举值提交后的独立迁移中设置（PG 不允许同事务使用新枚举值），见 20261011170100_sample_status_default
 CREATE INDEX "SampleShipment_ticketId_idx" ON "SampleShipment"("ticketId");
 ALTER TABLE "SampleShipment" ADD CONSTRAINT "SampleShipment_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "CooperationTicket"("id") ON DELETE SET NULL ON UPDATE CASCADE;
