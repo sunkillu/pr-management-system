@@ -25,7 +25,7 @@ const NEXT_STATUS: Record<Subtask["status"], Subtask["status"]> = {
 };
 
 const statusPill: Record<Subtask["status"], string> = {
-  TODO: "bg-gray-100 text-gray-600",
+  TODO: "bg-muted text-muted-foreground",
   DOING: "bg-blue-100 text-blue-700",
   DONE: "bg-green-100 text-green-700",
   BLOCKED: "bg-red-100 text-red-700",
@@ -114,13 +114,13 @@ export default function TicketSubtasks({
     <div>
       {/* 进度条 */}
       <div className="mb-3 flex items-center gap-3">
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e5e5e5]">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-border">
           <div
-            className="h-full rounded-full bg-[#0071e3] transition-all"
+            className="h-full rounded-full bg-primary transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {done}/{items.length} · {pct}%
         </span>
       </div>
@@ -138,7 +138,7 @@ export default function TicketSubtasks({
                   ? "border-red-300 bg-red-50"
                   : overdue
                     ? "border-red-300 bg-red-50"
-                    : "border-[#e5e5e5] bg-white hover:border-gray-300"
+                    : "border-border bg-card hover:border-input"
               }`}
             >
               {canManage ? (
@@ -147,7 +147,7 @@ export default function TicketSubtasks({
                   checked={s.status === "DONE"}
                   disabled={blocked}
                   onChange={() => requestStatusChange(s, s.status === "DONE" ? "TODO" : "DONE")}
-                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#0071e3] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-4 w-4 shrink-0 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-40"
                   title={blocked ? "阻塞中，先解除阻塞" : "勾选完成 / 取消完成"}
                 />
               ) : (
@@ -157,7 +157,7 @@ export default function TicketSubtasks({
               )}
               <div className="flex-1">
                 <span
-                  className={`text-sm ${s.status === "DONE" ? "text-gray-400 line-through" : blocked ? "text-red-700" : "text-gray-800"}`}
+                  className={`text-sm ${s.status === "DONE" ? "text-muted-foreground line-through" : blocked ? "text-red-700" : "text-foreground"}`}
                 >
                   {s.title}
                 </span>
@@ -197,7 +197,7 @@ export default function TicketSubtasks({
                   ) : (
                     <button
                       onClick={() => setBlockTarget(s)}
-                      className="rounded-full px-2 py-0.5 text-xs font-medium text-gray-400 transition-all hover:bg-red-50 hover:text-red-600 active:scale-95"
+                      className="rounded-full px-2 py-0.5 text-xs font-medium text-muted-foreground transition-all hover:bg-red-50 hover:text-red-600 active:scale-95"
                       title="标为阻塞（需填原因）"
                     >
                       阻塞
@@ -206,7 +206,7 @@ export default function TicketSubtasks({
                   <select
                     value={s.assigneeId ?? ""}
                     onChange={(e) => patch(s.id, { assigneeId: e.target.value || null })}
-                    className="max-w-[96px] rounded-lg border border-gray-300 px-1 py-1 text-xs transition-colors focus:border-[#0071e3] focus:outline-none"
+                    className="max-w-[96px] rounded-lg border border-input px-1 py-1 text-xs transition-colors focus:border-primary focus:outline-none"
                     title="负责人"
                   >
                     <option value="">未指派</option>
@@ -218,7 +218,7 @@ export default function TicketSubtasks({
                     type="date"
                     value={s.dueDate ? s.dueDate.slice(0, 10) : ""}
                     onChange={(e) => patch(s.id, { dueDate: e.target.value || null })}
-                    className="w-[128px] rounded-lg border border-gray-300 px-1 py-1 text-xs transition-colors focus:border-[#0071e3] focus:outline-none"
+                    className="w-[128px] rounded-lg border border-input px-1 py-1 text-xs transition-colors focus:border-primary focus:outline-none"
                     title="截止日期"
                   />
                   <button
@@ -231,15 +231,15 @@ export default function TicketSubtasks({
                 </>
               ) : (
                 <>
-                  {s.assignee && <span className="text-xs text-gray-500">{s.assignee.name}</span>}
-                  {s.dueDate && <span className="text-xs text-gray-500">{formatDate(s.dueDate)}</span>}
+                  {s.assignee && <span className="text-xs text-muted-foreground">{s.assignee.name}</span>}
+                  {s.dueDate && <span className="text-xs text-muted-foreground">{formatDate(s.dueDate)}</span>}
                 </>
               )}
             </div>
           );
         })}
         {items.length === 0 && (
-          <p className="rounded-[10px] border border-dashed border-[#e5e5e5] py-4 text-center text-sm text-gray-400">暂无子任务，可将执行工作拆解为对接 / 拍摄 / 剪辑 / 发布等</p>
+          <p className="rounded-[10px] border border-dashed border-border py-4 text-center text-sm text-muted-foreground">暂无子任务，可将执行工作拆解为对接 / 拍摄 / 剪辑 / 发布等</p>
         )}
       </div>
 

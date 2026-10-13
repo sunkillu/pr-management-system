@@ -86,7 +86,7 @@ export default function TicketMaterials({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span>
           已回收 <span className="font-semibold text-gray-900">{items.length}</span> 条素材
         </span>
@@ -97,7 +97,7 @@ export default function TicketMaterials({
           <select
             value={filterTag}
             onChange={(e) => setFilterTag(e.target.value)}
-            className="ml-auto rounded border border-gray-300 px-2 py-1 text-xs"
+            className="ml-auto rounded border border-input px-2 py-1 text-xs"
           >
             <option value="">按标签筛选</option>
             {materialTags.map((t) => (
@@ -109,17 +109,17 @@ export default function TicketMaterials({
 
       <div className="space-y-2">
         {visibleItems.map((m) => (
-          <div key={m.id} className="rounded-[10px] border border-[#e5e5e5] p-3 text-sm">
+          <div key={m.id} className="rounded-[10px] border border-border p-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800 ring-1 ring-inset ring-black/[0.04]">
                 {materialTypeLabels[m.type] ?? m.type}
               </span>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-muted-foreground">
                 {m.uploadedBy?.name ?? ""} · {formatDateTime(m.createdAt)}
               </span>
             </div>
             <div className="mt-1.5">
-              <a href={m.url} target="_blank" className="break-all text-[#0071e3] hover:underline">
+              <a href={m.url} target="_blank" className="break-all text-primary hover:underline">
                 {m.url}
               </a>
             </div>
@@ -132,11 +132,11 @@ export default function TicketMaterials({
                 ))}
               </div>
             )}
-            {m.note && <p className="mt-1 whitespace-pre-wrap text-xs text-gray-600">{m.note}</p>}
+            {m.note && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{m.note}</p>}
           </div>
         ))}
         {visibleItems.length === 0 && (
-          <p className="py-4 text-center text-sm text-gray-400">
+          <p className="py-4 text-center text-sm text-muted-foreground">
             {filterTag ? "该标签下暂无素材" : "暂无回收素材"}
           </p>
         )}
@@ -149,7 +149,7 @@ export default function TicketMaterials({
               回收素材
             </button>
           ) : (
-            <div className="rounded-[10px] border border-[#e5e5e5] p-3">
+            <div className="rounded-[10px] border border-border p-3">
               <Field label="素材类型" required>
                 <select className={inputCls} value={type} onChange={(e) => setType(e.target.value)}>
                   {MATERIAL_TYPE_OPTIONS.map((t) => (
@@ -174,7 +174,7 @@ export default function TicketMaterials({
                         className={`cursor-pointer rounded-full px-3 py-1 text-xs ring-1 ${
                           tagIds.includes(t.id)
                             ? "bg-emerald-600 text-white ring-emerald-600"
-                            : "bg-white text-gray-700 ring-gray-300 hover:ring-emerald-400"
+                            : "bg-card text-foreground ring-gray-300 hover:ring-emerald-400"
                         }`}
                       >
                         <input

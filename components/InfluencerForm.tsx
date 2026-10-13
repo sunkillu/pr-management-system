@@ -140,7 +140,7 @@ export default function InfluencerForm({
           </Field>
           <Field label="达人标签" hint="可多选，标签由管理员在标签管理中维护">
             {tagOptions.length === 0 ? (
-              <p className="text-xs text-gray-400">暂无可选标签，请联系管理员在标签管理中添加</p>
+              <p className="text-xs text-muted-foreground">暂无可选标签，请联系管理员在标签管理中添加</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {tagOptions.map((t) => (
@@ -149,7 +149,7 @@ export default function InfluencerForm({
                     className={`cursor-pointer rounded-full px-3 py-1 text-xs ring-1 ${
                       tags.includes(t.name)
                         ? "bg-blue-600 text-white ring-blue-600"
-                        : "bg-white text-gray-700 ring-gray-300 hover:ring-blue-400"
+                        : "bg-card text-foreground ring-gray-300 hover:ring-blue-400"
                     }`}
                   >
                     <input
@@ -177,18 +177,18 @@ export default function InfluencerForm({
               }}
               className="text-sm"
             />
-            {uploading && <p className="mt-1 text-xs text-gray-500">上传中…</p>}
+            {uploading && <p className="mt-1 text-xs text-muted-foreground">上传中…</p>}
             {attachments.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {attachments.map((a, i) => (
-                  <div key={i} className="relative h-20 w-20 overflow-hidden rounded border border-gray-200">
+                  <div key={i} className="relative h-20 w-20 overflow-hidden rounded border border-border">
                     {isImage(a.fileName) ? (
                       <a href={a.fileUrl} target="_blank" title={a.fileName}>
                         <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover" />
                       </a>
                     ) : (
                       <a href={a.fileUrl} target="_blank" title={a.fileName}
-                        className="flex h-full w-full items-center justify-center bg-[#f5f5f7] px-1 text-center text-[10px] text-[#0071e3]">
+                        className="flex h-full w-full items-center justify-center bg-muted px-1 text-center text-[10px] text-primary">
                         {a.fileName}
                       </a>
                     )}
@@ -206,7 +206,7 @@ export default function InfluencerForm({
             )}
           </Field>
           <Field label="审批人（多选，任一通过即通过）" required>
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-border p-2">
               {approvers.map((a) => (
                 <label key={a.id} className="flex items-center gap-2 text-sm">
                   <input
@@ -215,10 +215,10 @@ export default function InfluencerForm({
                     onChange={() => setSelected(toggle(selected, a.id))}
                   />
                   {a.name}
-                  <span className="text-xs text-gray-500">（{roleLabels[a.role] ?? a.role}）</span>
+                  <span className="text-xs text-muted-foreground">（{roleLabels[a.role] ?? a.role}）</span>
                 </label>
               ))}
-              {approvers.length === 0 && <p className="text-xs text-gray-400">暂无可选审批人</p>}
+              {approvers.length === 0 && <p className="text-xs text-muted-foreground">暂无可选审批人</p>}
             </div>
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}

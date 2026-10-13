@@ -100,7 +100,7 @@ export default function TicketNodes({
             <div className="flex flex-col items-center">
               <div
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  n.completedAt ? "bg-green-500 text-white" : overdue ? "bg-red-500 text-white" : "bg-gray-300 text-gray-600"
+                  n.completedAt ? "bg-green-500 text-white" : overdue ? "bg-red-500 text-white" : "bg-gray-300 text-muted-foreground"
                 }`}
               >
                 {n.completedAt ? "✓" : i + 1}
@@ -125,7 +125,7 @@ export default function TicketNodes({
                   {n.completedAt && <span className="text-xs text-green-600">已完成</span>}
                 </div>
               </div>
-              <div className="mt-1 text-xs text-gray-500">
+              <div className="mt-1 text-xs text-muted-foreground">
                 预期：{formatDate(n.expectedAt)}
                 {n.completedAt && (
                   <> · 完成于 {formatDateTime(n.completedAt)}{n.completedBy ? `（${n.completedBy.name}）` : ""}</>
@@ -135,7 +135,7 @@ export default function TicketNodes({
                 )}
               </div>
               {!n.completedAt && hint && (
-                <p className="mt-1 text-xs text-gray-400">{hint}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
               )}
               {!n.completedAt && canUpdate && (
                 <div className="mt-1 flex items-center gap-2">
@@ -143,7 +143,7 @@ export default function TicketNodes({
                     value={n.dependsOnId ?? ""}
                     onChange={(e) => setDependsOn(n, e.target.value || null)}
                     disabled={busy}
-                    className="rounded-lg border border-gray-300 px-1 py-0.5 text-xs transition-colors focus:border-[#0071e3] focus:outline-none"
+                    className="rounded-lg border border-input px-1 py-0.5 text-xs transition-colors focus:border-primary focus:outline-none"
                     title="设置前置节点：前置完成后才能完成本节点"
                   >
                     <option value="">无前置</option>
@@ -157,7 +157,7 @@ export default function TicketNodes({
                 <button
                   className={`mt-1 rounded border px-2 py-0.5 text-xs ${
                     dataBlocked || depBlocked
-                      ? "cursor-not-allowed border-gray-300 text-gray-400"
+                      ? "cursor-not-allowed border-input text-muted-foreground"
                       : "border-green-500 text-green-600 hover:bg-green-50"
                   }`}
                   disabled={dataBlocked || depBlocked}
@@ -174,7 +174,7 @@ export default function TicketNodes({
           </div>
         );
       })}
-      {nodes.length === 0 && <p className="text-sm text-gray-400">暂无进度节点</p>}
+      {nodes.length === 0 && <p className="text-sm text-muted-foreground">暂无进度节点</p>}
 
       {confirmNode && (() => {
         const kind = classifyNode(confirmNode.name);

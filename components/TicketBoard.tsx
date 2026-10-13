@@ -2,8 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ticketStatusLabels, coopTypeLabels, badgeClass, formatMoney } from "@/lib/labels";
-import { btnPrimarySm, btnDangerSm, btnSecondarySm, cardHoverCls } from "./ui";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import StatusBadge from "@/components/StatusBadge";
+import { ticketStatusLabels, coopTypeLabels, formatMoney } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 export type BoardTicket = {
   id: string;
@@ -56,13 +59,13 @@ function SubtaskBar({
   const pct = Math.round((done / total) * 100);
   return (
     <div className="mt-2 flex items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e5e5e5]">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
         <div
-          className="h-full rounded-full bg-[#0071e3] transition-all duration-500 ease-out"
+          className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs tabular-nums text-gray-500">
+      <span className="text-xs tabular-nums text-muted-foreground">
         {label}
       </span>
     </div>
@@ -119,108 +122,107 @@ export default function TicketBoard({
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             checked={showExtra}
             onChange={(e) => setShowExtra(e.target.checked)}
-            className="h-4 w-4 accent-[#0071e3]"
+            className="h-4 w-4 accent-primary"
           />
           显示草稿 / 驳回 / 作废
         </label>
-        <span className="text-xs text-gray-400">点击卡片标题进入详情页</span>
+        <span className="text-xs text-muted-foreground">点击卡片标题进入详情页</span>
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-4">
         {columns.map((status) => {
           const list = tickets.filter((t) => t.status === status);
           return (
-            <div key={status} className="w-72 shrink-0 rounded-2xl bg-[#f5f5f7] p-3">
-              <div className="mb-3 flex items-center justify-between px-1">
-                <span className={`rounded px-2 py-0.5 text-xs font-medium ${badgeClass(status)}`}>
-                  {ticketStatusLabels[status]}
-                </span>
-                <span className="text-xs text-gray-500">{list.length}</span>
-              </div>
-              <div className="space-y-2">
+            <Card key={status} className="w-72 shrink-0 bg-muted/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2">
+                <StatusBadge status={status} label={ticketStatusLabels[status]} />
+                <span className="text-xs tabular-nums text-muted-foreground">{list.length}</span>
+              </CardHeader>
+              <CardContent className="space-y-2 p-3 pt-1">
                 {list.map((t) => {
                   const partner = t.influencer?.name ?? t.makeupArtist?.name ?? "-";
                   return (
-                    <div key={t.id} className={`rounded-xl bg-white p-3 ring-1 ring-[#f0f0f0] ${cardHoverCls}`}>
+                    <Card
+                      key={t.id}
+                      className={cn(
+                        "p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                      )}
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 text-sm font-medium text-gray-900">
+                        <div className="flex-1 text-sm font-medium">
                           {t.title}
                         </div>
                         {t.overdue && (
-                          <span className="shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
-                            超时
-                          </span>
+                          <StatusBadge status="REJECTED" label="超时" className="shrink-0" />
                         )}
                       </div>
-                      <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
+                      <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
                         <Link
                           href={`/tickets/${t.id}`}
-                          className="font-mono text-[#0071e3] hover:underline"
+                          className="font-mono text-primary hover:underline"
                         >
                           {t.ticketNo}
                         </Link>
                         <div>{partner} · {coopTypeLabels[t.type] ?? t.type}</div>
-                        <div>¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
+                        <div className="tabular-nums">¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
                       </div>
                       <SubtaskBar subtasks={t.subtasks} nodes={t.nodes} />
                       {/* 快捷操作 */}
-                      <div className="mt-2 flex flex-wrap gap-1.5 border-t border-[#f0f0f0] pt-2">
+                      <div className="mt-2 flex flex-wrap gap-1.5 border-t pt-2">
                         {t.status === "PENDING_APPROVAL" && canApprove && (
                           <>
-                            <button
+                            <Button
+                              size="sm"
                               disabled={busyId === t.id}
                               onClick={() => approve(t.id)}
-                              className={btnPrimarySm}
                             >
                               通过
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
                               disabled={busyId === t.id}
                               onClick={() => reject(t.id)}
-                              className={btnDangerSm}
                             >
                               驳回
-                            </button>
+                            </Button>
                           </>
                         )}
                         {t.status === "IN_PROGRESS" && (
-                          <Link
-                            href={`/tickets/${t.id}#approval-section`}
-                            className={btnPrimarySm}
-                          >
-                            标记完成
-                          </Link>
+                          <Button size="sm" asChild>
+                            <Link href={`/tickets/${t.id}#approval-section`}>
+                              标记完成
+                            </Link>
+                          </Button>
                         )}
                         {t.status === "MATERIAL_REVIEW" && (
-                          <Link
-                            href={`/tickets/${t.id}#approval-section`}
-                            className={btnPrimarySm}
-                          >
-                            去审批素材
-                          </Link>
+                          <Button size="sm" asChild>
+                            <Link href={`/tickets/${t.id}#approval-section`}>
+                              去审批素材
+                            </Link>
+                          </Button>
                         )}
                         {t.status === "SETTLING" && (
-                          <Link
-                            href={t.paymentRequests[0] ? `/payments/${t.paymentRequests[0].id}` : "/payments"}
-                            className={btnSecondarySm}
-                          >
-                            去打款单
-                          </Link>
+                          <Button size="sm" variant="secondary" asChild>
+                            <Link href={t.paymentRequests[0] ? `/payments/${t.paymentRequests[0].id}` : "/payments"}>
+                              去打款单
+                            </Link>
+                          </Button>
                         )}
                       </div>
-                    </div>
+                    </Card>
                   );
                 })}
                 {list.length === 0 && (
-                  <p className="py-6 text-center text-xs text-gray-400">暂无</p>
+                  <p className="py-6 text-center text-xs text-muted-foreground">暂无</p>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

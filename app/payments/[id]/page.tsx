@@ -82,14 +82,14 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
         title={payment.title}
         desc="打款申请详情"
         action={
-          <Link href="/payments" className="text-sm text-[#0071e3] hover:underline">
+          <Link href="/payments" className="text-sm text-primary hover:underline">
             ← 返回列表
           </Link>
         }
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="bg-white rounded-2xl p-6 lg:col-span-2 h-fit">
+        <div className="bg-card rounded-lg p-6 lg:col-span-2 h-fit">
           <div className="mb-4">
             <span className={`rounded px-2 py-1 text-sm ${badgeClass(payment.status)}`}>
               {paymentStatusLabels[payment.status]}
@@ -102,7 +102,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
           </dl>
           {payment.reason && (
             <div className="mt-4 text-sm">
-              <div className="text-gray-500">申请事由</div>
+              <div className="text-muted-foreground">申请事由</div>
               <div className="mt-1 whitespace-pre-wrap">{payment.reason}</div>
             </div>
           )}
@@ -112,7 +112,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
             </div>
           )}
           {payment.status === "VOIDED" && payment.voidReason && (
-            <div className="mt-4 rounded bg-gray-100 p-3 text-sm text-gray-600">
+            <div className="mt-4 rounded bg-muted p-3 text-sm text-muted-foreground">
               作废理由：{payment.voidReason}
             </div>
           )}
@@ -148,7 +148,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg h-fit [&>section:first-child]:border-t-0">
           <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
           </Section>
@@ -169,28 +169,28 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
           <Section>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-semibold">关联发票（选填）</h3>
-              <Link href="/invoices" className="text-sm text-[#0071e3] hover:underline">
+              <Link href="/invoices" className="text-sm text-primary hover:underline">
                 去上传
               </Link>
             </div>
             {payment.invoices.length === 0 ? (
-              <p className="text-sm text-gray-400">暂无关联发票（发票为选填，不影响打款流程）</p>
+              <p className="text-sm text-muted-foreground">暂无关联发票（发票为选填，不影响打款流程）</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {payment.invoices.map((inv) => (
-                  <li key={inv.id} className="rounded border border-gray-200 p-2">
+                  <li key={inv.id} className="rounded border border-border p-2">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{inv.invoiceNo}</span>
                       <span className={`rounded px-1.5 py-0.5 text-xs ${badgeClass(inv.status)}`}>
                         {invoiceStatusLabels[inv.status]}
                       </span>
                     </div>
-                    <div className="text-gray-500">
+                    <div className="text-muted-foreground">
                       {inv.issuer} · {invoiceTypeLabels[inv.type]} · {formatMoney(inv.amount)} 元 ·
                       开票 {formatDate(inv.issueDate)}
                     </div>
                     {inv.fileUrl && (
-                      <a href={inv.fileUrl} target="_blank" rel="noreferrer" className="text-[#0071e3] hover:underline">
+                      <a href={inv.fileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                         查看发票文件
                       </a>
                     )}

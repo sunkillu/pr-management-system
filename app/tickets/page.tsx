@@ -2,8 +2,20 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
-import { ticketStatusLabels, coopTypeLabels, badgeClass, formatMoney, formatDate, platformTagLabels } from "@/lib/labels";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
+import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTagLabels } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
@@ -79,15 +91,15 @@ export default async function TicketsPage({
           desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
           action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} /> : undefined}
         />
-        <div className="mb-5 flex gap-1 border-b border-[#e5e5e5]">
+        <div className="mb-5 flex gap-1 border-b">
           {VIEWS.map((v) => (
             <Link
               key={v.key}
               href={viewTab(v.key)}
-              className={`tab-link -mb-px px-4 py-2.5 text-sm font-medium ${
+              className={`-mb-px px-4 py-2.5 text-sm font-medium transition-colors ${
                 view === v.key
-                  ? "border-b-2 border-[#0071e3] text-[#0071e3]"
-                  : "text-gray-500 hover:text-gray-800"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {v.label}
@@ -95,7 +107,7 @@ export default async function TicketsPage({
           ))}
         </div>
         <TicketBoard tickets={boardTickets} role={role} />
-        <p className="mt-3 text-xs text-gray-500">看板显示最近 200 条工单；更早的记录请使用列表筛选。</p>
+        <p className="mt-3 text-xs text-muted-foreground">看板显示最近 200 条工单；更早的记录请使用列表筛选。</p>
       </div>
     );
   }
@@ -138,15 +150,15 @@ export default async function TicketsPage({
         action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} /> : undefined}
       />
 
-      <div className="mb-5 flex gap-1 border-b border-[#e5e5e5]">
+      <div className="mb-5 flex gap-1 border-b">
         {VIEWS.map((v) => (
           <Link
             key={v.key}
             href={viewTab(v.key)}
-            className={`tab-link -mb-px px-4 py-2.5 text-sm font-medium ${
+            className={`-mb-px px-4 py-2.5 text-sm font-medium transition-colors ${
               view === v.key
-                ? "border-b-2 border-[#0071e3] text-[#0071e3]"
-                : "text-gray-500 hover:text-gray-800"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {v.label}
@@ -155,79 +167,77 @@ export default async function TicketsPage({
       </div>
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
-        <input
+        <Input
           name="q"
           placeholder="按标题/工单编号搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-64"
         />
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="">全部状态</option>
           {Object.entries(ticketStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <select name="type" defaultValue={searchParams.type ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="type" defaultValue={searchParams.type ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="">全部类型</option>
           {Object.entries(coopTypeLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>工单编号</th>
-              <th className={thCls}>标题</th>
-              <th className={thCls}>类型</th>
-              <th className={thCls}>平台</th>
-              <th className={thCls}>合作对象</th>
-              <th className={thCls}>预算（元）</th>
-              <th className={thCls}>档期</th>
-              <th className={thCls}>状态</th>
-              <th className={thCls}>发起人</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>工单编号</TableHead>
+              <TableHead>标题</TableHead>
+              <TableHead>类型</TableHead>
+              <TableHead>平台</TableHead>
+              <TableHead>合作对象</TableHead>
+              <TableHead className="tabular-nums">预算（元）</TableHead>
+              <TableHead>档期</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>发起人</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {list.map((t) => {
               const overdue = t.status === "PENDING_APPROVAL" && t.updatedAt < cutoff;
               return (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className={tdCls + " whitespace-nowrap font-mono text-xs"}>
-                    <Link href={`/tickets/${t.id}`} className="text-[#0071e3] hover:underline">
+                <TableRow key={t.id}>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
+                    <Link href={`/tickets/${t.id}`} className="text-primary hover:underline">
                       {t.ticketNo}
                     </Link>
-                  </td>
-                  <td className={tdCls + " font-medium"}>
+                  </TableCell>
+                  <TableCell className="font-medium">
                     {t.title}
                     {overdue && (
-                      <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-xs text-white">已超时</span>
+                      <Badge variant="destructive" className="ml-2">已超时</Badge>
                     )}
-                  </td>
-                  <td className={tdCls}>{coopTypeLabels[t.type]}</td>
-                  <td className={tdCls}>{(t.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</td>
-                  <td className={tdCls}>{t.influencer?.name ?? t.makeupArtist?.name ?? "-"}</td>
-                  <td className={tdCls}>{formatMoney(t.budgetFee)}</td>
-                  <td className={tdCls}>
+                  </TableCell>
+                  <TableCell>{coopTypeLabels[t.type]}</TableCell>
+                  <TableCell>{(t.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</TableCell>
+                  <TableCell>{t.influencer?.name ?? t.makeupArtist?.name ?? "-"}</TableCell>
+                  <TableCell className="tabular-nums">{formatMoney(t.budgetFee)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {t.startDate ? formatDate(t.startDate) : "-"} ~ {t.endDate ? formatDate(t.endDate) : "-"}
-                  </td>
-                  <td className={tdCls}>
-                    <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(t.status)}`}>
-                      {ticketStatusLabels[t.status]}
-                    </span>
-                  </td>
-                  <td className={tdCls}>{t.creator?.name ?? "-"}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={t.status} label={ticketStatusLabels[t.status]} />
+                  </TableCell>
+                  <TableCell>{t.creator?.name ?? "-"}</TableCell>
+                </TableRow>
               );
             })}
             {list.length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       <Pagination pathname="/tickets" page={pagination.page} total={total} query={searchParams} />
     </div>

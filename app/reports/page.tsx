@@ -1,11 +1,23 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/labels";
 import ReportsClient from "./ReportsClient";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+
+const selectCls =
+  "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default async function ReportsPage({
   searchParams,
@@ -83,93 +95,90 @@ export default async function ReportsPage({
         desc="按项目汇总曝光、转化、GMV 与已打款金额，支持导出 CSV"
         action={
           <span className="space-x-2">
-            <a
-              href={exportHref}
-              className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              导出 CSV
-            </a>
+            <Button variant="outline" asChild>
+              <a href={exportHref}>导出 CSV</a>
+            </Button>
             {canWrite && <ReportsClient canWrite={canWrite} campaigns={campaigns} contents={contents} />}
           </span>
         }
       />
 
       <h2 className="mb-3 text-lg font-semibold">项目汇总</h2>
-      <div className="mb-6 overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>项目</th>
-              <th className={thCls}>曝光</th>
-              <th className={thCls}>阅读</th>
-              <th className={thCls}>点赞</th>
-              <th className={thCls}>评论</th>
-              <th className={thCls}>转化</th>
-              <th className={thCls}>GMV（元）</th>
-              <th className={thCls}>已打款（元）</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="mb-6 overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>项目</TableHead>
+              <TableHead className="tabular-nums">曝光</TableHead>
+              <TableHead className="tabular-nums">阅读</TableHead>
+              <TableHead className="tabular-nums">点赞</TableHead>
+              <TableHead className="tabular-nums">评论</TableHead>
+              <TableHead className="tabular-nums">转化</TableHead>
+              <TableHead className="tabular-nums">GMV（元）</TableHead>
+              <TableHead className="tabular-nums">已打款（元）</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {agg.map((a) => (
-              <tr key={a.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>{a.name}</td>
-                <td className={tdCls}>{a.impressions.toLocaleString()}</td>
-                <td className={tdCls}>{a.reads.toLocaleString()}</td>
-                <td className={tdCls}>{a.likes.toLocaleString()}</td>
-                <td className={tdCls}>{a.comments.toLocaleString()}</td>
-                <td className={tdCls}>{a.conversions.toLocaleString()}</td>
-                <td className={tdCls}>{formatMoney(a.gmv)}</td>
-                <td className={tdCls}>{formatMoney(a.paid)}</td>
-              </tr>
+              <TableRow key={a.id}>
+                <TableCell className="font-medium">{a.name}</TableCell>
+                <TableCell className="tabular-nums">{a.impressions.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{a.reads.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{a.likes.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{a.comments.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{a.conversions.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{formatMoney(a.gmv)}</TableCell>
+                <TableCell className="tabular-nums">{formatMoney(a.paid)}</TableCell>
+              </TableRow>
             ))}
             {agg.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <h2 className="mb-3 text-lg font-semibold">明细数据</h2>
       <form method="GET" className="mb-4 flex gap-2">
-        <select name="campaignId" defaultValue={campaignId} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="campaignId" defaultValue={campaignId} className={selectCls}>
           <option value="">全部项目</option>
           {campaigns.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>项目</th>
-              <th className={thCls}>关联内容</th>
-              <th className={thCls}>曝光</th>
-              <th className={thCls}>阅读</th>
-              <th className={thCls}>点赞</th>
-              <th className={thCls}>评论</th>
-              <th className={thCls}>转化</th>
-              <th className={thCls}>GMV（元）</th>
-              <th className={thCls}>记录日期</th>
-              {canWrite && <th className={thCls}>操作</th>}
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>项目</TableHead>
+              <TableHead>关联内容</TableHead>
+              <TableHead className="tabular-nums">曝光</TableHead>
+              <TableHead className="tabular-nums">阅读</TableHead>
+              <TableHead className="tabular-nums">点赞</TableHead>
+              <TableHead className="tabular-nums">评论</TableHead>
+              <TableHead className="tabular-nums">转化</TableHead>
+              <TableHead className="tabular-nums">GMV（元）</TableHead>
+              <TableHead>记录日期</TableHead>
+              {canWrite && <TableHead>操作</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {reports.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className={tdCls}>{r.campaign.name}</td>
-                <td className={tdCls}>{r.content?.title ?? "-"}</td>
-                <td className={tdCls}>{r.impressions.toLocaleString()}</td>
-                <td className={tdCls}>{r.reads.toLocaleString()}</td>
-                <td className={tdCls}>{r.likes.toLocaleString()}</td>
-                <td className={tdCls}>{r.comments.toLocaleString()}</td>
-                <td className={tdCls}>{r.conversions.toLocaleString()}</td>
-                <td className={tdCls}>{formatMoney(r.gmv)}</td>
-                <td className={tdCls}>{formatDate(r.recordDate)}</td>
+              <TableRow key={r.id}>
+                <TableCell>{r.campaign.name}</TableCell>
+                <TableCell>{r.content?.title ?? "-"}</TableCell>
+                <TableCell className="tabular-nums">{r.impressions.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{r.reads.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{r.likes.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{r.comments.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{r.conversions.toLocaleString()}</TableCell>
+                <TableCell className="tabular-nums">{formatMoney(r.gmv)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatDate(r.recordDate)}</TableCell>
                 {canWrite && (
-                  <td className={tdCls + " whitespace-nowrap"}>
+                  <TableCell className="whitespace-nowrap">
                     <ReportsClient
                       canWrite={canWrite}
                       campaigns={campaigns}
@@ -189,15 +198,15 @@ export default async function ReportsPage({
                       }}
                       deleteId={r.id}
                     />
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
             {reports.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       <Pagination pathname="/reports" page={pagination.page} total={total} query={searchParams} />
     </div>
