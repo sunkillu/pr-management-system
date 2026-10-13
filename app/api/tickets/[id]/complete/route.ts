@@ -17,8 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     },
   });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
-  if (ticket.status !== "PUBLISHED") {
-    return NextResponse.json({ error: "仅已发布的工单可标记完成" }, { status: 400 });
+  if (ticket.status !== "IN_PROGRESS") {
+    return NextResponse.json({ error: "仅执行中的工单可标记完成" }, { status: 400 });
   }
   if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
     return NextResponse.json({ error: "仅创建人、审批链成员或管理员可标记完成" }, { status: 403 });
@@ -27,6 +27,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const materialCount = await prisma.materialRecord.count({ where: { ticketId: params.id } });
   if (materialCount === 0) {
     return NextResponse.json({ error: "请先回收素材" }, { status: 400 });
+  }
+  // 寄件门槛：工单有寄品明细时，必须有关联寄件请求且已签收/已核销
+  const shipItems = ticket.shipItems as { style: string }[] | null;
+  if (Array.isArray(shipItems) && shipItems.length > 0) {
+    const doneSample = await prisma.sampleShipment.findFirst({
+      where: { ticketId: params.id, status: { in: ["SIGNED", "WRITTEN_OFF"] } },
+      select: { id: true },
+    });
+    if (!doneSample) {
+      return NextResponse.json({ error: "寄品尚未签收，请先完成寄件流程" }, { status: 400 });
+    }
   }
   const body = await req.json();
   const rating = Number(body.rating);
@@ -78,7 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       docId: params.id,
       action: "APPROVE",
       actorId: auth.userId,
-      fromStatus: "PUBLISHED",
+      fromStatus: "IN_PROGRESS",
       toStatus: "MATERIAL_REVIEW",
       note: `标记完成，评价 ${rating} 星；执行总结：${executionSummary}；已回收 ${materialCount} 条素材，待PR负责人审批`,
     });

@@ -34,8 +34,8 @@ return NextResponse.json({ error: "驳回必须填写理由"}, { status: 400});
 if (action === "REJECT") {
 const updated = await prisma.$transaction(async (tx) => {
 const claimed = await tx.cooperationTicket.updateMany({
-where: { id: params.id, status: "MATERIAL_REVIEW" },
-data: { status: "PUBLISHED" },
+where: { id: params.id, status: "MATERIAL_REVIEW"},
+data: { status: "IN_PROGRESS"},
 });
 if (claimed.count !== 1) return false;
 await writeLog(tx, {
@@ -44,7 +44,7 @@ docId: params.id,
 action: "REJECT",
 actorId: auth.userId,
 fromStatus: "MATERIAL_REVIEW",
-toStatus: "PUBLISHED",
+toStatus: "IN_PROGRESS",
 note: `素材审批驳回：${reason}`,
 });
 return tx.cooperationTicket.findUniqueOrThrow({ where: { id: params.id } });
@@ -59,7 +59,7 @@ return NextResponse.json(updated);
 const payeeName = ticket.influencer?.name?? ticket.makeupArtist?.name?? "";
 const updated = await prisma.$transaction(async (tx) => {
 const claimed = await tx.cooperationTicket.updateMany({
-where: { id: params.id, status: "MATERIAL_REVIEW" },
+where: { id: params.id, status: "MATERIAL_REVIEW"},
 data: { status: "SETTLING"},
 });
 if (claimed.count !== 1) return null;

@@ -14,7 +14,7 @@ import { getPagination } from "@/lib/pagination";
 export default async function SamplesPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; page?: string; influencerId?: string; new?: string };
+  searchParams: { q?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const me = session?.user as unknown as { id: string; role: string };
@@ -62,7 +62,7 @@ export default async function SamplesPage({
       <PageHeader
         title="寄品管理"
         desc="寄件请求：PR提交 → 仓库接单备货 → 寄出 → 确认签收 → 核销"
-        action={canWrite ? <SampleForm influencers={influencers} initialInfluencerId={searchParams.influencerId} autoOpen={searchParams.new === "1"} /> : undefined}
+        action={canWrite ? <SampleForm influencers={influencers} /> : undefined}
       />
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">

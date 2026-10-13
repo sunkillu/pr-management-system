@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!assigned) return NextResponse.json({ error: "你不是该工单的审批人" }, { status: 403 });
   }
 
-  const toStatus = action === "APPROVE" ? "PENDING_SAMPLE" : "REJECTED";
+  const toStatus = action === "APPROVE" ? "IN_PROGRESS" : "REJECTED";
   const updated = await prisma.$transaction(async (tx) => {
     const u = await tx.cooperationTicket.update({
       where: { id: params.id },
@@ -83,8 +83,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         action: "APPROVE",
         actorId: auth.userId,
         fromStatus: "APPROVED",
-        toStatus: "PENDING_SAMPLE",
-        note: "审批通过，进入待寄品",
+        toStatus: "IN_PROGRESS",
+        note: "审批通过，自动开始执行",
       });
     }
     return u;
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   await notifyUser(
     ticket.creatorId,
-    `「${ticket.title}」${action === "APPROVE" ? "审批通过，请先处理寄品环节。" : `被驳回，理由：${body.comment.trim()}`}`,
+    `「${ticket.title}」${action === "APPROVE" ? "审批通过，已自动开始执行。" : `被驳回，理由：${body.comment.trim()}`}`,
     { type: "TICKET", id: ticket.id, title: "合作工单审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
   );
 

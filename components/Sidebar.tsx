@@ -33,8 +33,6 @@ const entries: NavEntry[] = [
         },
         { href: "/tickets", label: "合作工单", roles: ALL },
         { href: "/coop-requests", label: "合作需求", roles: ALL },
-        { href: "/ledger", label: "我的达人台账", roles: ["ADMIN", "PR"], match: ["/ledger"] },
-        { href: "/procurement", label: "采买需求", roles: ["ADMIN", "OPERATOR", "PR"] },
         { href: "/samples", label: "寄品管理", roles: [...ALL, ...WAREHOUSE_ONLY] },
       ],
     },
@@ -52,7 +50,6 @@ const entries: NavEntry[] = [
   },
   { type: "link", item: { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"] } },
   { type: "link", item: { href: "/tags", label: "标签管理", roles: ["ADMIN", "PR"] } },
-  { type: "link", item: { href: "/lottery", label: "抽奖活动", roles: ALL, match: ["/lottery"] } },
   {
     type: "group",
     group: {
