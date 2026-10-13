@@ -1,6 +1,6 @@
 import { prisma} from "./prisma";
 import { notifyUser} from "./feishu-notify";
-import { APPROVAL_TIMEOUT_HOURS} from "./constants";
+import { APPROVAL_TIMEOUT_HOURS, PROCUREMENT_ACCEPT_TIMEOUT_HOURS} from "./constants";
 
 /**
 * 超时检查（幂等，可重复调用）：
@@ -113,6 +113,35 @@ uid,
 }
 await prisma.ticketSubtask.update({ where: { id: s.id }, data: { blockedNotifiedAt: new Date() }});
 nodeReminded++;
+}
+// --- 6. 采买工单 12h 未接单提醒 ---
+const acceptCutoff = new Date(Date.now() - PROCUREMENT_ACCEPT_TIMEOUT_HOURS * 3600 * 1000);
+const unacceptedProcurements = await prisma.cooperationTicket.findMany({
+where: {
+ticketKind: "PROCUREMENT",
+status: "APPROVED",
+assigneeId: null,
+escalatedAt: null,
+procurementApprovedAt: { lt: acceptCutoff },
+},
+select: { id: true, title: true },
+});
+if (unacceptedProcurements.length > 0) {
+const prManagers = await prisma.user.findMany({
+where: { role: { in: ["PR_MANAGER", "ADMIN"] } },
+select: { id: true },
+});
+for (const t of unacceptedProcurements) {
+for (const m of prManagers) {
+await notifyUser(
+m.id,
+`采买工单「${t.title}」审批通过已超过 ${PROCUREMENT_ACCEPT_TIMEOUT_HOURS} 小时无人接单，请人工分配。`,
+{ type: "TICKET", id: t.id, title: "采买接单超时", kind: "ESCALATE" }
+);
+}
+await prisma.cooperationTicket.update({ where: { id: t.id }, data: { escalatedAt: new Date() } });
+escalated++;
+}
 }
 } catch (e) {
 console.error("checkApprovalTimeouts 失败:", e);

@@ -128,6 +128,7 @@ const badgeColors: Record<string, string> = {
   INVALID: "bg-red-100 text-red-800",
   VOIDED: "bg-gray-200 text-gray-600",
   PENDING_APPROVAL: "bg-yellow-100 text-yellow-800",
+  PENDING_PROCUREMENT: "bg-amber-100 text-amber-800",
   IN_PROGRESS: "bg-blue-100 text-blue-800",
   MATERIAL_REVIEW: "bg-purple-100 text-purple-800",
   COMPLETED: "bg-green-100 text-green-800",
@@ -241,9 +242,22 @@ export const materialTypeLabels: Record<string, string> = {
   OTHER: "其他",
 };
 
+// 工单类型：合作工单 / 采买工单
+export const ticketKindLabels: Record<string, string> = {
+  COOPERATION: "合作工单",
+  PROCUREMENT: "采买工单",
+};
+
+// 采买工单子类型
+export const procurementSubTypeLabels: Record<string, string> = {
+  WEEKLY_STYLE: "周维度款式采买",
+  LINK_SPECIFIC: "指定达人链接采买",
+};
+
 // 合作工单状态
 export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
   PENDING_APPROVAL: "待审批",
+  PENDING_PROCUREMENT: "待采买审批",
   APPROVED: "已通过（待执行）",
   IN_PROGRESS: "执行中",
   MATERIAL_REVIEW: "待素材审批",

@@ -12,7 +12,7 @@ if (!ticket) return NextResponse.json({ error: "工单不存在"}, { status: 404
 if (ticket.creatorId !== auth.userId) {
 return NextResponse.json({ error: "仅申请人可催办"}, { status: 403});
 }
-if (ticket.status!== "PENDING_APPROVAL") {
+if (!["PENDING_APPROVAL", "PENDING_PROCUREMENT"].includes(ticket.status)) {
 return NextResponse.json({ error: "仅待审批的工单可催办"}, { status: 400});
 }
 const pending = await prisma.requestApprover.findMany({

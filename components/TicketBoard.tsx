@@ -26,6 +26,7 @@ export type BoardTicket = {
 
 const MAIN_COLUMNS = [
   "PENDING_APPROVAL",
+  "PENDING_PROCUREMENT",
   "IN_PROGRESS",
   "MATERIAL_REVIEW",
   "SETTLING",
@@ -174,7 +175,7 @@ export default function TicketBoard({
                       <SubtaskBar subtasks={t.subtasks} nodes={t.nodes} />
                       {/* 快捷操作 */}
                       <div className="mt-2 flex flex-wrap gap-1.5 border-t pt-2">
-                        {t.status === "PENDING_APPROVAL" && canApprove && (
+                        {(t.status === "PENDING_APPROVAL" || t.status === "PENDING_PROCUREMENT") && canApprove && (
                           <>
                             <Button
                               size="sm"
