@@ -37,6 +37,8 @@ export default function TicketForm({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [note, setNote] = useState("");
+  const [tagOptions, setTagOptions] = useState<{ id: string; name: string }[]>([]);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [homepageId, setHomepageId] = useState("");
   const [styles, setStyles] = useState<string[]>([]);
@@ -74,6 +76,10 @@ export default function TicketForm({
         .then((r) => r.json())
         .then((d) => setApprovers(Array.isArray(d) ? d : []))
         .catch(() => setApprovers([]));
+      fetch("/api/tags?categoryKey=TICKET")
+        .then((r) => r.json())
+        .then((d) => setTagOptions(Array.isArray(d) ? d.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : []))
+        .catch(() => setTagOptions([]));
     }
   }, [open ]);
 
@@ -155,6 +161,7 @@ export default function TicketForm({
         attachments,
         shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
         coopRequestId: initialCoopRequestId ?? null,
+        tagIds,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -275,6 +282,29 @@ export default function TicketForm({
           <Field label="备注">
             <textarea className={inputCls} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
+          {tagOptions.length > 0 && (
+            <Field label="标签" hint="从标签管理中选择，可多选">
+              <div className="flex flex-wrap gap-1.5">
+                {tagOptions.map((t) => {
+                  const on = tagIds.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTagIds((s) => (on ? s.filter((x) => x !== t.id) : [...s, t.id]))}
+                      className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                        on
+                          ? "bg-primary text-white"
+                          : "bg-card text-foreground ring-1 ring-border hover:ring-primary"
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+          )}
           <Field label="寄品明细" hint="需要寄样时填写，可寄多个款式；与合作款式独立">
             <div className="space-y-2">
               {shipItems.map((s, i) => (

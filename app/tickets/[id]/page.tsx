@@ -30,6 +30,7 @@ import TicketContents, { TicketContent } from "@/components/TicketContents";
 import TicketMaterials from "@/components/TicketMaterials";
 import TicketSampleLink from "@/components/TicketSampleLink";
 import AutoRefresh from "@/components/AutoRefresh";
+import TaggingSection from "@/components/TaggingSection";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -307,6 +308,17 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           </Section>
 
           {/* 进度节点 */}
+          <Section title="标签（谁打的）">
+            <TaggingSection
+              entityType="TICKET"
+              entityId={ticket.id}
+              categoryKey="TICKET"
+              meId={me.id}
+              isAdmin={role === "ADMIN"}
+              canTag={["ADMIN", "PR", "OPERATOR"].includes(role)}
+            />
+          </Section>
+
           <Section title="进度节点">
             <TicketNodes
               ticketId={ticket.id}
