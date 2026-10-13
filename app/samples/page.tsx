@@ -30,7 +30,7 @@ const selectCls =
 export default async function SamplesPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; page?: string };
+  searchParams: { q?: string; status?: string; page?: string; brandId?: string };
 }) {
   const session = await getServerSession(authOptions);
   const me = session?.user as unknown as { id: string; role: string };
@@ -50,20 +50,23 @@ export default async function SamplesPage({
           }
         : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
+      ...(searchParams.brandId ? { brandId: searchParams.brandId } : {}),
   };
   const pagination = getPagination(searchParams.page);
-  const [list, total] = await Promise.all([
+  const [list, total, brands] = await Promise.all([
     prisma.sampleShipment.findMany({
       where,
       include: {
         influencer: { select: { id: true, name: true } },
         createdBy: { select: { id: true, name: true } },
+        brand: { select: { id: true, name: true } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: pagination.skip,
       take: pagination.take,
     }),
     prisma.sampleShipment.count({ where }),
+    prisma.brand.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const influencers = await prisma.influencer.findMany({
@@ -92,6 +95,12 @@ export default async function SamplesPage({
           <option value="">全部状态</option>
           {Object.entries(sampleStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+        <select name="brandId" defaultValue={searchParams.brandId ?? ""} className={selectCls}>
+          <option value="">全部品牌</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </select>
         <Button type="submit">筛选</Button>
@@ -171,6 +180,7 @@ export default async function SamplesPage({
                             shippedDate: r.shippedDate ? r.shippedDate.toISOString().slice(0, 10) : "",
                             shippedBy: r.shippedBy ?? "",
                             status: r.status,
+                            brandId: r.brandId ?? "",
                           }}
                           canDelete={canDelete}
                         />

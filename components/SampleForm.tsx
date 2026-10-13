@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
 import { sampleStatusLabels } from "@/lib/labels";
@@ -14,7 +14,10 @@ export type SampleInput = {
   shippedDate: string;
   shippedBy: string;
   status: string;
+  brandId: string;
 };
+
+type Brand = { id: string; name: string };
 
 export default function SampleForm({
   influencers,
@@ -27,6 +30,7 @@ export default function SampleForm({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [form, setForm] = useState<SampleInput>(
     editTarget ?? {
       influencerId: "",
@@ -37,10 +41,21 @@ export default function SampleForm({
       shippedDate: "",
       shippedBy: "",
       status: "SHIPPED",
+      brandId: "",
     }
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // 打开时加载品牌列表
+  useEffect(() => {
+    if (open && brands.length === 0) {
+      fetch("/api/brands?active=1")
+        .then((r) => r.json())
+        .then((d) => setBrands(Array.isArray(d) ? d : []))
+        .catch(() => setBrands([]));
+    }
+  }, [open]);
 
   async function submit() {
     setError("");
@@ -86,6 +101,18 @@ export default function SampleForm({
       </Field>
       <Field label="产品名称" required>
         <input className={inputCls} value={form.productName} onChange={(e) => setForm({ ...form, productName: e.target.value })} />
+      </Field>
+      <Field label="所属品牌">
+        <select
+          className={inputCls}
+          value={form.brandId}
+          onChange={(e) => setForm({ ...form, brandId: e.target.value })}
+        >
+          <option value="">（不指定）</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="数量">

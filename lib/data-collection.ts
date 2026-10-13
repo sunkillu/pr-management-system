@@ -60,7 +60,7 @@ export async function createDataTask(
 ): Promise<{ created: number; existed: number; dueAt: Date | null; reason?: string }> {
   const ticket = await prisma.cooperationTicket.findUnique({
     where: { id: ticketId },
-    select: { id: true, title: true, ticketNo: true, platform: true, publishDate: true, publishLink: true, creatorId: true },
+    select: { id: true, title: true, ticketNo: true, platform: true, publishDate: true, publishLink: true, creatorId: true, brandId: true },
   });
   if (!ticket) return { created: 0, existed: 0, dueAt: null, reason: "工单不存在" };
   if (!ticket.publishDate) return { created: 0, existed: 0, dueAt: null, reason: "工单尚未发布" };
@@ -81,6 +81,7 @@ export async function createDataTask(
     await prisma.dataCollectionTask.create({
       data: {
         ticketId,
+        brandId: ticket.brandId ?? null, // 品牌从工单自动透传
         platform,
         publishLink: ticket.publishLink ?? null,
         dueAt,

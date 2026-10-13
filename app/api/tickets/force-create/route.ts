@@ -82,6 +82,15 @@ export async function POST(req: NextRequest) {
 
   const submit = body.submit === true;
   const approverIds: string[] = Array.isArray(body.approverIds) ? body.approverIds : [];
+  // 品牌必填
+  const brandId = String(body.brandId ?? "").trim();
+  if (!brandId) {
+    return NextResponse.json({ error: "请选择所属品牌" }, { status: 400 });
+  }
+  const brand = await prisma.brand.findFirst({ where: { id: brandId, isActive: true }, select: { id: true } });
+  if (!brand) {
+    return NextResponse.json({ error: "品牌不存在或已停用" }, { status: 400 });
+  }
   if (submit) {
     if (approverIds.length === 0) {
       return NextResponse.json({ error: "提交审批必须选择至少一位审批人" }, { status: 400 });
@@ -128,6 +137,7 @@ export async function POST(req: NextRequest) {
         ticketNo,
         title: body.title.trim(),
         type,
+        brandId,
         budgetFee: body.budgetFee,
         actualFee: body.actualFee ? body.actualFee : null,
         platform: platforms,

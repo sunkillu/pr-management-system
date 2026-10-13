@@ -48,6 +48,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const r = await tx.materialRecord.create({
       data: {
         ticketId: params.id,
+        // 品牌从工单自动透传
+        brandId: ticket.brandId ?? null,
         type: type as "NOTE_LINK" | "VIDEO" | "IMAGE" | "OTHER",
         url,
         note: String(body.note ?? "").trim() || null,

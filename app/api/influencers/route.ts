@@ -2,7 +2,7 @@ import { NextRequest, NextResponse} from "next/server";
 import { prisma} from "@/lib/prisma";
 import { requireRoles} from "@/lib/api-auth";
 import { writeLog} from "@/lib/approval-log";
-import { notifyApprovers} from "@/lib/feishu-notify";
+import { notifyUser} from "@/lib/feishu-notify";
 import { filterInfluencer } from "@/lib/sensitive";
 
 // 列表：支持搜索 / 平台 / 状态 / 标签筛选；PR 角色只能看自己登记的
@@ -37,8 +37,7 @@ const viewer = { role: auth.role, id: auth.userId };
 return NextResponse.json(list.map((i) => filterInfluencer(i, viewer)));
 }
 
-// 提报登记：运营 / 管理员 / PR负责人。提交时多选审批人（PR负责人或管理员），或签。
-// 创建后状态为待审核，并飞书通知审批人们。
+// 提报登记：运营 / 管理员 / PR负责人。直接入库，无需审批。
 export async function POST(req: NextRequest) {
 const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
 if (!auth.ok) return auth.res;
@@ -63,20 +62,12 @@ if (Array.isArray(body.tags)) {
     if (tags.length >= 20) break;
   }
 }
-const approverIds: string[] = Array.isArray(body.approverIds)
-? Array.from(new Set(body.approverIds as string[]))
-: [];
-if (approverIds.length === 0) {
-return NextResponse.json({ error: "请选择至少一位审批人"}, { status: 400});
-}
-// 审批人必须是 PR负责人 或 管理员
-const approvers = await prisma.user.findMany({
-where: { id: { in: approverIds}, role: { in: ["PR_MANAGER", "ADMIN"]}},
-select: { id: true},
-});
-if (approvers.length!== approverIds.length) {
-return NextResponse.json({ error: "审批人必须为PR负责人或管理员"}, { status: 400});
-}
+
+const homepageId = String(body.homepageId ?? "").trim() || null;
+// 品牌：多选品牌名称数组
+const brands: string[] = Array.isArray(body.brands)
+  ? Array.from(new Set((body.brands as unknown[]).map((b: unknown) => String(b ?? "").trim()).filter(Boolean))).slice(0, 10)
+  : [];
 
 const influencer = await prisma.$transaction(async (tx) => {
 const created = await tx.influencer.create({
@@ -85,20 +76,14 @@ name: body.name.trim(),
 influencerType,
 platforms,
 contactInfo: body.contactInfo || null,
-homepageId: String(body.homepageId ?? "").trim() || null,
+homepageId,
 bio: body.bio || null,
 attachments: attachments ?? undefined,
 tags,
-status: "PENDING",
+brands,
+status: "APPROVED",
 registeredById: auth.userId,
 },
-});
-await tx.requestApprover.createMany({
-data: approverIds.map((approverId) => ({
-requestType: "INFLUENCER" as const,
-requestId: created.id,
-approverId,
-})),
 });
 await writeLog(tx, {
 docType: "INFLUENCER",
@@ -106,17 +91,71 @@ docId: created.id,
 action: "SUBMIT",
 actorId: auth.userId,
 fromStatus: null,
-toStatus: "PENDING",
-note: `提报达人登记，审批人 ${approverIds.length} 位`,
+toStatus: "APPROVED",
+note: `登记达人，直接入库`,
 });
+
+// 去重检查：按 homepageId 查找已存在的其他达人记录
+if (homepageId) {
+const existing = await tx.influencer.findFirst({
+where: {
+homepageId,
+id: { not: created.id },
+},
+select: { id: true, name: true },
+});
+if (existing) {
+// 标记待去重确认 + 写提交记录
+await tx.influencer.update({
+where: { id: created.id },
+data: { dupStatus: "PENDING_DEDUP" },
+});
+await tx.influencerSubmitLog.create({
+data: {
+newInfluencerId: created.id,
+existingInfluencerId: existing.id,
+submittedById: auth.userId,
+newData: {
+name: created.name,
+influencerType: created.influencerType,
+platforms: created.platforms,
+contactInfo: created.contactInfo,
+homepageId: created.homepageId,
+bio: created.bio,
+tags: created.tags,
+brands: created.brands,
+},
+result: "PENDING",
+},
+});
+await writeLog(tx, {
+docType: "INFLUENCER",
+docId: created.id,
+action: "DUP_DETECTED",
+actorId: auth.userId,
+fromStatus: null,
+toStatus: null,
+note: `检测到重复达人（主页ID: ${homepageId}），已存在「${existing.name}」，进入去重确认`,
+});
+}
+}
 return created;
 });
 
-await notifyApprovers(
-approverIds,
-`${auth.userName}提报了达人「${influencer.name}」，请审批。`,
-{ type: "INFLUENCER", id: influencer.id, title: "达人登记待审批", kind: "APPROVAL_PENDING"}
+// 如进入去重流程，通知 PR负责人/管理员处理
+if (influencer.dupStatus === "PENDING_DEDUP") {
+const managers = await prisma.user.findMany({
+where: { role: { in: ["PR_MANAGER", "ADMIN"] } },
+select: { id: true },
+});
+for (const m of managers) {
+await notifyUser(
+m.id,
+`达人「${influencer.name}」登记疑似重复（主页ID: ${influencer.homepageId}），请前往去重处理页确认。`,
+{ type: "INFLUENCER", id: influencer.id, title: "达人去重待确认", kind: "SYSTEM" }
 );
+}
+}
 
 return NextResponse.json(influencer, { status: 201});
 }

@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { inputCls, labelCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { PLATFORM_TAG_OPTIONS, INFLUENCER_TYPE_OPTIONS, roleLabels } from "@/lib/labels";
+import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
+import { PLATFORM_TAG_OPTIONS, INFLUENCER_TYPE_OPTIONS } from "@/lib/labels";
 import Modal from "./Modal";
 
-type Approver = { id: string; name: string; email: string; role: string };
 type Attachment = { fileUrl: string; fileName: string };
 
 const isImage = (name: string) => /\.(jpe?g|png|webp|gif)$/i.test(name);
@@ -23,7 +22,6 @@ export default function InfluencerForm({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(!!autoOpen);
-  const [approvers, setApprovers] = useState<Approver[]>([]);
   const [name, setName] = useState("");
   const [influencerType, setInfluencerType] = useState(initial?.influencerType ?? "");
   const [platforms, setPlatforms] = useState<string[]>(initial?.platforms ?? []);
@@ -31,12 +29,26 @@ export default function InfluencerForm({
   const [homepageId, setHomepageId] = useState("");
   const [bio, setBio] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const tagOptions = influencerTags ?? [];
+
+  useEffect(() => {
+    if (open) {
+      fetch("/api/brands?active=1")
+        .then((r) => r.json())
+        .then((d) => setBrandOptions(Array.isArray(d) ? d : []))
+        .catch(() => setBrandOptions([]));
+    }
+  }, [open ]);
+
+  function toggleBrand(name: string) {
+    setBrands((list) => (list.includes(name) ? list.filter((x) => x !== name) : [...list, name]));
+  }
 
   function toggleTag(t: string) {
     setTags((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t].slice(0, 20)));
@@ -56,22 +68,12 @@ export default function InfluencerForm({
     setAttachments((a) => [...a, { fileUrl: data.fileUrl, fileName: data.fileName }]);
   }
 
-  useEffect(() => {
-    if (open) {
-      fetch("/api/approvers")
-        .then((r) => r.json())
-        .then((d) => setApprovers(Array.isArray(d) ? d : []))
-        .catch(() => setApprovers([]));
-    }
-  }, [open ]);
-
   const toggle = (arr: string[], v: string) =>
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
   async function submit() {
     setError("");
     if (!name.trim()) return setError("达人姓名不能为空");
-    if (selected.length === 0) return setError("请选择至少一位审批人");
     setSaving(true);
     const res = await fetch("/api/influencers", {
       method: "POST",
@@ -84,8 +86,8 @@ export default function InfluencerForm({
         homepageId: homepageId.trim() || null,
         bio: bio.trim() || null,
         tags,
+        brands,
         attachments,
-        approverIds: selected,
       }),
     });
     const data = await res.json();
@@ -164,6 +166,32 @@ export default function InfluencerForm({
               </div>
             )}
           </Field>
+          <Field label="合作品牌（可多选）" hint="该达人合作过的品牌">
+            {brandOptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">暂无可选品牌，请联系管理员在品牌管理中添加</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {brandOptions.map((b) => (
+                  <label
+                    key={b.id}
+                    className={`cursor-pointer rounded-full px-3 py-1 text-xs ring-1 ${
+                      brands.includes(b.name)
+                        ? "bg-primary text-primary-foreground ring-primary"
+                        : "bg-card text-foreground ring-gray-300 hover:ring-primary"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={brands.includes(b.name)}
+                      onChange={() => toggleBrand(b.name)}
+                    />
+                    {b.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </Field>
           <Field label="附件（参考图）" hint="可上传达人主页截图、过往作品等，图片显示缩略图">
             <input
               type="file"
@@ -204,22 +232,6 @@ export default function InfluencerForm({
                 ))}
               </div>
             )}
-          </Field>
-          <Field label="审批人（多选，任一通过即通过）" required>
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-border p-2">
-              {approvers.map((a) => (
-                <label key={a.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(a.id)}
-                    onChange={() => setSelected(toggle(selected, a.id))}
-                  />
-                  {a.name}
-                  <span className="text-xs text-muted-foreground">（{roleLabels[a.role] ?? a.role}）</span>
-                </label>
-              ))}
-              {approvers.length === 0 && <p className="text-xs text-muted-foreground">暂无可选审批人</p>}
-            </div>
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">

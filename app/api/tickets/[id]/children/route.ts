@@ -129,6 +129,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         ticketNo,
         title,
         type: parent.type,
+        brandId: parent.brandId, // 品牌从父工单自动继承，不可改
         ticketKind: parent.ticketKind,
         parentId: parent.id,
         subType: subType as ChildTicketSubType,

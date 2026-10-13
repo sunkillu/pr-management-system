@@ -16,6 +16,7 @@ import {
   Upload,
   Download,
   ChevronDown,
+  Award,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,7 @@ const entries: NavEntry[] = [
       items: [
         { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"], icon: BarChart3 },
         { href: "/tags", label: "标签管理", roles: ["ADMIN", "PR"], icon: Tags },
+        { href: "/brands", label: "品牌管理", roles: ["ADMIN"], icon: Award },
         { href: "/users", label: "用户管理", roles: ["ADMIN"], icon: UserCog },
         { href: "/admin/import", label: "数据导入", roles: ["ADMIN"], icon: Upload },
         { href: "/admin/export", label: "数据导出", roles: ["ADMIN"], icon: Download },

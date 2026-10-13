@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
   const status = searchParams.get("status");
+  const brandId = searchParams.get("brandId");
   const list = await prisma.sampleShipment.findMany({
     where: {
       ...(q
@@ -24,10 +25,12 @@ export async function GET(req: NextRequest) {
           }
         : {}),
       ...(status ? { status: status as never } : {}),
+      ...(brandId ? { brandId } : {}),
     },
     include: {
       influencer: { select: { name: true } },
       createdBy: { select: { name: true } },
+      brand: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -43,18 +46,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "产品名称不能为空" }, { status: 400 });
   }
   // 从工单一键生成时校验 ticketId 存在，且工单已审批通过（IN_PROGRESS 及之后）
+  // 同时自动带入工单的 brandId
+  let brandId: string | null = null;
   if (body.ticketId) {
-    const ticket = await prisma.cooperationTicket.findUnique({ where: { id: body.ticketId }, select: { id: true, status: true } });
+    const ticket = await prisma.cooperationTicket.findUnique({ where: { id: body.ticketId }, select: { id: true, status: true, brandId: true } });
     if (!ticket) return NextResponse.json({ error: "关联工单不存在" }, { status: 400 });
     const SAMPLE_ALLOWED = ["IN_PROGRESS", "MATERIAL_REVIEW", "COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"];
     if (!SAMPLE_ALLOWED.includes(ticket.status)) {
       return NextResponse.json({ error: "工单尚未审批通过，不能发起寄件" }, { status: 400 });
     }
+    brandId = ticket.brandId;
+  }
+  // 允许手动指定/覆盖品牌
+  if (body.brandId) {
+    const b = await prisma.brand.findFirst({ where: { id: String(body.brandId), isActive: true }, select: { id: true } });
+    if (!b) return NextResponse.json({ error: "品牌不存在或已停用" }, { status: 400 });
+    brandId = b.id;
   }
   const sample = await prisma.sampleShipment.create({
     data: {
       influencerId: body.influencerId || null,
       ticketId: body.ticketId || null,
+      brandId,
       productName: body.productName.trim(),
       quantity: Number(body.quantity) > 0 ? Number(body.quantity) : 1,
       items: Array.isArray(body.items) ? body.items : null,
