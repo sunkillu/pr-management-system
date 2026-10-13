@@ -34,6 +34,7 @@ import TicketSampleLink from "@/components/TicketSampleLink";
 import AutoRefresh from "@/components/AutoRefresh";
 import TaggingSection from "@/components/TaggingSection";
 import ProcurementAssignee from "@/components/ProcurementAssignee";
+import TicketForm from "@/components/TicketForm";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -47,8 +48,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       makeupArtist: { select: { id: true, name: true } },
       creator: { select: { id: true, name: true } },
       coopRequest: { select: { id: true, title: true } },
-      sourceTicket: { select: { id: true, ticketNo: true, title: true } },
-      derivedTickets: { select: { id: true, ticketNo: true, title: true, status: true } },
       assignee: { select: { id: true, name: true } },
       assigneeLogs: {
         include: {
@@ -147,6 +146,21 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     toStatusLabel: l.toStatus ? ticketStatusLabels[l.toStatus] ?? l.toStatus : null,
   }));
 
+  // 编辑用：达人/化妆师列表（草稿补充合作信息时用）
+  const influencers = await prisma.influencer.findMany({
+    where: { status: "APPROVED", ...(role === "PR" ? { registeredById: me.id } : {}) },
+    select: { id: true, name: true, homepageId: true },
+    orderBy: { name: "asc" },
+  });
+  const makeupArtists = await prisma.makeupArtist.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  // 草稿可编辑：创建人 / 接单人 / 管理员（采买转入的合作工单由接单PR补充合作信息）
+  const canEdit =
+    ticket.status === "DRAFT" &&
+    (role === "ADMIN" || ticket.creator.id === me.id || ticket.assigneeId === me.id);
+
   const cutoff = new Date(Date.now() - APPROVAL_TIMEOUT_HOURS * 3600 * 1000);
   const overdue = ticket.status === "PENDING_APPROVAL" && ticket.updatedAt < cutoff;
   // 状态推动权限：仅创建人 / 审批链成员 / ADMIN
@@ -191,9 +205,37 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         title={ticket.title}
         desc={`${ticket.ticketNo} · ${coopTypeLabels[ticket.type]} · ${ticketStatusLabels[ticket.status]}`}
         action={
-          <Link href="/tickets" className="text-sm text-primary hover:underline">
-            ← 返回合作工单
-          </Link>
+          <div className="flex items-center gap-3">
+            {canEdit && (
+              <TicketForm
+                influencers={influencers}
+                makeupArtists={makeupArtists}
+                userRole={role}
+                editTicket={{
+                  id: ticket.id,
+                  title: ticket.title,
+                  type: ticket.type,
+                  platform: ticket.platform as string[],
+                  style: ticket.style as string[],
+                  budgetFee: String(ticket.budgetFee),
+                  note: ticket.note ?? "",
+                  contentDirection: ticket.contentDirection ?? "",
+                  priceNote: ticket.priceNote ?? "",
+                  contentNote: ticket.contentNote ?? "",
+                  estimatedSchedule: ticket.estimatedSchedule === "-" ? "" : ticket.estimatedSchedule,
+                  coopCategory: ticket.coopCategory as string[],
+                  homepageId: ticket.homepageId ?? "",
+                  startDate: ticket.startDate ? new Date(ticket.startDate).toISOString().slice(0, 10) : "",
+                  endDate: ticket.endDate ? new Date(ticket.endDate).toISOString().slice(0, 10) : "",
+                  influencerId: ticket.influencerId,
+                  makeupArtistId: ticket.makeupArtistId,
+                }}
+              />
+            )}
+            <Link href="/tickets" className="text-sm text-primary hover:underline">
+              ← 返回合作工单
+            </Link>
+          </div>
         }
       />
       {overdue && (
@@ -220,42 +262,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   </span>
                 )}
               </InfoRow>
-              {ticket.sourceTicket && (
-                <InfoRow label="来源采买工单">
-                  <Link href={`/tickets/${ticket.sourceTicket.id}`} className="text-primary hover:underline">
-                    {ticket.sourceTicket.ticketNo} · {ticket.sourceTicket.title}
-                  </Link>
-                </InfoRow>
-              )}
-              {ticket.ticketKind === "PROCUREMENT" && ticket.quantity && (
-                <InfoRow label="采买数量">{ticket.quantity}</InfoRow>
-              )}
-              {ticket.ticketKind === "PROCUREMENT" && ticket.materialType && (
-                <InfoRow label="素材类型">{ticket.materialType}</InfoRow>
-              )}
-              {ticket.ticketKind === "PROCUREMENT" && ticket.reason && (
-                <InfoRow label="需求理由" wide><span className="whitespace-pre-wrap">{ticket.reason}</span></InfoRow>
-              )}
-              {ticket.ticketKind === "PROCUREMENT" && Array.isArray(ticket.publishLinks) && ticket.publishLinks.length > 0 && (
-                <InfoRow label="发布链接" wide>
-                  <span className="block space-y-1">
-                    {(ticket.publishLinks as string[]).map((l, i) => (
-                      <a key={i} href={l} target="_blank" className="block truncate text-sm text-primary hover:underline">{l}</a>
-                    ))}
-                  </span>
-                </InfoRow>
-              )}
-              {ticket.derivedTickets.length > 0 && (
-                <InfoRow label="转出的合作工单" wide>
-                  <span className="block space-y-1">
-                    {ticket.derivedTickets.map((d) => (
-                      <Link key={d.id} href={`/tickets/${d.id}`} className="block text-sm text-primary hover:underline">
-                        {d.ticketNo} · {d.title}
-                      </Link>
-                    ))}
-                  </span>
-                </InfoRow>
-              )}
               {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && (
                 <InfoRow label="接单归属">
                   {ticket.assignee ? (
@@ -539,18 +545,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               <p className="mb-3 text-sm text-muted-foreground">草稿状态，尚未提交审批</p>
             )}
             <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
-            {/* 采买通过后可一键转为合作工单 */}
-            {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && ["ADMIN", "PR", "PR_MANAGER"].includes(role) && (
-              <div className="mt-3">
-                <Link
-                  href={`/tickets/new?fromProcurement=${ticket.id}`}
-                  className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
-                >
-                  转为合作工单 →
-                </Link>
-                <p className="mt-1 text-xs text-muted-foreground">标题、款式、预算等信息将自动预填，可编辑。</p>
-              </div>
-            )}
+            {/* 采买工单接单后同单转入合作工单流程（accept 接口直接翻转 ticketKind），无需转工单按钮 */}
             {/* 采买工单接单 / 人工分配 */}
             {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && (
               <ProcurementAssignee

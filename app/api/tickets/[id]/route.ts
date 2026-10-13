@@ -49,8 +49,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!["DRAFT", "REJECTED"].includes(ticket.status)) {
     return NextResponse.json({ error: "仅草稿或已驳回的工单可编辑" }, { status: 400 });
   }
-  if (auth.role !== "ADMIN" && ticket.creatorId !== auth.userId) {
-    return NextResponse.json({ error: "仅创建人或管理员可编辑" }, { status: 403 });
+  // 采买转入的合作工单：接单人（assignee）可补充合作信息
+  if (auth.role !== "ADMIN" && ticket.creatorId !== auth.userId && ticket.assigneeId !== auth.userId) {
+    return NextResponse.json({ error: "仅创建人、接单人或管理员可编辑" }, { status: 403 });
   }
   const body = await req.json();
   const data: Record<string, unknown> = {};
