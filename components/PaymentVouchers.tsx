@@ -54,15 +54,15 @@ export function PaymentVoucherSection({ paymentId, canUpload }: { paymentId: str
         </div>
       )}
       {list.length === 0 ? (
-        <p className="text-sm text-gray-400">暂无凭证</p>
+        <p className="text-sm text-muted-foreground">暂无凭证</p>
       ) : (
         <ul className="space-y-2 text-sm">
           {list.map((v) => (
-            <li key={v.id} className="rounded border border-gray-200 p-2">
-              <a href={v.fileUrl} target="_blank" rel="noreferrer" className="text-[#0071e3] hover:underline">
+            <li key={v.id} className="rounded border border-border p-2">
+              <a href={v.fileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                 {v.fileName}
               </a>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 {v.uploadedBy?.name} · {v.createdAt.slice(0, 16).replace("T", " ")}
               </div>
             </li>
@@ -93,7 +93,7 @@ export function PaymentRemindButton({ paymentId }: { paymentId: string }) {
       <button className={btnSecondary} disabled={busy} onClick={remind}>
         {busy ? "发送中…" : "提醒审批人"}
       </button>
-      {msg && <span className="ml-2 text-xs text-gray-600">{msg}</span>}
+      {msg && <span className="ml-2 text-xs text-muted-foreground">{msg}</span>}
     </span>
   );
 }

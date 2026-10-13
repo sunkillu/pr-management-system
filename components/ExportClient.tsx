@@ -22,54 +22,54 @@ export default function ExportClient() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-white p-4">
-        <p className="text-sm font-medium text-gray-700">导出类型</p>
+      <div className="rounded-lg bg-card p-4">
+        <p className="text-sm font-medium text-foreground">导出类型</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {TYPES.map((t) => (
             <button
               key={t.value}
               onClick={() => setType(t.value)}
-              className={`rounded-2xl border p-3 text-left transition-colors ${
+              className={`rounded-lg border p-3 text-left transition-colors ${
                 type === t.value
-                  ? "border-[#0071e3] bg-blue-50"
-                  : "border-[#e5e5e5] hover:border-gray-300"
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-input"
               }`}
             >
               <div className="text-sm font-medium text-gray-900">{t.label}</div>
-              <div className="mt-1 text-xs text-gray-500">{t.desc}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{t.desc}</div>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white p-4">
-        <p className="text-sm font-medium text-gray-700">
-          日期范围 <span className="font-normal text-gray-400">（按创建时间筛选，可选）</span>
+      <div className="rounded-lg bg-card p-4">
+        <p className="text-sm font-medium text-foreground">
+          日期范围 <span className="font-normal text-muted-foreground">（按创建时间筛选，可选）</span>
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="rounded-[10px] border border-[#e5e5e5] px-3 py-2 text-sm"
+            className="rounded-[10px] border border-border px-3 py-2 text-sm"
           />
-          <span className="text-sm text-gray-400">至</span>
+          <span className="text-sm text-muted-foreground">至</span>
           <input
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="rounded-[10px] border border-[#e5e5e5] px-3 py-2 text-sm"
+            className="rounded-[10px] border border-border px-3 py-2 text-sm"
           />
         </div>
       </div>
 
       <button
         onClick={doExport}
-        className="rounded-full bg-[#0071e3] px-6 py-2.5 text-sm text-white hover:bg-[#0068d1] active:bg-[#0058b0]"
+        className="rounded-full bg-primary px-6 py-2.5 text-sm text-white hover:bg-[#0068d1] active:bg-[#0058b0]"
       >
         导出 CSV 下载
       </button>
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-muted-foreground">
         CSV 带 BOM，Excel 直接打开不乱码。单次最多导出 10000 条。
       </p>
     </div>

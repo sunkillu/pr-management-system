@@ -46,7 +46,7 @@ export default function SampleShipForm({
   return (
     <>
       <button
-        className="rounded border border-[#0071e3] px-2.5 py-1 text-xs text-[#0071e3] hover:bg-blue-50"
+        className="rounded border border-primary px-2.5 py-1 text-xs text-primary hover:bg-primary/10"
         onClick={() => setOpen(true)}
       >
         维护寄件信息

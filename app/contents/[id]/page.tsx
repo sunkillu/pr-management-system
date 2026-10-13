@@ -63,19 +63,19 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
         title={content.title}
         desc={`${contentTypeLabels[content.type]} · v${content.version}`}
         action={
-          <Link href="/contents" className="text-sm text-[#0071e3] hover:underline">
+          <Link href="/contents" className="text-sm text-primary hover:underline">
             ← 返回列表
           </Link>
         }
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="bg-white rounded-2xl p-6 lg:col-span-2 h-fit">
+        <div className="bg-card rounded-lg p-6 lg:col-span-2 h-fit">
           <div className="mb-3 flex items-center gap-3">
             <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(content.status)}`}>
               {contentStatusLabels[content.status]}
             </span>
-            <span className="text-sm text-gray-500">关联资源：{content.outlet?.name ?? "-"}</span>
+            <span className="text-sm text-muted-foreground">关联资源：{content.outlet?.name ?? "-"}</span>
           </div>
           {content.status === "REJECTED" && content.rejectReason && (
             <div className="mb-3 rounded bg-red-50 p-3 text-sm text-red-700">
@@ -83,23 +83,23 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
             </div>
           )}
           {content.status === "VOIDED" && content.voidReason && (
-            <div className="mb-3 rounded bg-gray-100 p-3 text-sm text-gray-600">
+            <div className="mb-3 rounded bg-muted p-3 text-sm text-muted-foreground">
               作废理由：{content.voidReason}
             </div>
           )}
           <div className="whitespace-pre-wrap text-sm leading-relaxed">
-            {content.body || <span className="text-gray-400">暂无正文</span>}
+            {content.body || <span className="text-muted-foreground">暂无正文</span>}
           </div>
           <div className="mt-4 border-t pt-3 text-sm">
-            <span className="text-gray-500">关联项目：</span>
+            <span className="text-muted-foreground">关联项目：</span>
             {content.campaigns.length > 0 ? (
               content.campaigns.map((c) => (
-                <Link key={c.id} href={`/campaigns?`} className="mr-2 text-[#0071e3] hover:underline">
+                <Link key={c.id} href={`/campaigns?`} className="mr-2 text-primary hover:underline">
                   {c.name}
                 </Link>
               ))
             ) : (
-              <span className="text-gray-400">无</span>
+              <span className="text-muted-foreground">无</span>
             )}
           </div>
           <div className="mt-4" id="approval-section">
@@ -125,7 +125,7 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg h-fit [&>section:first-child]:border-t-0">
           <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
           </Section>

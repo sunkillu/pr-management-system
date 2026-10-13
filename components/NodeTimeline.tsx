@@ -11,7 +11,7 @@ type TLNode = {
 // 节点时间线：计划 vs 实际横向对比
 // 每行一个节点，左侧计划日期，右侧实际日期，中间连线；延迟标红、提前/按时标绿
 export default function NodeTimeline({ nodes }: { nodes: TLNode[] }) {
-  if (nodes.length === 0) return <p className="text-sm text-gray-400">暂无进度节点</p>;
+  if (nodes.length === 0) return <p className="text-sm text-muted-foreground">暂无进度节点</p>;
 
   // 计算时间轴范围
   const dates = nodes
@@ -19,7 +19,7 @@ export default function NodeTimeline({ nodes }: { nodes: TLNode[] }) {
     .filter((d): d is string => !!d)
     .map((d) => new Date(d).getTime());
   if (dates.length === 0) {
-    return <p className="text-sm text-gray-400">节点暂无计划/实际时间</p>;
+    return <p className="text-sm text-muted-foreground">节点暂无计划/实际时间</p>;
   }
   const min = Math.min(...dates);
   const max = Math.max(...dates);
@@ -46,10 +46,10 @@ export default function NodeTimeline({ nodes }: { nodes: TLNode[] }) {
         const color = diff === null ? "bg-gray-300" : diff <= 0 ? "bg-green-500" : "bg-red-500";
         return (
           <div key={n.id} className="flex items-center gap-3">
-            <span className="w-28 shrink-0 truncate text-xs text-gray-700" title={n.name}>
+            <span className="w-28 shrink-0 truncate text-xs text-foreground" title={n.name}>
               {n.name}
             </span>
-            <div className="relative h-6 flex-1 rounded bg-[#f5f5f7]">
+            <div className="relative h-6 flex-1 rounded bg-muted">
               {ep !== null && (
                 <div
                   className="absolute top-1 h-4 w-1 rounded bg-blue-400"
@@ -71,7 +71,7 @@ export default function NodeTimeline({ nodes }: { nodes: TLNode[] }) {
                 />
               )}
             </div>
-            <span className="w-36 shrink-0 text-xs text-gray-500">
+            <span className="w-36 shrink-0 text-xs text-muted-foreground">
               <span className="text-blue-500">◆ {formatDate(n.expectedAt)}</span>
               {" → "}
               <span className={diff === null ? "" : diff <= 0 ? "text-green-600" : "text-red-600"}>
@@ -90,9 +90,9 @@ export default function NodeTimeline({ nodes }: { nodes: TLNode[] }) {
           </div>
         );
       })}
-      <p className="pt-1 text-xs text-gray-400">
+      <p className="pt-1 text-xs text-muted-foreground">
         <span className="text-blue-500">◆</span> 计划时间　
-        <span className="text-gray-500">◆</span> 实际时间（绿=提前/按时，红=延迟）
+        <span className="text-muted-foreground">◆</span> 实际时间（绿=提前/按时，红=延迟）
       </p>
     </div>
   );

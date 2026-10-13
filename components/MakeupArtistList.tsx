@@ -1,8 +1,17 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { thCls, tdCls, btnPrimary } from "@/components/ui";
-import { badgeClass, formatFee } from "@/lib/labels";
+import { btnPrimary } from "@/components/ui";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
+import { formatFee } from "@/lib/labels";
 import Link from "next/link";
 import MakeupArtistForm from "@/components/MakeupArtistForm";
 import Pagination from "@/components/Pagination";
@@ -63,54 +72,52 @@ export default async function MakeupArtistList({
           name="q"
           placeholder="按姓名搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="rounded border border-input px-3 py-2 text-sm"
         />
-        <label className="flex items-center gap-1 rounded border border-gray-300 px-3 py-2 text-sm">
+        <label className="flex items-center gap-1 rounded border border-input px-3 py-2 text-sm">
           <input type="checkbox" name="longTerm" value="1" defaultChecked={searchParams.longTerm === "1"} />
           仅长期合作
         </label>
         <button className={btnPrimary}>筛选</button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>姓名</th>
-              <th className={thCls}>联系方式</th>
-              <th className={thCls}>长期合作</th>
-              <th className={thCls}>入库日期</th>
-              <th className={thCls}>合作次数</th>
-              <th className={thCls}>累计费用</th>
-              <th className={thCls}>平均评价</th>
-              <th className={thCls}>备注</th>
-              {canWrite && <th className={thCls}>操作</th>}
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>姓名</TableHead>
+              <TableHead>联系方式</TableHead>
+              <TableHead>长期合作</TableHead>
+              <TableHead>入库日期</TableHead>
+              <TableHead>合作次数</TableHead>
+              <TableHead>累计费用</TableHead>
+              <TableHead>平均评价</TableHead>
+              <TableHead>备注</TableHead>
+              {canWrite && <TableHead>操作</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {list.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>{r.name}</td>
-                <td className={tdCls}>{r.contactInfo ?? "-"}</td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(r.isLongTerm ? "YES" : "NO")}`}>
-                    {r.isLongTerm ? "是" : "否"}
-                  </span>
-                </td>
-                <td className={tdCls}>{r.onboardDate ? r.onboardDate.toISOString().slice(0, 10) : "-"}</td>
-                <td className={tdCls}>{r.coopCount}</td>
-                <td className={tdCls}>{formatFee(r.totalFee)}</td>
-                <td className={tdCls}>
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">{r.name}</TableCell>
+                <TableCell>{r.contactInfo ?? "-"}</TableCell>
+                <TableCell>
+                  <StatusBadge status={r.isLongTerm ? "APPROVED" : "TODO"} label={r.isLongTerm ? "是" : "否"} />
+                </TableCell>
+                <TableCell>{r.onboardDate ? r.onboardDate.toISOString().slice(0, 10) : "-"}</TableCell>
+                <TableCell>{r.coopCount}</TableCell>
+                <TableCell>{formatFee(r.totalFee)}</TableCell>
+                <TableCell>
                   {ratingByArtist.get(r.id) != null
                     ? <span className="text-yellow-600">★ {ratingByArtist.get(r.id)!.toFixed(1)}</span>
                     : "-"}
-                </td>
-                <td className={tdCls}>{r.notes ?? "-"}</td>
+                </TableCell>
+                <TableCell>{r.notes ?? "-"}</TableCell>
                 {canWrite && (
-                  <td className={tdCls + " whitespace-nowrap"}>
+                  <TableCell className="whitespace-nowrap">
                     <Link
                       href={`/tickets/new?makeupArtistId=${r.id}`}
-                      className="mr-2 rounded border border-[#0071e3] px-2.5 py-1 text-xs text-[#0071e3] hover:bg-blue-50"
+                      className="mr-2 rounded border border-primary px-2.5 py-1 text-xs text-primary hover:bg-primary/10"
                     >
                       发起工单
                     </Link>
@@ -125,15 +132,15 @@ export default async function MakeupArtistList({
                       }}
                       canDelete={canDelete}
                     />
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={canWrite ? 9 : 8} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={canWrite ? 9 : 8} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       <Pagination pathname="/partners" page={pagination.page} total={total} query={{ ...searchParams, tab: "makeup" }} />
     </div>

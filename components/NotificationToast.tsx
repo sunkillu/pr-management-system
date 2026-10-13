@@ -101,31 +101,31 @@ export default function NotificationToast() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 w-80 animate-[slideIn_0.25s_ease-out] rounded-2xl bg-white p-4 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+    <div className="fixed bottom-5 right-5 z-50 w-80 animate-[slideIn_0.25s_ease-out] rounded-lg bg-card p-4 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm font-semibold text-gray-900">
           {current.title ?? "新通知"}
         </div>
         <button
           onClick={dismiss}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-muted-foreground hover:text-muted-foreground"
           aria-label="关闭"
         >
           ✕
         </button>
       </div>
-      <div className="mt-1 line-clamp-3 text-sm text-gray-600">{current.content}</div>
+      <div className="mt-1 line-clamp-3 text-sm text-muted-foreground">{current.content}</div>
       <div className="mt-3 flex justify-end gap-2">
         <button
           onClick={dismiss}
-          className="rounded px-3 py-1 text-sm text-gray-500 hover:bg-gray-100"
+          className="rounded px-3 py-1 text-sm text-muted-foreground hover:bg-muted"
         >
           稍后
         </button>
         {url && (
           <button
             onClick={view}
-            className="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200"
+            className="rounded bg-muted px-3 py-1 text-sm text-foreground hover:bg-gray-200"
           >
             查看
           </button>
@@ -133,7 +133,7 @@ export default function NotificationToast() {
         {approveUrl && (
           <button
             onClick={goApprove}
-            className="rounded bg-[#0071e3] px-3 py-1 text-sm text-white hover:bg-[#0077ed]"
+            className="rounded bg-primary px-3 py-1 text-sm text-white hover:bg-primary/90"
           >
             去审批
           </button>

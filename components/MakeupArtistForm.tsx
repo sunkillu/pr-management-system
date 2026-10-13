@@ -59,7 +59,7 @@ export default function MakeupArtistForm({
   if (editTarget) {
     return (
       <span className="space-x-3">
-        <button onClick={() => setOpen(true)} className="text-sm text-[#0071e3] hover:underline">
+        <button onClick={() => setOpen(true)} className="text-sm text-primary hover:underline">
           编辑
         </button>
         {canDelete && (

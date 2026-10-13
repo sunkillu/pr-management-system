@@ -69,13 +69,13 @@ export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, 
         <div className="space-y-1.5">
           {samples.map((s) => (
             <div key={s.id} className="flex items-center gap-2 text-sm">
-              <Link href={`/samples?highlight=${s.id}`} className="text-[#0071e3] hover:underline">
+              <Link href={`/samples?highlight=${s.id}`} className="text-primary hover:underline">
                 {s.productName}
               </Link>
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(s.status)}`}>
                 {sampleStatusLabels[s.status] ?? s.status}
               </span>
-              {s.trackingNo && <span className="font-mono text-xs text-gray-500">{s.trackingNo}</span>}
+              {s.trackingNo && <span className="font-mono text-xs text-muted-foreground">{s.trackingNo}</span>}
             </div>
           ))}
         </div>
@@ -87,9 +87,9 @@ export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, 
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md rounded-lg bg-card p-5" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-3 text-base font-semibold">生成寄件请求</h3>
-            <p className="mb-3 text-sm text-gray-500">
+            <p className="mb-3 text-sm text-muted-foreground">
               将带入 {shipItems.length} 款寄品明细：{shipItems.map((s) => s.style).join("、")}
             </p>
             <div className="space-y-3">
