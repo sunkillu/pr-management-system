@@ -26,6 +26,10 @@ export async function POST(req: NextRequest) {
         campaignId: body.campaignId || null,
         contentId: body.contentId || null,
         ticketId: body.ticketId || null,
+        // 品牌从关联工单自动透传
+        brandId: body.ticketId
+          ? (await tx.cooperationTicket.findUnique({ where: { id: body.ticketId }, select: { brandId: true } }))?.brandId ?? null
+          : null,
         requesterId: auth.userId,
         status: "PENDING_BIZ",
       },
