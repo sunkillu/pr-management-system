@@ -7,6 +7,8 @@ import { PageHeader, Section, InfoRow } from "@/components/ui";
 import {
   ticketStatusLabels,
   coopTypeLabels,
+  ticketKindLabels,
+  procurementSubTypeLabels,
   approverStatusLabels,
   badgeClass,
   formatMoney,
@@ -31,6 +33,7 @@ import TicketMaterials from "@/components/TicketMaterials";
 import TicketSampleLink from "@/components/TicketSampleLink";
 import AutoRefresh from "@/components/AutoRefresh";
 import TaggingSection from "@/components/TaggingSection";
+import ProcurementAssignee from "@/components/ProcurementAssignee";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -44,6 +47,17 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       makeupArtist: { select: { id: true, name: true } },
       creator: { select: { id: true, name: true } },
       coopRequest: { select: { id: true, title: true } },
+      sourceTicket: { select: { id: true, ticketNo: true, title: true } },
+      derivedTickets: { select: { id: true, ticketNo: true, title: true, status: true } },
+      assignee: { select: { id: true, name: true } },
+      assigneeLogs: {
+        include: {
+          fromUser: { select: { name: true } },
+          toUser: { select: { name: true } },
+          changedBy: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
       nodes: {
         orderBy: { sort: "asc" },
         include: {
@@ -196,6 +210,71 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               <InfoRow label="工单编号">
                 <span className="font-mono text-sm">{ticket.ticketNo}</span>
               </InfoRow>
+              <InfoRow label="工单类型">
+                <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
+                  {ticketKindLabels[ticket.ticketKind] ?? ticket.ticketKind}
+                </span>
+                {ticket.ticketKind === "PROCUREMENT" && ticket.procurementType && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    {procurementSubTypeLabels[ticket.procurementType] ?? ticket.procurementType}
+                  </span>
+                )}
+              </InfoRow>
+              {ticket.sourceTicket && (
+                <InfoRow label="来源采买工单">
+                  <Link href={`/tickets/${ticket.sourceTicket.id}`} className="text-primary hover:underline">
+                    {ticket.sourceTicket.ticketNo} · {ticket.sourceTicket.title}
+                  </Link>
+                </InfoRow>
+              )}
+              {ticket.ticketKind === "PROCUREMENT" && ticket.quantity && (
+                <InfoRow label="采买数量">{ticket.quantity}</InfoRow>
+              )}
+              {ticket.ticketKind === "PROCUREMENT" && ticket.materialType && (
+                <InfoRow label="素材类型">{ticket.materialType}</InfoRow>
+              )}
+              {ticket.ticketKind === "PROCUREMENT" && ticket.reason && (
+                <InfoRow label="需求理由" wide><span className="whitespace-pre-wrap">{ticket.reason}</span></InfoRow>
+              )}
+              {ticket.ticketKind === "PROCUREMENT" && Array.isArray(ticket.publishLinks) && ticket.publishLinks.length > 0 && (
+                <InfoRow label="发布链接" wide>
+                  <span className="block space-y-1">
+                    {(ticket.publishLinks as string[]).map((l, i) => (
+                      <a key={i} href={l} target="_blank" className="block truncate text-sm text-primary hover:underline">{l}</a>
+                    ))}
+                  </span>
+                </InfoRow>
+              )}
+              {ticket.derivedTickets.length > 0 && (
+                <InfoRow label="转出的合作工单" wide>
+                  <span className="block space-y-1">
+                    {ticket.derivedTickets.map((d) => (
+                      <Link key={d.id} href={`/tickets/${d.id}`} className="block text-sm text-primary hover:underline">
+                        {d.ticketNo} · {d.title}
+                      </Link>
+                    ))}
+                  </span>
+                </InfoRow>
+              )}
+              {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && (
+                <InfoRow label="接单归属">
+                  {ticket.assignee ? (
+                    <span className="text-sm font-medium">{ticket.assignee.name}</span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">待接单</span>
+                  )}
+                  {(() => {
+                    const approvedAt = ticket.procurementApprovedAt;
+                    const overdue = !ticket.assigneeId && approvedAt &&
+                      Date.now() - new Date(approvedAt).getTime() > 12 * 3600 * 1000;
+                    return overdue ? (
+                      <span className="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                        超过12小时未接单
+                      </span>
+                    ) : null;
+                  })()}
+                </InfoRow>
+              )}
               <InfoRow label="合作对象">
                 <span className="font-medium">
                   {ticket.influencer ? (
@@ -460,7 +539,50 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               <p className="mb-3 text-sm text-muted-foreground">草稿状态，尚未提交审批</p>
             )}
             <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
+            {/* 采买通过后可一键转为合作工单 */}
+            {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && ["ADMIN", "PR", "PR_MANAGER"].includes(role) && (
+              <div className="mt-3">
+                <Link
+                  href={`/tickets/new?fromProcurement=${ticket.id}`}
+                  className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
+                >
+                  转为合作工单 →
+                </Link>
+                <p className="mt-1 text-xs text-muted-foreground">标题、款式、预算等信息将自动预填，可编辑。</p>
+              </div>
+            )}
+            {/* 采买工单接单 / 人工分配 */}
+            {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && (
+              <ProcurementAssignee
+                ticketId={ticket.id}
+                ticketTitle={ticket.title}
+                hasAssignee={!!ticket.assigneeId}
+                role={role}
+              />
+            )}
             <ApprovalRecords records={approvers} />
+            {/* 归属变更记录 */}
+            {ticket.ticketKind === "PROCUREMENT" && ticket.assigneeLogs.length > 0 && (
+              <div className="mt-4">
+                <h4 className="mb-2 text-sm font-medium">接单 / 分配记录</h4>
+                <div className="space-y-1.5">
+                  {ticket.assigneeLogs.map((l) => (
+                    <div key={l.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="rounded bg-secondary px-2 py-0.5 text-xs">
+                        {l.action === "ACCEPT" ? "接单" : "人工分配"}
+                      </span>
+                      <span>
+                        {l.fromUser ? `${l.fromUser.name} → ` : ""}{l.toUser.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {l.changedBy.name} · {new Date(l.createdAt).toLocaleString("zh-CN")}
+                      </span>
+                      {l.reason && <span className="text-xs text-muted-foreground">（{l.reason}）</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </Section>
 
           {/* 关联打款单 */}

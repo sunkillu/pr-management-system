@@ -59,6 +59,10 @@ model User {
   handledContentComments ContentComment[] @relation("CommentHandler")
   createdContentComments ContentComment[] @relation("CommentCreator")
   taggings Tagging[] @relation("TaggingCreator")
+  assignedTickets    CooperationTicket[] @relation("TicketAssignee")
+  assigneeLogFrom    TicketAssigneeLog[] @relation("AssigneeLogFrom")
+  assigneeLogTo      TicketAssigneeLog[] @relation("AssigneeLogTo")
+  assigneeLogChanges TicketAssigneeLog[] @relation("AssigneeLogChanger")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -302,6 +306,8 @@ enum LogAction {
   VOID      // 作废
   LINK      // 关联单据
   UNLINK    // 解除关联
+  ACCEPT    // 接单（采买工单）
+  ASSIGN    // 人工分配（采买工单）
 }
 
 model ApprovalLog {
@@ -661,9 +667,22 @@ model NotificationLog {
 // 状态机：DRAFT 草稿 → PENDING_APPROVAL 待审批 → APPROVED 已通过(待执行) → IN_PROGRESS 执行中
 //        → COMPLETED 已完成 → SETTLING 结算中 → SETTLED 已结算
 // 另有 REJECTED（驳回，可重提）、VOIDED（已作废）
+// 工单类型：合作工单（正常流程）/ 采买工单（运营前置采买环节）
+enum TicketKind {
+  COOPERATION  // 合作工单
+  PROCUREMENT  // 采买工单
+}
+
+// 采买工单子类型（仅 ticketType=PROCUREMENT 时有效）
+enum ProcurementSubType {
+  WEEKLY_STYLE  // 周维度款式采买：款式多选+数量，无指定达人
+  LINK_SPECIFIC // 指定达人链接采买：素材类型+需求理由+发布链接
+}
+
 enum TicketStatus {
   DRAFT            // 草稿
   PENDING_APPROVAL // 待审批
+  PENDING_PROCUREMENT // 待采买审批（采买工单专用）
   APPROVED         // 已通过（待执行）
   IN_PROGRESS      // 执行中
   MATERIAL_REVIEW  // 待素材审批（标记完成后，PR负责人审批回收素材）
@@ -680,6 +699,12 @@ model CooperationTicket {
   ticketNo    String       @unique // 工单编号 PR-YYYYMMDD-XXX
   title       String
   type        CoopType
+  ticketKind  TicketKind   @default(COOPERATION) // 工单类型：合作工单 / 采买工单
+  procurementType ProcurementSubType? // 采买子类型（仅 ticketKind=PROCUREMENT 时有效）
+  quantity    Int?         // 采买数量（周维度款式采买用）
+  materialType String?     // 素材类型（指定达人链接采买用）
+  reason      String?      @db.Text // 需求理由（指定达人链接采买用）
+  publishLinks String[]    @default([]) // 发布链接（指定达人链接采买用，多条）
   budgetFee   Decimal      @db.Decimal(12, 2) // 预算费用
   actualFee   Decimal?     @db.Decimal(12, 2) // 实际费用（结算用）
   budgetOverridden Boolean @default(false) // 超预算已特批
@@ -711,6 +736,18 @@ model CooperationTicket {
   coopRequestId String?
   coopRequest   CooperationRequest? @relation("TicketSourceRequest", fields: [coopRequestId], references: [id], onDelete: SetNull)
 
+  // 来源采买工单（采买审批通过后一键转合作工单时带入）
+  sourceTicketId String?
+  sourceTicket   CooperationTicket? @relation("TicketSourceTicket", fields: [sourceTicketId], references: [id], onDelete: SetNull)
+  derivedTickets CooperationTicket[] @relation("TicketSourceTicket")
+
+  // 采买工单接单/分发（ticketKind=PROCUREMENT 审批通过后）
+  assigneeId String? // 归属 PR（接单或人工分配）
+  assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  acceptedAt DateTime? // 接单时间
+  procurementApprovedAt DateTime? // 采买审批通过时间（用于 12h 未接单超时提醒）
+  assigneeLogs TicketAssigneeLog[]
+
   creatorId String
   creator   User   @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Restrict)
 
@@ -731,6 +768,24 @@ model CooperationTicket {
   @@index([creatorId])
   @@index([status, updatedAt, id])
   @@index([updatedAt, id])
+}
+
+// 工单归属人变更记录：采买工单接单/人工分配留痕
+model TicketAssigneeLog {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      CooperationTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromUserId  String?  // 原归属人（接单时为空）
+  fromUser    User?    @relation("AssigneeLogFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUserId    String   // 新归属人
+  toUser      User     @relation("AssigneeLogTo", fields: [toUserId], references: [id], onDelete: Restrict)
+  changedById String   // 操作人（接单=本人，分配=PR负责人/管理员）
+  changedBy   User     @relation("AssigneeLogChanger", fields: [changedById], references: [id], onDelete: Restrict)
+  action      String   // ACCEPT（接单）/ ASSIGN（人工分配）
+  reason      String?  @db.Text // 分配理由（可选）
+  createdAt   DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 // 跟进记录：打款后15天数据跟进，平均3次
