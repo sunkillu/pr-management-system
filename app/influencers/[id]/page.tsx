@@ -18,6 +18,8 @@ import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import InfluencerActions from "@/components/InfluencerActions";
 import TaggingSection from "@/components/TaggingSection";
+import SensitiveFields from "@/components/SensitiveFields";
+import { canViewSensitive, INFLUENCER_LEVEL_A_FIELDS } from "@/lib/sensitive";
 
 export default async function InfluencerDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -57,6 +59,20 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
     orderBy: { createdAt: "desc" },
     take: 20,
   });
+
+  // A级权限：ADMIN / 登记人 / 关联工单的 assignee（对应 PR）
+  const myTicketAsAssignee = await prisma.cooperationTicket.count({
+    where: { influencerId: params.id, assigneeId: me.id },
+  });
+  const canViewSensitiveInfo = canViewSensitive(role, me.id, {
+    registeredById: influencer.registeredById,
+    assigneeIds: myTicketAsAssignee > 0 ? [me.id] : [],
+  });
+  const sensitiveFieldLabels: Record<(typeof INFLUENCER_LEVEL_A_FIELDS)[number], string> = {
+    phone: "手机号",
+    wechat: "微信号",
+    email: "邮箱",
+  };
 
   const isAssigned = approvers.some((a) => a.approverId === me.id && a.status === "PENDING");
   const canApprove =
@@ -169,6 +185,20 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 name={influencer.name}
               />
             </div>
+          </Section>
+
+          <Section title="保密信息（A级 · 仅管理员/对应PR可见）">
+            <SensitiveFields
+              canView={canViewSensitiveInfo}
+              targetType="INFLUENCER"
+              targetId={influencer.id}
+              source="/influencers/[id]"
+              fields={INFLUENCER_LEVEL_A_FIELDS.map((key) => ({
+                key,
+                label: sensitiveFieldLabels[key],
+                value: (influencer as unknown as Record<string, string | null>)[key] ?? null,
+              }))}
+            />
           </Section>
 
           <Section title="标签（谁打的）">

@@ -5,6 +5,7 @@ import { writeLog} from "@/lib/approval-log";
 import { notifyApprovers, notifyUser} from "@/lib/feishu-notify";
 import { buildNodesForTicket} from "@/lib/ticket-nodes";
 import { checkApprovalTimeouts} from "@/lib/timeout-check";
+import { canOccupy, OccupancyConflictError} from "@/lib/occupancy";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 // 采买工单：运营可提交
@@ -228,6 +229,11 @@ const estimatedSchedule = String(body.estimatedSchedule ?? "").trim();
 if (!estimatedSchedule) {
 return NextResponse.json({ error: "请填写预估档期" }, { status: 400});
 }
+// v2: 预估发布年月（YYYY-MM，提报必填）
+const estimatedPublishMonth =
+typeof body.estimatedPublishMonth === "string" && /^\d{4}-\d{2}$/.test(body.estimatedPublishMonth.trim())
+? body.estimatedPublishMonth.trim()
+: null;
 const { influencerId, makeupArtistId} = pickPartner(body);
 if (type === "MAKEUP" &&!makeupArtistId) {
 return NextResponse.json({ error: "化妆师合作必须选择化妆师"}, { status: 400});
@@ -293,7 +299,11 @@ const shipItems = Array.isArray(body.shipItems)
       .slice(0, 50)
   : undefined;
 
-const ticket = await prisma.$transaction(async (tx) => {
+// v2 达人资源占用：占用冲突在事务内抛 OccupancyConflictError（事务自动回滚），
+// 外层统一转为 409 响应（不含报价等敏感字段）
+let ticket;
+try {
+ticket = await prisma.$transaction(async (tx) => {
 // 生成工单编号 YYYYMMDD + 4位序号（如 202610100001）
 const today = new Date();
 const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
@@ -315,6 +325,7 @@ coopCategory: coopCategories,
 priceNote: String(body.priceNote ?? "").trim() || null,
 contentNote: String(body.contentNote ?? "").trim() || null,
 estimatedSchedule,
+estimatedPublishMonth,
 startDate: body.startDate? new Date(body.startDate): null,
 endDate: body.endDate? new Date(body.endDate): null,
 note: body.note?.trim() || null,
@@ -346,8 +357,45 @@ fromStatus: "DRAFT",
 toStatus: "PENDING_APPROVAL",
 });
 }
+// v2 达人资源占用：创建时若报价 + 确定档期已齐全，直接开始占用（接口层校验，防前端绕过）
+// 原子 check-and-set 保证并发唯一性
+// v2: 报价始终保存（A级敏感）；确定档期有值则保存
+const qRaw = Number(body.quoteAmount);
+const cdRaw = typeof body.confirmedDate === "string" ? body.confirmedDate.trim() : "";
+const hasQuote = body.quoteAmount != null && body.quoteAmount !== "" && qRaw > 0;
+const hasConfirmedDate = /^\d{4}-\d{2}-\d{2}$/.test(cdRaw);
+if (influencerId && (hasQuote || hasConfirmedDate)) {
+const occData: { quoteAmount?: number; confirmedDate?: Date; occupiesResource?: boolean; resourceOccupiedAt?: Date } = {};
+if (hasQuote) occData.quoteAmount = qRaw;
+if (hasConfirmedDate) occData.confirmedDate = new Date(`${cdRaw}T00:00:00`);
+if (hasQuote && hasConfirmedDate) {
+try {
+await canOccupy(influencerId, created.id, tx);
+} catch (e) {
+if (e instanceof OccupancyConflictError) {
+const err = new Error(e.message) as Error & { status?: number; occupancy?: unknown };
+err.status = 409;
+// 409 响应脱敏：只带占用工单标题/ID/剩余天数，不带报价
+const o = e.occupancy;
+err.occupancy = { occupied: o.occupied, ticketId: o.ticketId, ticketTitle: o.ticketTitle, daysRemaining: o.daysRemaining };
+throw err;
+}
+throw e;
+}
+occData.occupiesResource = true;
+occData.resourceOccupiedAt = new Date();
+}
+await tx.cooperationTicket.update({ where: { id: created.id }, data: occData });
+}
 return created;
 });
+} catch (e) {
+const err = e as Error & { status?: number; occupancy?: unknown };
+if (err && err.status === 409) {
+return NextResponse.json({ error: err.message, occupancy: err.occupancy ?? null }, { status: 409 });
+}
+throw e;
+}
 
 if (submit) {
 await notifyApprovers(

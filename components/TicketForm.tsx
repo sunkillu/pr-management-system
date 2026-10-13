@@ -5,6 +5,8 @@ import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
 import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
+import { OccupancyWarning } from "./OccupancyWarning";
+import type { OccupancyInfo } from "@/lib/occupancy";
 
 type Approver = { id: string; name: string; email: string; role: string };
 type Partner = { id: string; name: string; homepageId?: string | null };
@@ -24,6 +26,9 @@ export type EditTicketData = {
   priceNote: string;
   contentNote: string;
   estimatedSchedule: string;
+  estimatedPublishMonth: string;
+  quoteAmount: string;
+  confirmedDate: string;
   coopCategory: string[];
   homepageId: string;
   startDate: string;
@@ -84,6 +89,11 @@ export default function TicketForm({
   const [priceNote, setPriceNote] = useState(editTicket?.priceNote ?? "");
   const [contentNote, setContentNote] = useState(editTicket?.contentNote ?? "");
   const [estimatedSchedule, setEstimatedSchedule] = useState(editTicket?.estimatedSchedule ?? "");
+  // v2: 预估发布年月 / 预估报价 / 确定档期（确认或暂不确认）
+  const [estimatedPublishMonth, setEstimatedPublishMonth] = useState(editTicket?.estimatedPublishMonth ?? "");
+  const [quoteAmount, setQuoteAmount] = useState(editTicket?.quoteAmount ?? "");
+  const [confirmSchedule, setConfirmSchedule] = useState(!!editTicket?.confirmedDate);
+  const [confirmedDate, setConfirmedDate] = useState(editTicket?.confirmedDate ?? "");
   const [selected, setSelected] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   // 寄品明细：可寄多个款式，每行 {款式名、度数、寄品备注}
@@ -92,6 +102,18 @@ export default function TicketForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  // v2: 达人资源占用警示
+  const [occupancy, setOccupancy] = useState<OccupancyInfo | null>(null);
+  useEffect(() => {
+    if (ticketKind !== "COOPERATION" || type === "MAKEUP" || !partnerId || !open) {
+      setOccupancy(null);
+      return;
+    }
+    fetch(`/api/occupancy?influencerId=${partnerId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setOccupancy(d && typeof d.occupied === "boolean" ? d : null))
+      .catch(() => setOccupancy(null));
+  }, [partnerId, ticketKind, type, open]);
 
   async function uploadFile(file: File) {
     setUploading(true);
@@ -163,6 +185,10 @@ export default function TicketForm({
     if (styles.length === 0) return "请选择款式（可多选）";
     if (coopCategories.length === 0) return "请选择合作类目（可多选）";
     if (!estimatedSchedule.trim()) return "请填写预估档期";
+    // v2: 预估发布年月 / 预估报价必填；确定档期确认时必填
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(estimatedPublishMonth.trim())) return "请填写预估发布年月（如 2026-11）";
+    if (!quoteAmount || Number(quoteAmount) <= 0) return "预估报价必须大于 0";
+    if (confirmSchedule && !/^\d{4}-\d{2}-\d{2}$/.test(confirmedDate)) return "请使用日期选择器填写确定档期";
     return null;
   }
 
@@ -209,6 +235,9 @@ export default function TicketForm({
           priceNote: priceNote.trim() || null,
           contentNote: contentNote.trim() || null,
           estimatedSchedule: estimatedSchedule.trim(),
+          estimatedPublishMonth: estimatedPublishMonth.trim() || null,
+          quoteAmount: quoteAmount || null,
+          confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
           startDate: startDate || null,
           endDate: endDate || null,
           note: note.trim() || null,
@@ -271,6 +300,9 @@ export default function TicketForm({
         priceNote: priceNote.trim() || null,
         contentNote: contentNote.trim() || null,
         estimatedSchedule: estimatedSchedule.trim(),
+        estimatedPublishMonth: estimatedPublishMonth.trim() || null,
+        quoteAmount: quoteAmount || null,
+        confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
         startDate: startDate || null,
         endDate: endDate || null,
         note: finalNote,
@@ -425,6 +457,9 @@ export default function TicketForm({
               ))}
             </select>
           </Field>
+          {occupancy && occupancy.occupied && (
+            <OccupancyWarning occupancy={occupancy} />
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="合作平台（可多选）" required>
               <div className="flex flex-wrap gap-3">
@@ -483,6 +518,32 @@ export default function TicketForm({
             <input className={inputCls} value={estimatedSchedule}
               onChange={(e) => setEstimatedSchedule(e.target.value)}
               placeholder='如：10月下旬 / 2026-10-20~2026-10-31' />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="预估发布年月" required>
+              <input type="month" className={inputCls} value={estimatedPublishMonth}
+                onChange={(e) => setEstimatedPublishMonth(e.target.value)} />
+            </Field>
+            <Field label="预估报价（元）" required>
+              <input type="number" min={0.01} step="0.01" className={inputCls} autoComplete="off"
+                value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="确定档期" hint="暂不确认不能进入合作中；报价+确定档期齐全才能进合作中">
+            <div className="flex gap-2 mb-2">
+              <button type="button" onClick={() => setConfirmSchedule(true)}
+                className={`px-3 py-1.5 rounded-md text-sm border ${confirmSchedule ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
+                确认档期
+              </button>
+              <button type="button" onClick={() => { setConfirmSchedule(false); setConfirmedDate(""); }}
+                className={`px-3 py-1.5 rounded-md text-sm border ${!confirmSchedule ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
+                暂不确认
+              </button>
+            </div>
+            {confirmSchedule && (
+              <input type="date" className={inputCls} value={confirmedDate}
+                onChange={(e) => setConfirmedDate(e.target.value)} />
+            )}
           </Field>
           <Field label="内容方向">
             <textarea className={inputCls} rows={2} value={contentDirection} onChange={(e) => setContentDirection(e.target.value)} />
