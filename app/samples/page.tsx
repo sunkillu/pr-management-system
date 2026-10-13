@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { sampleStatusLabels, badgeClass } from "@/lib/labels";
+import { logisticsStatusLabels, abnormalFlagLabels, logisticsBadgeClass, abnormalBadgeClass } from "@/lib/logistics";
 import SampleForm from "@/components/SampleForm";
 import SampleShipForm from "@/components/SampleShipForm";
 import SampleActions from "@/components/SampleActions";
@@ -106,6 +107,8 @@ export default async function SamplesPage({
               <TableHead>数量</TableHead>
               <TableHead>快递公司</TableHead>
               <TableHead>快递单号</TableHead>
+              <TableHead>物流状态</TableHead>
+              <TableHead>异常标记</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>记录人</TableHead>
               <TableHead>流转操作</TableHead>
@@ -121,6 +124,24 @@ export default async function SamplesPage({
                 <TableCell>{r.quantity}</TableCell>
                 <TableCell>{r.courier ?? "-"}</TableCell>
                 <TableCell>{r.trackingNo ?? "-"}</TableCell>
+                <TableCell>
+                  {r.logisticsStatus ? (
+                    <Badge className={logisticsBadgeClass(r.logisticsStatus)}>
+                      {logisticsStatusLabels[r.logisticsStatus] ?? r.logisticsStatus}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {r.abnormalFlag ? (
+                    <Badge className={abnormalBadgeClass()}>
+                      {abnormalFlagLabels[r.abnormalFlag] ?? r.abnormalFlag}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Badge className={badgeClass(r.status)}>
                     {sampleStatusLabels[r.status]}
@@ -161,6 +182,13 @@ export default async function SamplesPage({
                             courier: r.courier,
                             trackingNo: r.trackingNo,
                             shippedDate: r.shippedDate ? r.shippedDate.toISOString().slice(0, 10) : null,
+                            shippedAt: r.shippedAt
+                              ? new Date(r.shippedAt.getTime() - r.shippedAt.getTimezoneOffset() * 60000)
+                                  .toISOString()
+                                  .slice(0, 16)
+                              : null,
+                            logisticsStatus: r.logisticsStatus,
+                            abnormalFlag: r.abnormalFlag,
                             shippedBy: r.shippedBy,
                             status: r.status,
                           }}
@@ -174,7 +202,7 @@ export default async function SamplesPage({
             {list.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={(canWrite || canShip) ? 10 : 9}
+                  colSpan={(canWrite || canShip) ? 12 : 11}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   暂无数据
