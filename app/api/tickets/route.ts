@@ -7,6 +7,8 @@ import { buildNodesForTicket} from "@/lib/ticket-nodes";
 import { checkApprovalTimeouts} from "@/lib/timeout-check";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
+// 采买工单：运营可提交
+const PROCUREMENT_WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER", "OPERATOR"] as const;
 const ALL_ROLES = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as const;
 
 function pickPartner(body: Record<string, unknown>) {
@@ -41,11 +43,153 @@ return NextResponse.json(list);
 }
 
 // 新建工单：submit=true 直接提交审批（生成节点模板 + 审批人 + 通知），否则存草稿
+// ticketKind=PROCUREMENT 时为采买工单：运营可提交，流程简化为待采买审批
+
+// 采买工单创建：字段按子类型校验，提交后进 PENDING_PROCUREMENT（不生成进度节点）
+async function createProcurementTicket(
+  req: NextRequest,
+  body: Record<string, unknown>,
+  auth: { ok: true; userId: string; userName: string; role: string },
+) {
+  const procurementType = body.procurementType as string;
+  if (!["WEEKLY_STYLE", "LINK_SPECIFIC"].includes(procurementType)) {
+    return NextResponse.json({ error: "采买子类型非法" }, { status: 400 });
+  }
+  const budgetFee = Number(body.budgetFee);
+  if (!budgetFee || budgetFee <= 0) {
+    return NextResponse.json({ error: "预算费用必须大于 0" }, { status: 400 });
+  }
+
+  let styles: string[] = [];
+  let quantity: number | null = null;
+  let materialType: string | null = null;
+  let reason: string | null = null;
+  let publishLinks: string[] = [];
+
+  if (procurementType === "WEEKLY_STYLE") {
+    styles = Array.isArray(body.style) ? (body.style as unknown[]).map(String).filter(Boolean) : [];
+    if (styles.length === 0) return NextResponse.json({ error: "请选择款式（可多选）" }, { status: 400 });
+    quantity = Number(body.quantity);
+    if (!quantity || quantity <= 0 || !Number.isInteger(quantity)) {
+      return NextResponse.json({ error: "采买数量必须为正整数" }, { status: 400 });
+    }
+  } else {
+    materialType = String(body.materialType ?? "").trim() || null;
+    if (!materialType) return NextResponse.json({ error: "请填写素材类型" }, { status: 400 });
+    reason = String(body.reason ?? "").trim() || null;
+    if (!reason) return NextResponse.json({ error: "请填写需求理由" }, { status: 400 });
+    publishLinks = Array.isArray(body.publishLinks)
+      ? (body.publishLinks as unknown[]).map((s) => String(s).trim()).filter(Boolean).slice(0, 50)
+      : [];
+    if (publishLinks.length === 0) return NextResponse.json({ error: "请至少填写一条发布链接" }, { status: 400 });
+  }
+
+  const submit = body.submit === true;
+  const approverIds: string[] = Array.isArray(body.approverIds) ? body.approverIds as string[] : [];
+  if (submit) {
+    if (approverIds.length === 0) {
+      return NextResponse.json({ error: "提交审批必须选择至少一位审批人" }, { status: 400 });
+    }
+    const approvers = await prisma.user.findMany({
+      where: { id: { in: approverIds }, role: { in: ["ADMIN", "PR_MANAGER"] } },
+      select: { id: true },
+    });
+    if (approvers.length !== approverIds.length) {
+      return NextResponse.json({ error: "审批人必须为 PR负责人 或 管理员" }, { status: 400 });
+    }
+  }
+
+  const note = String(body.note ?? "").trim() || null;
+  const ticket = await prisma.$transaction(async (tx) => {
+    const today = new Date();
+    const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayCount = await tx.cooperationTicket.count({ where: { createdAt: { gte: dayStart } } });
+    const ticketNo = `${ymd}${String(todayCount + 1).padStart(4, "0")}`;
+    const created = await tx.cooperationTicket.create({
+      data: {
+        ticketNo,
+        title: (body.title as string).trim(),
+        type: "INFLUENCER_POST",
+        ticketKind: "PROCUREMENT",
+        procurementType: procurementType as "WEEKLY_STYLE" | "LINK_SPECIFIC",
+        style: styles,
+        quantity,
+        materialType,
+        reason,
+        publishLinks,
+        budgetFee,
+        platform: [],
+        coopCategory: [],
+        estimatedSchedule: "-",
+        note,
+        status: submit ? "PENDING_PROCUREMENT" : "DRAFT",
+        creatorId: auth.userId,
+      },
+    });
+    if (submit) {
+      await tx.requestApprover.createMany({
+        data: approverIds.map((approverId: string) => ({
+          requestType: "TICKET" as const,
+          requestId: created.id,
+          approverId,
+        })),
+      });
+      await writeLog(tx, {
+        docType: "TICKET",
+        docId: created.id,
+        action: "SUBMIT",
+        actorId: auth.userId,
+        fromStatus: "DRAFT",
+        toStatus: "PENDING_PROCUREMENT",
+      });
+    }
+    return created;
+  });
+
+  if (submit) {
+    await notifyApprovers(
+      approverIds,
+      `${auth.userName}发起了采买工单「${ticket.title}」，请审批。`,
+      { type: "TICKET", id: ticket.id, title: "采买工单待审批", kind: "APPROVAL_PENDING" },
+    );
+  }
+
+  // 工单标签
+  const tagIds: string[] = Array.isArray(body.tagIds)
+    ? Array.from(new Set<string>((body.tagIds as unknown[]).map((s) => String(s)).filter(Boolean))).slice(0, 20)
+    : [];
+  if (tagIds.length > 0) {
+    const tags = await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true } });
+    const validIds = tags.map((t) => t.id);
+    if (validIds.length > 0) {
+      await prisma.tagging.createMany({
+        data: validIds.map((tagId) => ({
+          tagId,
+          entityType: "TICKET" as const,
+          entityId: ticket.id,
+          createdById: auth.userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  return NextResponse.json(ticket, { status: 201 });
+}
 export async function POST(req: NextRequest) {
-const auth = await requireRoles([...WRITE_ROLES]);
-if (!auth.ok) return auth.res;
 const body = await req.json();
+const ticketKind = (body.ticketKind as string) === "PROCUREMENT" ? "PROCUREMENT" : "COOPERATION";
+const auth = await requireRoles(ticketKind === "PROCUREMENT" ? [...PROCUREMENT_WRITE_ROLES] : [...WRITE_ROLES]);
+if (!auth.ok) return auth.res;
 if (!body.title?.trim()) return NextResponse.json({ error: "标题不能为空"}, { status: 400});
+
+// ---------- 采买工单分支 ----------
+if (ticketKind === "PROCUREMENT") {
+return createProcurementTicket(req, body, auth);
+}
+
+// ---------- 合作工单（原有逻辑） ----------
 const type = body.type as "INFLUENCER_POST" | "INFLUENCER_LIVE" | "MAKEUP" | undefined;
 if (!type || !["INFLUENCER_POST", "INFLUENCER_LIVE", "MAKEUP"].includes(type)) {
 return NextResponse.json({ error: "合作类型非法"}, { status: 400});
@@ -92,6 +236,15 @@ return NextResponse.json({ error: "该达人尚未通过审核，不能发起合
 if (auth.role === "PR" && inf.registeredById !== auth.userId) {
 return NextResponse.json({ error: "只能选择自己登记的达人发起合作"}, { status: 403});
 }
+}
+// 来源采买工单：如传入则校验存在且为已通过的采买工单
+const sourceTicketId = (typeof body.sourceTicketId === "string" && body.sourceTicketId.trim()) ? body.sourceTicketId.trim() : null;
+if (sourceTicketId) {
+  const st = await prisma.cooperationTicket.findUnique({ where: { id: sourceTicketId }, select: { id: true, ticketKind: true, status: true } });
+  if (!st) return NextResponse.json({ error: "来源采买工单不存在" }, { status: 400 });
+  if (st.ticketKind !== "PROCUREMENT" || st.status !== "APPROVED") {
+    return NextResponse.json({ error: "来源采买工单状态非法" }, { status: 400 });
+  }
 }
 // 来源合作需求：如传入则校验存在
 const coopRequestId = (typeof body.coopRequestId === "string" && body.coopRequestId.trim()) ? body.coopRequestId.trim() : null;
@@ -168,7 +321,9 @@ status: submit? "PENDING_APPROVAL": "DRAFT",
 influencerId,
 makeupArtistId,
 // 来源合作需求（从需求详情页"发起工单"跳转时带入，已在上方校验）
+// 来源采买工单（采买审批通过后转合作工单时带入，已在上方校验）
 coopRequestId,
+sourceTicketId,
 creatorId: auth.userId,
 attachments: attachments ?? undefined,
 shipItems: shipItems && shipItems.length > 0 ? shipItems : undefined,

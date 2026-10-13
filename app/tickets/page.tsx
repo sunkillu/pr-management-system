@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatusBadge from "@/components/StatusBadge";
-import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTagLabels } from "@/lib/labels";
+import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTagLabels, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
@@ -32,11 +32,12 @@ const VIEWS = [
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; type?: string; view?: string; page?: string; tagId?: string };
+  searchParams: { q?: string; status?: string; type?: string; ticketKind?: string; view?: string; page?: string; tagId?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
-  const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
+  // 运营只能发起采买工单；PR/管理员/PR负责人可发起合作工单
+  const canWrite = ["ADMIN", "PR", "PR_MANAGER", "OPERATOR"].includes(role);
   const view = searchParams.view === "board" ? "board" : "list";
 
   const cutoff = new Date(Date.now() - APPROVAL_TIMEOUT_HOURS * 3600 * 1000);
@@ -89,7 +90,7 @@ export default async function TicketsPage({
         <PageHeader
           title="合作工单"
           desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
-          action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} /> : undefined}
+          action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} /> : undefined}
         />
         <div className="mb-5 flex gap-1 border-b">
           {VIEWS.map((v) => (
@@ -138,6 +139,7 @@ export default async function TicketsPage({
         : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { type: searchParams.type as never } : {}),
+      ...(searchParams.ticketKind ? { ticketKind: searchParams.ticketKind as never } : {}),
       ...(tagTicketIds ? { id: { in: tagTicketIds } } : {}),
   };
   const pagination = getPagination(searchParams.page);
@@ -148,6 +150,7 @@ export default async function TicketsPage({
         influencer: { select: { name: true } },
         makeupArtist: { select: { name: true } },
         creator: { select: { name: true } },
+        assignee: { select: { name: true } },
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       skip: pagination.skip,
@@ -156,13 +159,15 @@ export default async function TicketsPage({
     prisma.cooperationTicket.count({ where }),
   ]);
 
+  const acceptCutoff = Date.now() - 12 * 3600 * 1000;
+
   return (
     <div>
       <AutoRefresh intervalMs={30000} />
       <PageHeader
         title="合作工单"
         desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
-        action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} /> : undefined}
+        action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} /> : undefined}
       />
 
       <div className="mb-5 flex gap-1 border-b">
@@ -194,8 +199,14 @@ export default async function TicketsPage({
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+        <select name="ticketKind" defaultValue={searchParams.ticketKind ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <option value="">全部工单类型</option>
+          {Object.entries(ticketKindLabels).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
         <select name="type" defaultValue={searchParams.type ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <option value="">全部类型</option>
+          <option value="">全部合作类型</option>
           {Object.entries(coopTypeLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
@@ -215,18 +226,22 @@ export default async function TicketsPage({
             <TableRow>
               <TableHead>工单编号</TableHead>
               <TableHead>标题</TableHead>
-              <TableHead>类型</TableHead>
+              <TableHead>工单类型</TableHead>
+              <TableHead>合作类型</TableHead>
               <TableHead>平台</TableHead>
               <TableHead>合作对象</TableHead>
               <TableHead className="tabular-nums">预算（元）</TableHead>
               <TableHead>档期</TableHead>
               <TableHead>状态</TableHead>
+              <TableHead>归属PR</TableHead>
               <TableHead>发起人</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {list.map((t) => {
               const overdue = t.status === "PENDING_APPROVAL" && t.updatedAt < cutoff;
+              const acceptOverdue = t.ticketKind === "PROCUREMENT" && t.status === "APPROVED" &&
+                !t.assignee && t.procurementApprovedAt && new Date(t.procurementApprovedAt).getTime() < acceptCutoff;
               return (
                 <TableRow key={t.id}>
                   <TableCell className="whitespace-nowrap font-mono text-xs">
@@ -240,7 +255,17 @@ export default async function TicketsPage({
                       <Badge variant="destructive" className="ml-2">已超时</Badge>
                     )}
                   </TableCell>
-                  <TableCell>{coopTypeLabels[t.type]}</TableCell>
+                  <TableCell>
+                    <Badge variant={t.ticketKind === "PROCUREMENT" ? "secondary" : "outline"}>
+                      {ticketKindLabels[t.ticketKind] ?? t.ticketKind}
+                    </Badge>
+                    {t.ticketKind === "PROCUREMENT" && t.procurementType && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {procurementSubTypeLabels[t.procurementType] ?? t.procurementType}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>{t.ticketKind === "PROCUREMENT" ? "-" : coopTypeLabels[t.type]}</TableCell>
                   <TableCell>{(t.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</TableCell>
                   <TableCell>{t.influencer?.name ?? t.makeupArtist?.name ?? "-"}</TableCell>
                   <TableCell className="tabular-nums">{formatMoney(t.budgetFee)}</TableCell>
@@ -249,13 +274,19 @@ export default async function TicketsPage({
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={t.status} label={ticketStatusLabels[t.status]} />
+                    {acceptOverdue && (
+                      <Badge variant="destructive" className="ml-2">接单超时</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {t.ticketKind === "PROCUREMENT" ? (t.assignee?.name ?? <span className="text-muted-foreground">待接单</span>) : "-"}
                   </TableCell>
                   <TableCell>{t.creator?.name ?? "-"}</TableCell>
                 </TableRow>
               );
             })}
             {list.length === 0 && (
-              <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

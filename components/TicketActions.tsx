@@ -78,8 +78,8 @@ export default function TicketActions({
 
   const btns: React.ReactNode[] = [];
 
-  // 审批区（待审批）
-  if (ticket.status === "PENDING_APPROVAL" && canApprove) {
+  // 审批区（待审批 / 待采买审批）
+  if ((ticket.status === "PENDING_APPROVAL" || ticket.status === "PENDING_PROCUREMENT") && canApprove) {
     btns.push(
       <button key="approve" className={btnPrimary}
         onClick={() => setShowApproveBox(true)}>通过</button>
@@ -90,7 +90,7 @@ export default function TicketActions({
     );
   }
   // 提醒审批人：仅申请人（创建人）可见
-  if (ticket.status === "PENDING_APPROVAL" && ticket.creatorId === userId) {
+  if ((ticket.status === "PENDING_APPROVAL" || ticket.status === "PENDING_PROCUREMENT") && ticket.creatorId === userId) {
     btns.push(
       <button key="remind" className="rounded border border-orange-400 px-4 py-2 text-sm text-orange-600 hover:bg-orange-50"
         onClick={() => ask("提醒审批人", "确定向待审批人发送催办提醒吗？", async () => {
@@ -135,7 +135,7 @@ export default function TicketActions({
     );
   }
   // 作废：ADMIN 可作废非终态；创建人/审批链成员仅可作废早期待办状态
-  if (!["SETTLED", "VOIDED"].includes(ticket.status) && (isAdmin || (canOperate && ["DRAFT", "PENDING_APPROVAL", "REJECTED"].includes(ticket.status)))) {
+  if (!["SETTLED", "VOIDED"].includes(ticket.status) && (isAdmin || (canOperate && ["DRAFT", "PENDING_APPROVAL", "PENDING_PROCUREMENT", "REJECTED"].includes(ticket.status)))) {
     btns.push(
       <button key="void" className="rounded border border-gray-400 px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
         onClick={() => setShowVoidBox(true)}>作废</button>
