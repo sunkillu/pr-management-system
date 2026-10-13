@@ -6,6 +6,7 @@ import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_C
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
 import { OccupancyWarning } from "./OccupancyWarning";
+import { InfluencerHistory } from "./InfluencerHistory";
 import type { OccupancyInfo } from "@/lib/occupancy";
 
 type Approver = { id: string; name: string; email: string; role: string };
@@ -459,6 +460,9 @@ export default function TicketForm({
           </Field>
           {occupancy && occupancy.occupied && (
             <OccupancyWarning occupancy={occupancy} />
+          )}
+          {ticketKind === "COOPERATION" && type !== "MAKEUP" && partnerId && (
+            <InfluencerHistory influencerId={partnerId} />
           )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="合作平台（可多选）" required>

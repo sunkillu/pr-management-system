@@ -60,7 +60,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
     take: 20,
   });
 
-  // A级权限：ADMIN / 登记人 / 关联工单的 assignee（对应 PR）
+  // A级权限：仅 ADMIN / 关联工单的 assignee（归属PR）
   const myTicketAsAssignee = await prisma.cooperationTicket.count({
     where: { influencerId: params.id, assigneeId: me.id },
   });

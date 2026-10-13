@@ -1,10 +1,10 @@
 // 达人信息权限分级
-// A级（保密信息）：phone 手机号 / wechat 微信号 / email 邮箱 / quoteAmount 合作报价
-//   - 仅 ADMIN 和「对应 PR」可见：对应 PR = 登记人（Influencer.registeredById）
-//     或 关联工单的 assignee（CooperationTicket.assigneeId）
+// A级（保密信息）：phone 手机号 / wechat 微信号 / email 邮箱 / 私密联系方式 / quoteAmount 合作报价 / 结算信息
+//   - 仅以下两者可见：ADMIN 管理员、对应 PR（归属PR = 关联工单的 assigneeId）
+//   - 其他所有人一律不可见（包括 PR负责人、其他 PR，即使是登记人）
 //   - 每次查看写入 SensitiveAccessLog（只记字段名，绝不记字段值）
 // B级（业务信息）：历史寄品、合作模式、发布链接、归属PR、合作款式和时间
-//   - 沿用现有业务权限（PR 仅看自己登记，见 lib/influencer-access.ts），不做额外字段过滤
+//   - 按现有业务权限展示（PR 仅看自己登记，见 lib/influencer-access.ts）
 
 /** A级敏感字段（全系统统一口径） */
 export const LEVEL_A_FIELDS = ["phone", "wechat", "email", "quoteAmount"] as const;
@@ -32,9 +32,10 @@ export type InfluencerSensitiveRef = {
 
 /**
  * 是否可以查看 A级敏感字段。
+ * 口径：仅 ADMIN、对应 PR（归属PR = 关联工单 assignee）可见；其他所有人一律不可见（含 PR负责人）。
  * @param viewerRole 查看者角色
  * @param viewerId 查看者 id
- * @param influencer 达人对象（至少含 registeredById；工单 assignee 场景传 assigneeIds）
+ * @param influencer 达人对象（工单 assignee 场景传 assigneeIds）
  */
 export function canViewSensitive(
   viewerRole: string,
@@ -43,7 +44,6 @@ export function canViewSensitive(
 ): boolean {
   if (!viewerId) return false;
   if (viewerRole === "ADMIN") return true;
-  if (influencer.registeredById && influencer.registeredById === viewerId) return true;
   if (influencer.assigneeIds && influencer.assigneeIds.includes(viewerId)) return true;
   return false;
 }
