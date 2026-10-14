@@ -26,9 +26,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "该工单已被接单" }, { status: 400 });
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.cooperationTicket.update({
-      where: { id: params.id },
+  const accepted = await prisma.$transaction(async (tx) => {
+    const result = await tx.cooperationTicket.updateMany({
+      where: {
+        id: params.id,
+        ticketKind: "PROCUREMENT",
+        status: "APPROVED",
+        assigneeId: null,
+      },
       data: {
         assigneeId: auth.userId,
         acceptedAt: new Date(),
@@ -37,6 +42,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         status: "DRAFT",
       },
     });
+    if (result.count !== 1) return false;
+
     await tx.ticketAssigneeLog.create({
       data: {
         ticketId: params.id,
@@ -55,14 +62,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       toStatus: "DRAFT",
       note: `${auth.userName}接单，转入合作工单流程`,
     });
+    return true;
   });
+  if (!accepted) {
+    return NextResponse.json({ error: "该工单已被其他人接单或状态已变化" }, { status: 409 });
+  }
 
   // 通知提交人
-  await notifyUser(
-    ticket.creatorId,
-    `采买工单「${ticket.title}」已被 ${auth.userName} 接单，转入合作工单流程。`,
-    { type: "TICKET", id: ticket.id, title: "采买工单已接单", kind: "SYSTEM" },
-  );
+  try {
+    await notifyUser(
+      ticket.creatorId,
+      `采买工单「${ticket.title}」已被 ${auth.userName} 接单，转入合作工单流程。`,
+      { type: "TICKET", id: ticket.id, title: "采买工单已接单", kind: "SYSTEM" },
+    );
+  } catch (error) {
+    console.error("[ticket.accept.notification]", { ticketId: ticket.id, error });
+  }
 
   return NextResponse.json({ ok: true });
 }

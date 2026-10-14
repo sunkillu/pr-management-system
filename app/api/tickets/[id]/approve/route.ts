@@ -43,14 +43,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // 采买工单：通过 → APPROVED（采买通过，可一键转合作工单）；合作工单：通过 → IN_PROGRESS
   const toStatus = action === "APPROVE" ? (isProcurement ? "APPROVED" : "IN_PROGRESS") : "REJECTED";
   const updated = await prisma.$transaction(async (tx) => {
-    const u = await tx.cooperationTicket.update({
-      where: { id: params.id },
+    const result = await tx.cooperationTicket.updateMany({
+      where: {
+        id: params.id,
+        ticketKind: ticket.ticketKind,
+        status: pendingStatus,
+      },
       data: {
         status: toStatus,
         rejectReason: action === "REJECT" ? body.comment.trim() : null,
         escalatedAt: null, // 重新进入流转时清除超时标记
+        ...(action === "APPROVE" && isProcurement ? { procurementApprovedAt: new Date() } : {}),
       },
     });
+    if (result.count !== 1) return null;
+
     await tx.requestApprover.upsert({
       where: {
         requestType_requestId_approverId: {
@@ -90,44 +97,55 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         note: "审批通过，自动开始执行",
       });
     }
-    return u;
+    return tx.cooperationTicket.findUnique({ where: { id: params.id } });
   });
+  if (!updated) {
+    return NextResponse.json({ error: "工单已由其他审批人处理或状态已变化" }, { status: 409 });
+  }
 
-  await notifyUser(
-    ticket.creatorId,
-    isProcurement
-      ? `「${ticket.title}」${action === "APPROVE" ? "采买审批通过，可一键转为合作工单。" : `被驳回，理由：${body.comment.trim()}`}`
-      : `「${ticket.title}」${action === "APPROVE" ? "审批通过，已自动开始执行。" : `被驳回，理由：${body.comment.trim()}`}`,
-    { type: "TICKET", id: ticket.id, title: isProcurement ? "采买工单审批结果" : "合作工单审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
-  );
+  try {
+    await notifyUser(
+      ticket.creatorId,
+      isProcurement
+        ? `「${ticket.title}」${action === "APPROVE" ? "采买审批通过，可一键转为合作工单。" : `被驳回，理由：${body.comment.trim()}`}`
+        : `「${ticket.title}」${action === "APPROVE" ? "审批通过，已自动开始执行。" : `被驳回，理由：${body.comment.trim()}`}`,
+      { type: "TICKET", id: ticket.id, title: isProcurement ? "采买工单审批结果" : "合作工单审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
+    );
+  } catch (error) {
+    console.error("[ticket.approve.notification]", { ticketId: ticket.id, error });
+  }
 
   // 审批通过且工单有寄品明细时，提醒提交人维护寄件信息并发起寄件请求（仅合作工单）
   if (action === "APPROVE" && !isProcurement) {
     const shipItems = ticket.shipItems as { style: string }[] | null;
     if (Array.isArray(shipItems) && shipItems.length > 0) {
-      await notifyUser(
-        ticket.creatorId,
-        `工单「${ticket.title}」已通过审批，请维护寄件信息并发起寄件请求。`,
-        { type: "SAMPLE", id: "", title: "寄件信息待维护", kind: "SYSTEM" }
-      );
+      try {
+        await notifyUser(
+          ticket.creatorId,
+          `工单「${ticket.title}」已通过审批，请维护寄件信息并发起寄件请求。`,
+          { type: "SAMPLE", id: "", title: "寄件信息待维护", kind: "SYSTEM" }
+        );
+      } catch (error) {
+        console.error("[ticket.approve.sample-notification]", { ticketId: ticket.id, error });
+      }
     }
   }
 
   // 采买工单审批通过：记录通过时间 + 广播给所有 PR（待接单）
   if (action === "APPROVE" && isProcurement) {
-    await prisma.cooperationTicket.update({
-      where: { id: ticket.id },
-      data: { procurementApprovedAt: new Date() },
-    });
-    const prs = await prisma.user.findMany({
-      where: { role: "PR" },
-      select: { id: true },
-    });
-    await notifyApprovers(
-      prs.map((p) => p.id),
-      `采买工单「${ticket.title}」已通过审批，待接单。`,
-      { type: "TICKET", id: ticket.id, title: "采买工单待接单", kind: "SYSTEM" },
-    );
+    try {
+      const prs = await prisma.user.findMany({
+        where: { role: "PR" },
+        select: { id: true },
+      });
+      await notifyApprovers(
+        prs.map((p) => p.id),
+        `采买工单「${ticket.title}」已通过审批，待接单。`,
+        { type: "TICKET", id: ticket.id, title: "采买工单待接单", kind: "SYSTEM" },
+      );
+    } catch (error) {
+      console.error("[ticket.approve.procurement-notification]", { ticketId: ticket.id, error });
+    }
   }
 
   return NextResponse.json(updated);

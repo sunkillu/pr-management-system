@@ -285,22 +285,10 @@ export default function TicketForm({
       return;
     }
 
-    // 采买工单：特有信息合并写入 note / contentDirection（合作工单子集字段）
-    let finalNote: string | null = note.trim() || null;
-    let finalContentDirection: string | null = contentDirection.trim() || null;
-    if (isProcurement) {
-      const lines = ["【采买信息】"];
-      if (procurementType === "WEEKLY_STYLE") {
-        lines.push(`采买数量：${procurementQuantity}`);
-      } else {
-        finalContentDirection = materialType.trim();
-        lines.push(`需求理由：${reason.trim()}`);
-        const links = publishLinksText.split("\n").map((s) => s.trim()).filter(Boolean);
-        lines.push(`发布链接：\n${links.map((l, i) => `${i + 1}. ${l}`).join("\n")}`);
-      }
-      if (note.trim()) lines.push(`备注：${note.trim()}`);
-      finalNote = lines.join("\n");
-    }
+    const finalContentDirection =
+      isProcurement && procurementType === "LINK_SPECIFIC"
+        ? materialType.trim()
+        : contentDirection.trim() || null;
 
     let res: Response;
     try {
@@ -329,7 +317,14 @@ export default function TicketForm({
           confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
           startDate: startDate || null,
           endDate: endDate || null,
-          note: finalNote,
+          note: note.trim() || null,
+          ...(isProcurement && procurementType === "LINK_SPECIFIC"
+            ? {
+                materialType: materialType.trim(),
+                reason: reason.trim(),
+                publishLinks: publishLinksText.split("\n").map((link) => link.trim()).filter(Boolean),
+              }
+            : {}),
           approverIds: selected,
           submit: submitForApproval,
           attachments,
@@ -346,7 +341,10 @@ export default function TicketForm({
     }
     const data = await res.json().catch(() => null);
     setSaving(false);
-    if (!res.ok) return setError(data?.error || `提交失败（HTTP ${res.status}）`);
+    if (!res.ok) {
+      const message = data?.error || `提交失败（HTTP ${res.status}）`;
+      return setError(data?.requestId ? `${message}（错误编号：${data.requestId}）` : message);
+    }
     setOpen(false);
     router.refresh();
   }
