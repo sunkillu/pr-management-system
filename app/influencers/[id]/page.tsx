@@ -17,6 +17,10 @@ import {
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import InfluencerActions from "@/components/InfluencerActions";
+import TaggingSection from "@/components/TaggingSection";
+import SensitiveFields from "@/components/SensitiveFields";
+import { canViewSensitive, INFLUENCER_LEVEL_A_FIELDS } from "@/lib/sensitive";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function InfluencerDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -57,6 +61,20 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
     take: 20,
   });
 
+  // A级权限：仅 ADMIN / 关联工单的 assignee（归属PR）
+  const myTicketAsAssignee = await prisma.cooperationTicket.count({
+    where: { influencerId: params.id, assigneeId: me.id },
+  });
+  const canViewSensitiveInfo = canViewSensitive(role, me.id, {
+    registeredById: influencer.registeredById,
+    assigneeIds: myTicketAsAssignee > 0 ? [me.id] : [],
+  });
+  const sensitiveFieldLabels: Record<(typeof INFLUENCER_LEVEL_A_FIELDS)[number], string> = {
+    phone: "手机号",
+    wechat: "微信号",
+    email: "邮箱",
+  };
+
   const isAssigned = approvers.some((a) => a.approverId === me.id && a.status === "PENDING");
   const canApprove =
     influencer.status === "PENDING" && (role === "ADMIN" || (role === "PR_MANAGER" && isAssigned));
@@ -69,7 +87,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? influencerStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -82,15 +100,18 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
         title={influencer.name}
         desc={`达人登记 · ${influencerStatusLabels[influencer.status]}`}
         action={
-          <Link href="/partners?tab=influencer" className="text-sm text-[#0071e3] hover:underline">
+          <Link href="/partners?tab=influencer" className="text-sm text-primary hover:underline">
             ← 返回达人库
           </Link>
         }
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="bg-white rounded-2xl lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           <Section>
+            <div className="mb-4 border-b pb-3">
+              <RecordTimestamps createdAt={influencer.createdAt} updatedAt={influencer.updatedAt} />
+            </div>
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(influencer.status)}`}>
                 {influencerStatusLabels[influencer.status]}
@@ -104,10 +125,10 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                   合作中
                 </span>
               )}
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 达人类型：{influencer.influencerType ? influencerTypeLabels[influencer.influencerType] ?? influencer.influencerType : "-"}
               </span>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 平台：{influencer.platforms.length > 0
                   ? influencer.platforms.map((p) => platformTagLabels[p] ?? p).join("、")
                   : "-"}
@@ -127,7 +148,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 <InfoRow label="标签">
                   <span className="flex flex-wrap gap-1">
                     {influencer.tags.map((t: string) => (
-                      <span key={t} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
+                      <span key={t} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200">
                         {t}
                       </span>
                     ))}
@@ -137,17 +158,17 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
             </dl>
             {influencer.bio && (
               <div className="mt-3 text-sm">
-                <div className="text-gray-500">简介</div>
+                <div className="text-muted-foreground">简介</div>
                 <div className="whitespace-pre-wrap">{influencer.bio}</div>
               </div>
             )}
             {((influencer.attachments as { fileUrl: string; fileName: string }[] | null) ?? []).length > 0 && (
               <div className="mt-3 text-sm">
-                <div className="mb-2 text-gray-500">附件（参考图）</div>
+                <div className="mb-2 text-muted-foreground">附件（参考图）</div>
                 <div className="flex flex-wrap gap-2">
                   {((influencer.attachments as { fileUrl: string; fileName: string }[]) ?? []).map((a, i) => (
                     <a key={i} href={a.fileUrl} target="_blank" title={a.fileName}
-                      className="flex h-20 w-20 items-center justify-center overflow-hidden rounded border border-gray-200 bg-[#f5f5f7] text-center text-[10px] text-[#0071e3]">
+                      className="flex h-20 w-20 items-center justify-center overflow-hidden rounded border border-border bg-muted text-center text-[10px] text-primary">
                       {/.(jpe?g|png|webp|gif)$/i.test(a.fileName) ? (
                         <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover" />
                       ) : (
@@ -158,7 +179,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 </div>
               </div>
             )}
-            <div className="mt-4 border-t border-[#e5e5e5] pt-4" id="approval-section">
+            <div className="mt-4 border-t border-border pt-4" id="approval-section">
               <InfluencerActions
                 id={influencer.id}
                 status={influencer.status}
@@ -168,6 +189,31 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                 name={influencer.name}
               />
             </div>
+          </Section>
+
+          <Section title="保密信息（A级 · 仅管理员/对应PR可见）">
+            <SensitiveFields
+              canView={canViewSensitiveInfo}
+              targetType="INFLUENCER"
+              targetId={influencer.id}
+              source="/influencers/[id]"
+              fields={INFLUENCER_LEVEL_A_FIELDS.map((key) => ({
+                key,
+                label: sensitiveFieldLabels[key],
+                value: (influencer as unknown as Record<string, string | null>)[key] ?? null,
+              }))}
+            />
+          </Section>
+
+          <Section title="标签（谁打的）">
+            <TaggingSection
+              entityType="INFLUENCER"
+              entityId={influencer.id}
+              categoryKey="INFLUENCER"
+              meId={me.id}
+              isAdmin={role === "ADMIN"}
+              canTag={["ADMIN", "PR", "OPERATOR"].includes(role)}
+            />
           </Section>
 
           <Section title="审批人（或签：任一通过即通过）">
@@ -180,7 +226,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                   </span>
                 </li>
               ))}
-              {approvers.length === 0 && <li className="text-gray-400">暂无</li>}
+              {approvers.length === 0 && <li className="text-muted-foreground">暂无</li>}
             </ul>
             <ApprovalRecords records={approvers} />
           </Section>
@@ -188,17 +234,17 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
           <Section title="合作评价（近20条）">
             {avgRating && <p className="mb-3 text-sm text-yellow-600">★ 平均 {avgRating} 分</p>}
             {influencer.reviews.length === 0 ? (
-              <p className="text-sm text-gray-400">暂无评价</p>
+              <p className="text-sm text-muted-foreground">暂无评价</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {influencer.reviews.map((r) => (
-                  <li key={r.id} className="rounded bg-[#f5f5f7] p-2">
+                  <li key={r.id} className="rounded bg-muted p-2">
                     <div className="flex items-center justify-between">
                       <span className="text-yellow-500">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
-                      <span className="text-xs text-gray-500">{r.reviewer.name} · {r.createdAt.toISOString().slice(0, 10)}</span>
+                      <span className="text-xs text-muted-foreground">{r.reviewer.name} · {formatDateTime(r.createdAt)}</span>
                     </div>
                     {r.comment && <p className="mt-1 whitespace-pre-wrap">{r.comment}</p>}
-                    <Link href={`/tickets/${r.ticket.id}`} className="text-xs text-[#0071e3] hover:underline">
+                    <Link href={`/tickets/${r.ticket.id}`} className="text-xs text-primary hover:underline">
                       {r.ticket.title}
                     </Link>
                   </li>
@@ -209,34 +255,37 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
 
           <Section title="合作记录（近20条）">
             {influencer.cooperationRecords.length === 0 ? (
-              <p className="text-sm text-gray-400">暂无合作记录</p>
+              <p className="text-sm text-muted-foreground">暂无合作记录</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {influencer.cooperationRecords.map((r) => (
                   <li key={r.id} className="flex justify-between border-b pb-2">
-                    <span>{r.coopDate.toISOString().slice(0, 10)} · {r.note ?? ""}</span>
-                    <span className="font-medium">{formatFee(r.fee)}</span>
-                  </li>
+                      <div>
+                        <div>{r.coopDate.toISOString().slice(0, 10)} · {r.note ?? ""}</div>
+                        <RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact />
+                      </div>
+                      <span className="font-medium">{formatFee(r.fee)}</span>
+                    </li>
                 ))}
               </ul>
             )}
           </Section>
         </div>
 
-        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg h-fit [&>section:first-child]:border-t-0">
           <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
           </Section>
           <Section title="通知记录">
             {notifications.length === 0 ? (
-              <p className="text-sm text-gray-400">暂无通知</p>
+              <p className="text-sm text-muted-foreground">暂无通知</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {notifications.map((n) => (
                   <li key={n.id} className="border-b pb-2">
                     <div>{n.receiver?.name ?? "-"} · {notifyTypeLabels[n.type]}</div>
-                    <div className="text-xs text-gray-500">{formatDateTime(n.createdAt)}</div>
-                    {n.note && <div className="text-xs text-gray-400">{n.note}</div>}
+                    <div className="text-xs text-muted-foreground">{formatDateTime(n.createdAt)}</div>
+                    {n.note && <div className="text-xs text-muted-foreground">{n.note}</div>}
                   </li>
                 ))}
               </ul>

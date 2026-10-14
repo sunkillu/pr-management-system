@@ -1,7 +1,17 @@
 "use client";
 import { useState } from "react";
-import Modal from "./Modal";
-import { Field, inputCls, btnPrimary, btnSecondary, btnDanger } from "./ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+const textareaCls =
+  "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 // 通用二次确认弹窗：所有审批操作（提交/通过/驳回/作废/重提等）防误触
 export default function ConfirmDialog({
@@ -41,32 +51,38 @@ export default function ConfirmDialog({
   };
 
   return (
-    <Modal title={title} onClose={onClose}>
-      {message && <p className="mb-3 text-sm text-gray-600">{message}</p>}
-      {needReason && (
-        <Field label={reasonLabel} required={!reasonOptional}>
-          <textarea
-            className={inputCls}
-            rows={4}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder={reasonPlaceholder}
-          />
-        </Field>
-      )}
-      <div className="flex justify-end gap-2">
-        <button className={btnSecondary} onClick={onClose} disabled={busy}>
-          取消
-        </button>
-        <button
-          className={danger ? btnDanger : btnPrimary}
-          disabled={busy}
-          onClick={submit}
-        >
-          {busy ? "处理中…" : confirmText}
-        </button>
-      </div>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-    </Modal>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {message && (
+            <DialogDescription className="whitespace-pre-wrap">{message}</DialogDescription>
+          )}
+        </DialogHeader>
+        {needReason && (
+          <div className="grid gap-2">
+            <label className="text-sm font-medium leading-none">
+              {reasonLabel}
+              {!reasonOptional && <span className="text-destructive"> *</span>}
+            </label>
+            <textarea
+              className={textareaCls}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={reasonPlaceholder}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            取消
+          </Button>
+          <Button variant={danger ? "destructive" : "default"} disabled={busy} onClick={submit}>
+            {busy ? "处理中…" : confirmText}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

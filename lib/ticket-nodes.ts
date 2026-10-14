@@ -5,13 +5,17 @@ import type { CoopType } from "@prisma/client";
 export const TICKET_NODE_TEMPLATES: Record<CoopType, { name: string; daysAfter: number }[]> = {
   INFLUENCER_POST: [
     { name: "寄品", daysAfter: 0 },
+    { name: "脚本设计", daysAfter: 3 },
     { name: "执行（拍摄/直播）", daysAfter: 7 },
+    { name: "返稿", daysAfter: 12 },
     { name: "内容发布", daysAfter: 14 },
     { name: "数据回收", daysAfter: 21 },
   ],
   INFLUENCER_LIVE: [
     { name: "寄品", daysAfter: 0 },
+    { name: "脚本设计", daysAfter: 3 },
     { name: "执行（拍摄/直播）", daysAfter: 7 },
+    { name: "返稿", daysAfter: 12 },
     { name: "内容发布", daysAfter: 14 },
     { name: "数据回收", daysAfter: 21 },
   ],

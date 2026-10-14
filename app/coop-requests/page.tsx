@@ -1,10 +1,21 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
+import { Prisma } from "@prisma/client";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
 import {
   coopRequestStatusLabels,
-  badgeClass,
   influencerTypeLabels,
   INFLUENCER_TYPE_OPTIONS,
   platformTagLabels,
@@ -12,26 +23,39 @@ import {
 } from "@/lib/labels";
 import Link from "next/link";
 import CoopRequestForm from "@/components/CoopRequestForm";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+
+const selectCls =
+  "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default async function CoopRequestsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; type?: string; platform?: string };
+  searchParams: { q?: string; status?: string; type?: string; platform?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
   const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
 
-  const list = await prisma.cooperationRequest.findMany({
-    where: {
+  const where: Prisma.CooperationRequestWhereInput = {
       ...(searchParams.q ? { title: { contains: searchParams.q, mode: "insensitive" } } : {}),
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { influencerType: searchParams.type as never } : {}),
       ...(searchParams.platform ? { platforms: { has: searchParams.platform } } : {}),
-    },
-    include: { submitter: { select: { name: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
+  };
+  const pagination = getPagination(searchParams.page);
+  const [list, total] = await Promise.all([
+    prisma.cooperationRequest.findMany({
+      where,
+      include: { submitter: { select: { name: true } } },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.cooperationRequest.count({ where }),
+  ]);
 
   return (
     <div>
@@ -42,74 +66,73 @@ export default async function CoopRequestsPage({
       />
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
-        <input
+        <Input
           name="q"
           placeholder="按标题搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-64"
         />
-        <select name="type" defaultValue={searchParams.type ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="type" defaultValue={searchParams.type ?? ""} className={selectCls}>
           <option value="">全部达人类型</option>
           {INFLUENCER_TYPE_OPTIONS.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
-        <select name="platform" defaultValue={searchParams.platform ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="platform" defaultValue={searchParams.platform ?? ""} className={selectCls}>
           <option value="">全部平台</option>
           {PLATFORM_TAG_OPTIONS.map((p) => (
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className={selectCls}>
           <option value="">全部状态</option>
           {Object.entries(coopRequestStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>标题</th>
-              <th className={thCls}>达人类型</th>
-              <th className={thCls}>平台</th>
-              <th className={thCls}>状态</th>
-              <th className={thCls}>提交人</th>
-              <th className={thCls}>更新时间</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>标题</TableHead>
+              <TableHead>达人类型</TableHead>
+              <TableHead>平台</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>提交人</TableHead>
+              <TableHead>记录时间</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {list.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>
-                  <Link href={`/coop-requests/${r.id}`} className="text-[#0071e3] hover:underline">
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">
+                  <Link href={`/coop-requests/${r.id}`} className="text-primary hover:underline">
                     {r.title}
                   </Link>
-                </td>
-                <td className={tdCls}>{r.influencerType ? influencerTypeLabels[r.influencerType] ?? r.influencerType : "-"}</td>
-                <td className={tdCls}>
+                </TableCell>
+                <TableCell>{r.influencerType ? influencerTypeLabels[r.influencerType] ?? r.influencerType : "-"}</TableCell>
+                <TableCell>
                   {r.platforms.length > 0
                     ? r.platforms.map((p) => platformTagLabels[p] ?? p).join("、")
                     : "-"}
-                </td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(r.status)}`}>
-                    {coopRequestStatusLabels[r.status]}
-                  </span>
-                </td>
-                <td className={tdCls}>{r.submitter?.name ?? "-"}</td>
-                <td className={tdCls}>{r.updatedAt.toISOString().slice(0, 16).replace("T", " ")}</td>
-              </tr>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={r.status} label={coopRequestStatusLabels[r.status]} />
+                </TableCell>
+                <TableCell>{r.submitter?.name ?? "-"}</TableCell>
+                <TableCell><RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact /></TableCell>
+              </TableRow>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
+      <Pagination pathname="/coop-requests" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { formatDateTime } from "@/lib/labels";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimarySm, btnSecondary, Field } from "./ui";
 import type { ContentCommentItem } from "./TicketContents";
@@ -74,20 +75,20 @@ export default function ContentComments({
   const unhandled = list.filter((x) => !x.handled).length;
 
   return (
-    <div className="mt-2 border-t border-[#e5e5e5] pt-2">
+    <div className="mt-2 border-t border-border pt-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-700">
+        <span className="text-xs font-medium text-foreground">
           发布后评论（{list.length}，待处理 {unhandled}）
         </span>
         {canManage && !showForm && (
-          <button className="text-xs text-[#0071e3] hover:underline" onClick={() => setShowForm(true)}>
+          <button className="text-xs text-primary hover:underline" onClick={() => setShowForm(true)}>
             + 记录评论
           </button>
         )}
       </div>
 
       {showForm && (
-        <div className="mt-2 space-y-2 rounded-lg bg-white p-2">
+        <div className="mt-2 space-y-2 rounded-lg bg-card p-2">
           <Field label="评论内容">
             <textarea className={inputCls} rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="记录外部平台评论…" />
           </Field>
@@ -104,23 +105,23 @@ export default function ContentComments({
       {list.length > 0 && (
         <div className="mt-2 space-y-1.5">
           {list.map((x) => (
-            <div key={x.id} className="rounded-lg bg-white p-2 text-xs">
+            <div key={x.id} className="rounded-lg bg-card p-2 text-xs">
               <div className="flex items-start justify-between gap-2">
-                <p className="whitespace-pre-wrap text-gray-800">{x.comment}</p>
+                <p className="whitespace-pre-wrap text-foreground">{x.comment}</p>
                 <span className={`shrink-0 rounded px-1.5 py-0.5 ${x.handled ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
                   {x.handled ? "已处理" : "待处理"}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
                 {x.author && <span>评论人：{x.author}</span>}
                 {x.createdBy && <span>记录：{x.createdBy.name}</span>}
                 {x.handled && x.handledBy && (
-                  <span>处理：{x.handledBy.name}{x.handledAt ? ` · ${x.handledAt.slice(0, 16).replace("T", " ")}` : ""}</span>
+                  <span>处理：{x.handledBy.name}{x.handledAt ? ` · ${formatDateTime(x.handledAt)}` : ""}</span>
                 )}
                 {canManage && (
                   <span className="flex gap-2">
                     <button
-                      className="text-[#0071e3] hover:underline"
+                      className="text-primary hover:underline"
                       disabled={busy}
                       onClick={() => toggleHandled(x)}
                     >

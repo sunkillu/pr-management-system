@@ -1,20 +1,37 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
 import {
   invoiceTypeLabels,
   invoiceStatusLabels,
-  badgeClass,
   formatMoney,
   formatDate,
 } from "@/lib/labels";
 import InvoicesClient from "./InvoicesClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+import Link from "next/link";
+
+const selectCls =
+  "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string };
+  searchParams: { q?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -30,12 +47,16 @@ export default async function InvoicesPage({
     ];
   }
 
-  const [invoices, payments] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [invoices, total, payments] = await Promise.all([
     prisma.invoice.findMany({
       where,
       include: { paymentRequest: { select: { id: true, title: true } }, uploadedBy: true },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    prisma.invoice.count({ where }),
     prisma.paymentRequest.findMany({
       select: { id: true, title: true },
       orderBy: { updatedAt: "desc" },
@@ -52,72 +73,75 @@ export default async function InvoicesPage({
       />
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
-        <input
+        <Input
           name="q"
           placeholder="按发票号码 / 开票方搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-64"
         />
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className={selectCls}>
           <option value="">全部状态</option>
           {Object.entries(invoiceStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>发票号码</th>
-              <th className={thCls}>开票方</th>
-              <th className={thCls}>金额（元）</th>
-              <th className={thCls}>类型</th>
-              <th className={thCls}>开票日期</th>
-              <th className={thCls}>关联打款单</th>
-              <th className={thCls}>文件</th>
-              <th className={thCls}>状态</th>
-              <th className={thCls}>上传人</th>
-              <th className={thCls}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>发票号码</TableHead>
+              <TableHead>开票方</TableHead>
+              <TableHead className="tabular-nums">金额（元）</TableHead>
+              <TableHead>类型</TableHead>
+              <TableHead>开票日期</TableHead>
+              <TableHead>关联打款单</TableHead>
+              <TableHead>文件</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>上传人</TableHead>
+              <TableHead>记录时间</TableHead>
+              <TableHead>操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {invoices.map((inv) => (
-              <tr key={inv.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>{inv.invoiceNo}</td>
-                <td className={tdCls}>{inv.issuer}</td>
-                <td className={tdCls}>{formatMoney(inv.amount)}</td>
-                <td className={tdCls}>{invoiceTypeLabels[inv.type]}</td>
-                <td className={tdCls}>{formatDate(inv.issueDate)}</td>
-                <td className={tdCls}>{inv.paymentRequest?.title ?? <span className="text-gray-400">-</span>}</td>
-                <td className={tdCls}>
+              <TableRow key={inv.id}>
+                <TableCell className="font-medium">
+                  <Link href={`/invoices/${inv.id}`} className="text-primary hover:underline">{inv.invoiceNo}</Link>
+                </TableCell>
+                <TableCell>{inv.issuer}</TableCell>
+                <TableCell className="tabular-nums">{formatMoney(inv.amount)}</TableCell>
+                <TableCell>{invoiceTypeLabels[inv.type]}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatDate(inv.issueDate)}</TableCell>
+                <TableCell>{inv.paymentRequest?.title ?? <span className="text-muted-foreground">-</span>}</TableCell>
+                <TableCell>
                   {inv.fileUrl ? (
-                    <a href={inv.fileUrl} target="_blank" rel="noreferrer" className="text-[#0071e3] hover:underline">
+                    <a href={inv.fileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       查看
                     </a>
                   ) : (
-                    <span className="text-gray-400">-</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
-                </td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(inv.status)}`}>
-                    {invoiceStatusLabels[inv.status]}
-                  </span>
-                </td>
-                <td className={tdCls}>{inv.uploadedBy.name}</td>
-                <td className={tdCls + " whitespace-nowrap"}>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={inv.status} label={invoiceStatusLabels[inv.status]} />
+                </TableCell>
+                <TableCell>{inv.uploadedBy.name}</TableCell>
+                <TableCell><RecordTimestamps createdAt={inv.createdAt} updatedAt={inv.updatedAt} compact /></TableCell>
+                <TableCell className="whitespace-nowrap">
                   <InvoicesClient row={{ id: inv.id, status: inv.status }} role={role} canDelete={canDelete} />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {invoices.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
+      <Pagination pathname="/invoices" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

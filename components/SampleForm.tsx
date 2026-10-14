@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
 import { sampleStatusLabels } from "@/lib/labels";
@@ -9,12 +9,18 @@ export type SampleInput = {
   influencerId: string;
   productName: string;
   quantity: number;
+  receiverName: string;
+  receiverPhone: string;
+  receiverAddress: string;
   courier: string;
   trackingNo: string;
   shippedDate: string;
   shippedBy: string;
   status: string;
+  brandId: string;
 };
+
+type Brand = { id: string; name: string };
 
 export default function SampleForm({
   influencers,
@@ -27,20 +33,35 @@ export default function SampleForm({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [form, setForm] = useState<SampleInput>(
     editTarget ?? {
       influencerId: "",
       productName: "",
       quantity: 1,
+      receiverName: "",
+      receiverPhone: "",
+      receiverAddress: "",
       courier: "",
       trackingNo: "",
       shippedDate: "",
       shippedBy: "",
       status: "SHIPPED",
+      brandId: "",
     }
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // 打开时加载品牌列表
+  useEffect(() => {
+    if (open && brands.length === 0) {
+      fetch("/api/brands?active=1")
+        .then((r) => r.json())
+        .then((d) => setBrands(Array.isArray(d) ? d : []))
+        .catch(() => setBrands([]));
+    }
+  }, [open]);
 
   async function submit() {
     setError("");
@@ -86,6 +107,27 @@ export default function SampleForm({
       </Field>
       <Field label="产品名称" required>
         <input className={inputCls} value={form.productName} onChange={(e) => setForm({ ...form, productName: e.target.value })} />
+      </Field>
+      <Field label="收件人">
+        <input className={inputCls} value={form.receiverName} onChange={(e) => setForm({ ...form, receiverName: e.target.value })} />
+      </Field>
+      <Field label="收件电话">
+        <input className={inputCls} value={form.receiverPhone} onChange={(e) => setForm({ ...form, receiverPhone: e.target.value })} />
+      </Field>
+      <Field label="收件地址">
+        <textarea className={inputCls} rows={2} value={form.receiverAddress} onChange={(e) => setForm({ ...form, receiverAddress: e.target.value })} />
+      </Field>
+      <Field label="所属品牌">
+        <select
+          className={inputCls}
+          value={form.brandId}
+          onChange={(e) => setForm({ ...form, brandId: e.target.value })}
+        >
+          <option value="">（不指定）</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="数量">
@@ -135,7 +177,7 @@ export default function SampleForm({
   if (editTarget) {
     return (
       <span className="space-x-3">
-        <button onClick={() => setOpen(true)} className="text-sm text-[#0071e3] hover:underline">
+        <button onClick={() => setOpen(true)} className="text-sm text-primary hover:underline">
           编辑
         </button>
         {canDelete && (

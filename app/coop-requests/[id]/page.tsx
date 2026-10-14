@@ -17,6 +17,8 @@ import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import CoopRequestActions from "@/components/CoopRequestActions";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
+import TaggingSection from "@/components/TaggingSection";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function CoopRequestDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -58,7 +60,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? coopRequestStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -73,26 +75,29 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
         title={request.title}
         desc={`${request.reqType} · ${coopRequestStatusLabels[request.status]}`}
         action={
-          <Link href="/coop-requests" className="text-sm text-[#0071e3] hover:underline">
+          <Link href="/coop-requests" className="text-sm text-primary hover:underline">
             ← 返回合作需求
           </Link>
         }
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="bg-white rounded-2xl lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           <Section>
+            <div className="mb-4 border-b pb-3">
+              <RecordTimestamps createdAt={request.createdAt} updatedAt={request.updatedAt} />
+            </div>
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(request.status)}`}>
                 {coopRequestStatusLabels[request.status]}
               </span>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 达人类型：{request.influencerType ? influencerTypeLabels[request.influencerType] ?? request.influencerType : "-"}
               </span>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 平台：{request.platforms.length > 0 ? request.platforms.map((p) => platformTagLabels[p] ?? p).join("、") : "-"}
               </span>
-              <span className="text-sm text-gray-500">提交人：{request.submitter?.name ?? "-"}</span>
+              <span className="text-sm text-muted-foreground">提交人：{request.submitter?.name ?? "-"}</span>
             </div>
             {request.status === "REJECTED" && request.rejectReason && (
               <div className="mb-3 rounded bg-red-50 p-3 text-sm text-red-700">
@@ -102,11 +107,11 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
             <div className="whitespace-pre-wrap text-sm leading-relaxed">{request.description}</div>
             {attachments.length > 0 && (
               <div className="mt-4 border-t pt-3">
-                <div className="mb-2 text-sm text-gray-500">附件</div>
+                <div className="mb-2 text-sm text-muted-foreground">附件</div>
                 <ul className="space-y-1 text-sm">
                   {attachments.map((a, i) => (
                     <li key={i}>
-                      <a href={a.fileUrl} target="_blank" className="text-[#0071e3] hover:underline">
+                      <a href={a.fileUrl} target="_blank" className="text-primary hover:underline">
                         {a.fileName}
                       </a>
                     </li>
@@ -128,14 +133,14 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                 />
                 {request.status === "APPROVED" && request.influencer && (
                   <>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       已生成达人：
                       <InfluencerHoverCard id={request.influencer.id} name={request.influencer.name} />
                     </span>
                     {["ADMIN", "PR", "PR_MANAGER"].includes(role) && (
                       <Link
                         href={`/tickets/new?influencerId=${request.influencer.id}&coopRequestId=${request.id}`}
-                        className="rounded-full bg-[#0071e3] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#0077ed]"
+                        className="rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-white hover:bg-primary/90"
                       >
                         发起工单
                       </Link>
@@ -156,26 +161,36 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
                   </span>
                 </li>
               ))}
-              {approvers.length === 0 && <li className="text-gray-400">暂无</li>}
+              {approvers.length === 0 && <li className="text-muted-foreground">暂无</li>}
             </ul>
             <ApprovalRecords records={approvers} />
           </Section>
         </div>
 
-        <div className="bg-white rounded-2xl h-fit [&>section:first-child]:border-t-0">
+        <div className="bg-card rounded-lg h-fit [&>section:first-child]:border-t-0">
+          <Section title="标签（谁打的）">
+            <TaggingSection
+              entityType="COOP_REQUEST"
+              entityId={request.id}
+              categoryKey="INFLUENCER"
+              meId={me.id}
+              isAdmin={role === "ADMIN"}
+              canTag={["ADMIN", "PR", "OPERATOR"].includes(role)}
+            />
+          </Section>
           <Section title="操作历史">
             <ApprovalTimeline items={timeline} />
           </Section>
           <Section title="通知记录">
             {notifications.length === 0 ? (
-              <p className="text-sm text-gray-400">暂无通知</p>
+              <p className="text-sm text-muted-foreground">暂无通知</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {notifications.map((n) => (
                   <li key={n.id} className="border-b pb-2">
                     <div>{n.receiver?.name ?? "-"} · {notifyTypeLabels[n.type]}</div>
-                    <div className="text-xs text-gray-500">{formatDateTime(n.createdAt)}</div>
-                    {n.note && <div className="text-xs text-gray-400">{n.note}</div>}
+                    <div className="text-xs text-muted-foreground">{formatDateTime(n.createdAt)}</div>
+                    {n.note && <div className="text-xs text-muted-foreground">{n.note}</div>}
                   </li>
                 ))}
               </ul>

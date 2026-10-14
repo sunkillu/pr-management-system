@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { relatedUrl } from "@/lib/notification-url";
+import { formatDateTime } from "@/lib/labels";
 
 type Notice = {
   id: string;
@@ -89,7 +90,7 @@ export default function NotificationBell() {
           setOpen((o) => !o);
           if (!open) refresh();
         }}
-        className="relative rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+        className="relative rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
         aria-label="通知"
       >
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -107,40 +108,40 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl bg-white shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+        <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg bg-card shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
           <div className="flex items-center justify-between border-b px-4 py-2">
             <span className="text-sm font-semibold">通知</span>
             {unread > 0 && (
-              <button onClick={markAll} className="text-xs text-[#0071e3] hover:underline">
+              <button onClick={markAll} className="text-xs text-primary hover:underline">
                 全部标已读
               </button>
             )}
           </div>
           <div className="max-h-80 overflow-y-auto">
             {list.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-gray-400">暂无通知</div>
+              <div className="px-4 py-6 text-center text-sm text-muted-foreground">暂无通知</div>
             )}
             {list.map((n) => (
               <div
                 key={n.id}
                 onClick={() => openItem(n)}
-                className={`block w-full cursor-pointer border-b px-4 py-2.5 text-left last:border-0 hover:bg-gray-50 ${
-                  n.isRead ? "opacity-60" : "bg-blue-50/40"
+                className={`block w-full cursor-pointer border-b px-4 py-2.5 text-left last:border-0 hover:bg-accent ${
+                  n.isRead ? "opacity-60" : "bg-primary/10/40"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  {!n.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />}
+                  {!n.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-primary/100" />}
                   <span className="text-sm font-medium text-gray-900">
                     {n.title ?? "通知"}
                   </span>
-                  <span className="ml-auto shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
+                  <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {kindLabels[n.kind] ?? n.kind}
                   </span>
                 </div>
-                <div className="mt-0.5 line-clamp-2 text-xs text-gray-500">{n.content}</div>
+                <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.content}</div>
                 <div className="mt-1 flex items-center justify-between">
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(n.createdAt).toLocaleString("zh-CN")}
+                  <span className="text-[10px] text-muted-foreground">
+                    {formatDateTime(n.createdAt)}
                   </span>
                   {n.kind === "APPROVAL_PENDING" && relatedUrl(n) && (
                     <button
@@ -148,7 +149,7 @@ export default function NotificationBell() {
                         e.stopPropagation();
                         openItem(n, true);
                       }}
-                      className="rounded bg-[#0071e3] px-2 py-0.5 text-[11px] text-white hover:bg-[#0077ed]"
+                      className="rounded bg-primary px-2 py-0.5 text-[11px] text-white hover:bg-primary/90"
                     >
                       去审批
                     </button>

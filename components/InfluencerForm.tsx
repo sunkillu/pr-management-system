@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { inputCls, labelCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { PLATFORM_TAG_OPTIONS, INFLUENCER_TYPE_OPTIONS, roleLabels } from "@/lib/labels";
+import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
+import { PLATFORM_TAG_OPTIONS, INFLUENCER_TYPE_OPTIONS } from "@/lib/labels";
 import Modal from "./Modal";
 
-type Approver = { id: string; name: string; email: string; role: string };
 type Attachment = { fileUrl: string; fileName: string };
 
 const isImage = (name: string) => /\.(jpe?g|png|webp|gif)$/i.test(name);
@@ -15,26 +14,30 @@ const isImage = (name: string) => /\.(jpe?g|png|webp|gif)$/i.test(name);
 export default function InfluencerForm({
   initial,
   autoOpen,
+  influencerTags,
 }: {
   initial?: { influencerType?: string; platforms?: string[] };
   autoOpen?: boolean;
+  influencerTags?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(!!autoOpen);
-  const [approvers, setApprovers] = useState<Approver[]>([]);
   const [name, setName] = useState("");
   const [influencerType, setInfluencerType] = useState(initial?.influencerType ?? "");
   const [platforms, setPlatforms] = useState<string[]>(initial?.platforms ?? []);
   const [contactInfo, setContactInfo] = useState("");
-  const [homepageId, setHomepageId] = useState("");
-  const [bio, setBio] = useState("");
+  const [xhsUrl, setXhsUrl] = useState("");
+  const [douyinUrl, setDouyinUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const tagOptions = influencerTags ?? [];
+
+  function toggleTag(t: string) {
+    setTags((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t].slice(0, 20)));
+  }
 
   async function uploadFile(file: File) {
     setUploading(true);
@@ -50,29 +53,12 @@ export default function InfluencerForm({
     setAttachments((a) => [...a, { fileUrl: data.fileUrl, fileName: data.fileName }]);
   }
 
-  function addTag() {
-    const t = tagInput.trim();
-    if (!t) return;
-    if (!tags.includes(t)) setTags([...tags, t].slice(0, 20));
-    setTagInput("");
-  }
-
-  useEffect(() => {
-    if (open) {
-      fetch("/api/approvers")
-        .then((r) => r.json())
-        .then((d) => setApprovers(Array.isArray(d) ? d : []))
-        .catch(() => setApprovers([]));
-    }
-  }, [open ]);
-
   const toggle = (arr: string[], v: string) =>
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
   async function submit() {
     setError("");
     if (!name.trim()) return setError("达人姓名不能为空");
-    if (selected.length === 0) return setError("请选择至少一位审批人");
     setSaving(true);
     const res = await fetch("/api/influencers", {
       method: "POST",
@@ -81,12 +67,11 @@ export default function InfluencerForm({
         name: name.trim(),
         influencerType: influencerType || null,
         platforms,
-        contactInfo: contactInfo.trim() || null,
-        homepageId: homepageId.trim() || null,
-        bio: bio.trim() || null,
+        quoteMode: contactInfo.trim() || null,
+        xhsUrl: xhsUrl.trim() || null,
+        douyinUrl: douyinUrl.trim() || null,
         tags,
         attachments,
-        approverIds: selected,
       }),
     });
     const data = await res.json();
@@ -130,39 +115,42 @@ export default function InfluencerForm({
               ))}
             </div>
           </Field>
-          <Field label="联系方式">
-            <input className={inputCls} value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} />
+          <Field label="小红书主页链接" hint="可直接粘贴主页链接">
+            <input className={inputCls} value={xhsUrl} onChange={(e) => setXhsUrl(e.target.value)} placeholder="https://www.xiaohongshu.com/..." />
           </Field>
-          <Field label="达人主页ID" hint="如小红书号/抖音号，发起工单时自动带入">
-            <input className={inputCls} value={homepageId} onChange={(e) => setHomepageId(e.target.value)} />
+          <Field label="抖音主页链接" hint="可直接粘贴主页链接">
+            <input className={inputCls} value={douyinUrl} onChange={(e) => setDouyinUrl(e.target.value)} placeholder="https://www.douyin.com/..." />
           </Field>
-          <Field label="简介">
-            <textarea className={inputCls} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
+          <Field label="报价" hint="选填，可填写报价区间或报价说明">
+            <input className={inputCls} value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="如：图文 3000-5000 元" />
           </Field>
-          <Field label="达人标签" hint="如：美妆垂类、母婴、高转化，可自定义添加">
-            <div className="flex gap-2">
-              <input
-                className={inputCls}
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                placeholder="输入标签后回车或点添加"
-              />
-              <button type="button" className={btnSecondary} onClick={addTag}>添加</button>
-            </div>
-            {tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tags.map((t) => (
-                  <span key={t} className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700 ring-1 ring-blue-200">
-                    {t}
-                    <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))}
-                      className="text-blue-400 hover:text-blue-700" title="移除">×</button>
-                  </span>
+          <Field label="达人标签" hint="可多选，标签由管理员在标签管理中维护">
+            {tagOptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">暂无可选标签，请联系管理员在标签管理中添加</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {tagOptions.map((t) => (
+                  <label
+                    key={t.id}
+                    className={`cursor-pointer rounded-full px-3 py-1 text-xs ring-1 ${
+                      tags.includes(t.name)
+                        ? "bg-blue-600 text-white ring-blue-600"
+                        : "bg-card text-foreground ring-gray-300 hover:ring-blue-400"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={tags.includes(t.name)}
+                      onChange={() => toggleTag(t.name)}
+                    />
+                    {t.name}
+                  </label>
                 ))}
               </div>
             )}
           </Field>
-          <Field label="附件（参考图）" hint="可上传达人主页截图、过往作品等，图片显示缩略图">
+          <Field label="达人脸部/主页截图" hint="建议直接截图后粘贴或上传，便于识别达人；支持图片/PDF">
             <input
               type="file"
               accept="image/*,.pdf"
@@ -175,18 +163,31 @@ export default function InfluencerForm({
               }}
               className="text-sm"
             />
-            {uploading && <p className="mt-1 text-xs text-gray-500">上传中…</p>}
+            <textarea
+              className={`${inputCls} mt-2`}
+              rows={2}
+              placeholder="也可以直接在这里粘贴截图"
+              onPaste={(e) => {
+                const image = Array.from(e.clipboardData.items).find((item) => item.type.startsWith("image/"));
+                const file = image?.getAsFile();
+                if (file) {
+                  e.preventDefault();
+                  void uploadFile(new File([file], `clipboard-${Date.now()}.png`, { type: file.type }));
+                }
+              }}
+            />
+            {uploading && <p className="mt-1 text-xs text-muted-foreground">上传中…</p>}
             {attachments.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {attachments.map((a, i) => (
-                  <div key={i} className="relative h-20 w-20 overflow-hidden rounded border border-gray-200">
+                  <div key={i} className="relative h-20 w-20 overflow-hidden rounded border border-border">
                     {isImage(a.fileName) ? (
                       <a href={a.fileUrl} target="_blank" title={a.fileName}>
                         <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover" />
                       </a>
                     ) : (
                       <a href={a.fileUrl} target="_blank" title={a.fileName}
-                        className="flex h-full w-full items-center justify-center bg-[#f5f5f7] px-1 text-center text-[10px] text-[#0071e3]">
+                        className="flex h-full w-full items-center justify-center bg-muted px-1 text-center text-[10px] text-primary">
                         {a.fileName}
                       </a>
                     )}
@@ -202,22 +203,6 @@ export default function InfluencerForm({
                 ))}
               </div>
             )}
-          </Field>
-          <Field label="审批人（多选，任一通过即通过）" required>
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
-              {approvers.map((a) => (
-                <label key={a.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(a.id)}
-                    onChange={() => setSelected(toggle(selected, a.id))}
-                  />
-                  {a.name}
-                  <span className="text-xs text-gray-500">（{roleLabels[a.role] ?? a.role}）</span>
-                </label>
-              ))}
-              {approvers.length === 0 && <p className="text-xs text-gray-400">暂无可选审批人</p>}
-            </div>
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">

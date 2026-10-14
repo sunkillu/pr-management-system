@@ -12,8 +12,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!auth.ok) return auth.res;
   const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
-  if (ticket.status !== "IN_PROGRESS") {
-    return NextResponse.json({ error: "仅执行中的工单可回收素材" }, { status: 400 });
+  if (!["IN_PROGRESS", "AWAITING_DRAFT"].includes(ticket.status)) {
+    return NextResponse.json({ error: "仅执行中或待返稿的工单可回收素材" }, { status: 400 });
   }
   if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
     return NextResponse.json({ error: "仅创建人、审批链成员或管理员可回收素材" }, { status: 403 });
@@ -27,13 +27,33 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!url) {
     return NextResponse.json({ error: "请填写素材链接" }, { status: 400 });
   }
+  // 标签：只接受 MATERIAL 种类下的合法 id
+  const rawTagIds: unknown[] = Array.isArray(body.tagIds) ? body.tagIds : [];
+  const tagIds: string[] = Array.from(
+    new Set(rawTagIds.map((t) => String(t)).filter(Boolean))
+  ).slice(0, 20);
+  if (tagIds.length > 0) {
+    const valid = await prisma.tag.findMany({
+      where: { id: { in: tagIds }, category: { key: "MATERIAL" } },
+      select: { id: true },
+    });
+    const validIds = new Set(valid.map((t) => t.id));
+    for (const id of tagIds) {
+      if (!validIds.has(id)) {
+        return NextResponse.json({ error: "存在无效的素材标签" }, { status: 400 });
+      }
+    }
+  }
   const record = await prisma.$transaction(async (tx) => {
     const r = await tx.materialRecord.create({
       data: {
         ticketId: params.id,
+        // 品牌从工单自动透传
+        brandId: ticket.brandId ?? null,
         type: type as "NOTE_LINK" | "VIDEO" | "IMAGE" | "OTHER",
         url,
         note: String(body.note ?? "").trim() || null,
+        tagIds,
         uploadedById: auth.userId,
       },
       include: { uploadedBy: { select: { name: true } } },
@@ -47,6 +67,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       toStatus: ticket.status,
       note: `回收素材：${url}`,
     });
+    // 同步写标签归属（谁给这条素材打了什么标签）；重复冲突自动跳过
+    if (tagIds.length > 0) {
+      await tx.tagging.createMany({
+        data: tagIds.map((tagId) => ({
+          tagId,
+          entityType: "MATERIAL" as const,
+          entityId: r.id,
+          createdById: auth.userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
     return r;
   });
   return NextResponse.json(record, { status: 201 });

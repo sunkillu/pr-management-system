@@ -51,22 +51,22 @@ export default function InfluencerHoverCard({ id, name }: { id: string; name: st
 
   return (
     <span ref={wrapRef} className="relative inline-block" onMouseEnter={show} onMouseLeave={hide}>
-      <Link href={`/influencers/${id}`} className="font-medium text-[#0071e3] hover:underline">
+      <Link href={`/influencers/${id}`} className="font-medium text-primary hover:underline">
         {name}
       </Link>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-2xl bg-white p-4 shadow-[0_8px_40px_rgba(0,0,0,0.15)] ring-1 ring-black/5">
-          {loading && <p className="text-xs text-gray-400">加载中…</p>}
-          {!loading && !data && <p className="text-xs text-gray-400">无权查看或已删除</p>}
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg bg-card p-4 shadow-[0_8px_40px_rgba(0,0,0,0.15)] ring-1 ring-black/5">
+          {loading && <p className="text-xs text-muted-foreground">加载中…</p>}
+          {!loading && !data && <p className="text-xs text-muted-foreground">无权查看或已删除</p>}
           {!loading && data && (
             <Link href={`/influencers/${id}`} className="block">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0071e3]/10 text-sm font-bold text-[#0071e3]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                   {data.name.slice(0, 1)}
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold text-gray-900">{data.name}</div>
-                  <div className="truncate text-xs text-gray-500">
+                  <div className="truncate text-xs text-muted-foreground">
                     {[data.influencerType ? influencerTypeLabels[data.influencerType] ?? data.influencerType : null,
                       ...(data.platforms || []).map((p) => platformTagLabels[p] ?? p)]
                       .filter(Boolean)
@@ -75,22 +75,22 @@ export default function InfluencerHoverCard({ id, name }: { id: string; name: st
                 </div>
               </div>
               {data.homepageId && (
-                <div className="mt-2 truncate font-mono text-xs text-gray-500">ID: {data.homepageId}</div>
+                <div className="mt-2 truncate font-mono text-xs text-muted-foreground">ID: {data.homepageId}</div>
               )}
               {data.tags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {data.tags.slice(0, 5).map((t) => (
-                    <span key={t} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+                    <span key={t} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                       {t}
                     </span>
                   ))}
                 </div>
               )}
-              <div className="mt-2 flex items-center gap-4 border-t border-[#e5e5e5] pt-2 text-xs text-gray-600">
+              <div className="mt-2 flex items-center gap-4 border-t border-border pt-2 text-xs text-muted-foreground">
                 <span>合作 <b className="text-gray-900">{data.coopCount}</b> 次</span>
                 <span>累计 <b className="text-gray-900">¥{data.totalFee}</b></span>
               </div>
-              <div className="mt-1 text-right text-[11px] text-[#0071e3]">点击查看详情 →</div>
+              <div className="mt-1 text-right text-[11px] text-primary">点击查看详情 →</div>
             </Link>
           )}
         </div>

@@ -4,7 +4,7 @@ import { logActionLabels, formatDateTime } from "@/lib/labels";
 export type TimelineItem = {
   id: string;
   action: string;
-  actorName: string;
+  actorName?: string;
   createdAt: string | Date;
   note?: string | null;
   fromStatusLabel?: string | null;
@@ -29,7 +29,7 @@ export default function ApprovalTimeline({ items }: { items: TimelineItem[] }) {
             )}
           </div>
           <div className="text-gray-500">
-            {it.actorName} · {formatDateTime(it.createdAt)}
+            {it.actorName || "系统任务"} · {formatDateTime(it.createdAt)}
           </div>
           {it.note && <div className="mt-1 whitespace-pre-wrap text-gray-700">{it.note}</div>}
         </li>

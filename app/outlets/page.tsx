@@ -1,14 +1,32 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
-import { outletTypeLabels, platformLabels, outletStatusLabels, badgeClass, formatMoney } from "@/lib/labels";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
+import { outletTypeLabels, platformLabels, outletStatusLabels, formatMoney } from "@/lib/labels";
 import OutletsClient from "./OutletsClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+import StateHistory from "@/components/StateHistory";
+
+const selectCls =
+  "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default async function OutletsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; type?: string; platform?: string; status?: string };
+  searchParams: { q?: string; type?: string; platform?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -20,10 +38,29 @@ export default async function OutletsPage({
   if (searchParams.platform) where.platform = searchParams.platform;
   if (searchParams.status) where.status = searchParams.status;
 
-  const outlets = await prisma.mediaOutlet.findMany({
-    where,
-    orderBy: { updatedAt: "desc" },
-  });
+  const pagination = getPagination(searchParams.page);
+  const [outlets, total] = await Promise.all([
+    prisma.mediaOutlet.findMany({
+      where,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.mediaOutlet.count({ where }),
+  ]);
+  const statusLogs = outlets.length
+    ? await prisma.approvalLog.findMany({
+        where: { docType: "OUTLET", docId: { in: outlets.map((outlet) => outlet.id) } },
+        include: { actor: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const historyByOutlet = new Map<string, typeof statusLogs>();
+  for (const log of statusLogs) {
+    const history = historyByOutlet.get(log.docId) ?? [];
+    history.push(log);
+    historyByOutlet.set(log.docId, history);
+  }
 
   return (
     <div>
@@ -34,65 +71,79 @@ export default async function OutletsPage({
       />
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
-        <input
+        <Input
           name="q"
           placeholder="按名称搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-64"
         />
-        <select name="type" defaultValue={searchParams.type ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="type" defaultValue={searchParams.type ?? ""} className={selectCls}>
           <option value="">全部类型</option>
           {Object.entries(outletTypeLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <select name="platform" defaultValue={searchParams.platform ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="platform" defaultValue={searchParams.platform ?? ""} className={selectCls}>
           <option value="">全部平台</option>
           {Object.entries(platformLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className={selectCls}>
           <option value="">全部状态</option>
           {Object.entries(outletStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>名称</th>
-              <th className={thCls}>类型</th>
-              <th className={thCls}>平台</th>
-              <th className={thCls}>粉丝量</th>
-              <th className={thCls}>联系人</th>
-              <th className={thCls}>报价（元）</th>
-              <th className={thCls}>评分</th>
-              <th className={thCls}>状态</th>
-              {canWrite && <th className={thCls}>操作</th>}
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>名称</TableHead>
+              <TableHead>类型</TableHead>
+              <TableHead>平台</TableHead>
+              <TableHead className="tabular-nums">粉丝量</TableHead>
+              <TableHead>联系人</TableHead>
+              <TableHead className="tabular-nums">报价（元）</TableHead>
+              <TableHead>评分</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>记录时间</TableHead>
+              <TableHead>状态历史</TableHead>
+              {canWrite && <TableHead>操作</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {outlets.map((o) => (
-              <tr key={o.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>{o.name}</td>
-                <td className={tdCls}>{outletTypeLabels[o.type]}</td>
-                <td className={tdCls}>{platformLabels[o.platform]}</td>
-                <td className={tdCls}>{o.followers.toLocaleString()}</td>
-                <td className={tdCls}>{o.contactName ?? "-"}<div className="text-xs text-gray-500">{o.contactInfo ?? ""}</div></td>
-                <td className={tdCls}>{o.priceQuote ? formatMoney(o.priceQuote) : "-"}</td>
-                <td className={tdCls}>{o.rating ?? "-"}</td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(o.status)}`}>
-                    {outletStatusLabels[o.status]}
-                  </span>
-                </td>
+              <TableRow key={o.id}>
+                <TableCell className="font-medium">{o.name}</TableCell>
+                <TableCell>{outletTypeLabels[o.type]}</TableCell>
+                <TableCell>{platformLabels[o.platform]}</TableCell>
+                <TableCell className="tabular-nums">{o.followers.toLocaleString()}</TableCell>
+                <TableCell>{o.contactName ?? "-"}<div className="text-xs text-muted-foreground">{o.contactInfo ?? ""}</div></TableCell>
+                <TableCell className="tabular-nums">{o.priceQuote ? formatMoney(o.priceQuote) : "-"}</TableCell>
+                <TableCell>{o.rating ?? "-"}</TableCell>
+                <TableCell>
+                  <StatusBadge status={o.status} label={outletStatusLabels[o.status]} />
+                </TableCell>
+                <TableCell><RecordTimestamps createdAt={o.createdAt} updatedAt={o.updatedAt} compact /></TableCell>
+                <TableCell>
+                  <StateHistory
+                    items={(historyByOutlet.get(o.id) ?? []).map((log) => ({
+                      id: log.id,
+                      action: log.action,
+                      actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
+                      createdAt: log.createdAt,
+                      note: log.note,
+                      fromStatusLabel: log.fromStatus,
+                      toStatusLabel: log.toStatus,
+                    }))}
+                  />
+                </TableCell>
                 {canWrite && (
-                  <td className={tdCls + " whitespace-nowrap"}>
+                  <TableCell className="whitespace-nowrap">
                     <OutletsClient
                       canWrite={canWrite}
                       editTarget={{
@@ -110,16 +161,17 @@ export default async function OutletsPage({
                       }}
                       deleteId={o.id}
                     />
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
             {outlets.length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={canWrite ? 11 : 10} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
+      <Pagination pathname="/outlets" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

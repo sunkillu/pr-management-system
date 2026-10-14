@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
       return NextResponse.json({ error: "仅创建人、审批链成员或管理员可作废" }, { status: 403 });
     }
-    if (!["DRAFT", "PENDING_APPROVAL", "REJECTED"].includes(ticket.status)) {
+    if (!["DRAFT", "PENDING_APPROVAL", "PENDING_PROCUREMENT", "REJECTED"].includes(ticket.status)) {
       return NextResponse.json({ error: "仅可作废待审批/草稿/已驳回的工单" }, { status: 403 });
     }
   }

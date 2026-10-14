@@ -22,7 +22,7 @@ services:
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
-      DATABASE_URL: postgresql://pruser:${DB_PASSWORD:-prpass123}@db:5432/prdb?schema=public
+      DATABASE_URL: postgresql://pruser:${DB_PASSWORD:-prpass123}@db:5432/prdb?schema=public&connection_limit=${DB_CONNECTION_LIMIT:-10}&pool_timeout=${DB_POOL_TIMEOUT:-10}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?请在 .env 中设置 NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     volumes:

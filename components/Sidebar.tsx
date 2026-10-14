@@ -2,8 +2,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { signOut } from "next-auth/react";
-import { roleLabels } from "@/lib/labels";
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  Package,
+  Wallet,
+  Receipt,
+  BarChart3,
+  Tags,
+  Shirt,
+  UserCog,
+  Upload,
+  Download,
+  ChevronDown,
+  Award,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR" | "WAREHOUSE";
 
@@ -11,14 +27,14 @@ const ALL = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER"] as Ro
 // 仓库仅看首页 + 寄品管理
 const WAREHOUSE_ONLY: Role[] = ["WAREHOUSE"];
 
-type NavItem = { href: string; label: string; roles: Role[]; match?: string[] };
+type NavItem = { href: string; label: string; roles: Role[]; match?: string[]; icon: LucideIcon };
 type NavGroup = { key: string; label: string; items: NavItem[] };
 type NavEntry =
   | { type: "link"; item: NavItem }
   | { type: "group"; group: NavGroup };
 
 const entries: NavEntry[] = [
-  { type: "link", item: { href: "/", label: "首页仪表盘", roles: [...ALL, ...WAREHOUSE_ONLY] } },
+  { type: "link", item: { href: "/", label: "首页仪表盘", roles: [...ALL, ...WAREHOUSE_ONLY], icon: LayoutDashboard } },
   {
     type: "group",
     group: {
@@ -30,10 +46,11 @@ const entries: NavEntry[] = [
           label: "合作资源",
           roles: ALL,
           match: ["/partners", "/influencers", "/makeup-artists", "/outlets"],
+          icon: Users,
         },
-        { href: "/tickets", label: "合作工单", roles: ALL },
-        { href: "/coop-requests", label: "合作需求", roles: ALL },
-        { href: "/samples", label: "寄品管理", roles: [...ALL, ...WAREHOUSE_ONLY] },
+        { href: "/tickets", label: "合作工单", roles: ALL, icon: ClipboardList },
+        { href: "/samples", label: "寄品管理", roles: [...ALL, ...WAREHOUSE_ONLY], icon: Package },
+        { href: "/data-tasks", label: "数据回收", roles: ALL, icon: BarChart3 },
       ],
     },
   },
@@ -43,12 +60,27 @@ const entries: NavEntry[] = [
       key: "finance",
       label: "财务",
       items: [
-        { href: "/payments", label: "打款审批", roles: ALL },
-        { href: "/invoices", label: "发票管理", roles: ALL },
+        { href: "/payments", label: "打款审批", roles: ALL, icon: Wallet },
+        { href: "/invoices", label: "发票管理", roles: ALL, icon: Receipt },
       ],
     },
   },
-  { type: "link", item: { href: "/users", label: "用户管理", roles: ["ADMIN"] } },
+  {
+    type: "group",
+    group: {
+      key: "platform-config",
+      label: "平台配置",
+      items: [
+        { href: "/reports/platform", label: "平台汇总", roles: ["ADMIN", "PR_MANAGER", "FINANCE"], icon: BarChart3 },
+        { href: "/tags", label: "标签管理", roles: ["ADMIN", "PR"], icon: Tags },
+        { href: "/brands", label: "品牌管理", roles: ["ADMIN"], icon: Award },
+        { href: "/styles", label: "款式管理", roles: ["ADMIN", "PR_MANAGER"], icon: Shirt },
+        { href: "/users", label: "用户管理", roles: ["ADMIN"], icon: UserCog },
+        { href: "/admin/import", label: "数据导入", roles: ["ADMIN"], icon: Upload },
+        { href: "/admin/export", label: "数据导出", roles: ["ADMIN"], icon: Download },
+      ],
+    },
+  },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
@@ -58,15 +90,25 @@ function isActive(pathname: string, item: NavItem): boolean {
   );
 }
 
-export default function Sidebar({
-  userName,
-  email,
-  role,
-}: {
-  userName: string;
-  email: string;
-  role: Role;
-}) {
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+        active
+          ? "bg-accent font-medium text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {item.label}
+    </Link>
+  );
+}
+
+export default function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname();
 
   // 当前页面所在分组自动展开
@@ -84,28 +126,18 @@ export default function Sidebar({
 
   const toggle = (key: string) => setOpen((o) => ({ ...o, [key]: !o[key] }));
 
-  const linkCls = (active: boolean) =>
-    `block rounded-[10px] px-3 py-2 text-sm transition-colors ${
-      active ? "bg-[#0071e3] text-white" : "text-gray-300 hover:bg-white/10"
-    }`;
-
   return (
-    <aside className="flex w-56 shrink-0 flex-col bg-gray-900 text-gray-200">
-      <div className="border-b border-gray-700 px-5 py-4">
-        <div className="text-base font-bold text-white">PR媒体管理系统</div>
-        <div className="mt-1 text-xs text-gray-400">电商公司 · v1</div>
+    <aside className="flex w-56 shrink-0 flex-col border-r bg-background">
+      <div className="border-b px-5 py-4">
+        <div className="text-base font-semibold">PR媒体管理系统</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">电商公司 · v1</div>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {entries.map((e) => {
           if (e.type === "link") {
             const item = e.item;
             if (!item.roles.includes(role)) return null;
-            const active = isActive(pathname, item);
-            return (
-              <Link key={item.href} href={item.href} className={linkCls(active)}>
-                {item.label}
-              </Link>
-            );
+            return <NavLink key={item.href} item={item} active={isActive(pathname, item)} />;
           }
           const g = e.group;
           const items = g.items.filter((i) => i.roles.includes(role));
@@ -116,23 +148,22 @@ export default function Sidebar({
             <div key={g.key}>
               <button
                 onClick={() => toggle(g.key)}
-                className={`flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left transition-colors ${
-                  hasActive ? "text-white" : "text-gray-400 hover:bg-white/10 hover:text-gray-200"
-                }`}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-md px-3 py-2 text-left transition-colors",
+                  hasActive
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
               >
-                <span className="text-xs font-medium tracking-wide">{g.label}</span>
-                <span
-                  className={`text-xs text-gray-500 transition-transform ${expanded ? "rotate-180" : ""}`}
-                >
-                  ▾
-                </span>
+                <span className="text-xs font-medium uppercase tracking-wider">{g.label}</span>
+                <ChevronDown
+                  className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
+                />
               </button>
               {expanded && (
-                <div className="ml-3 space-y-1 border-l border-gray-700 pl-3 pt-1">
+                <div className="mt-1 space-y-1">
                   {items.map((i) => (
-                    <Link key={i.href} href={i.href} className={linkCls(isActive(pathname, i))}>
-                      {i.label}
-                    </Link>
+                    <NavLink key={i.href} item={i} active={isActive(pathname, i)} />
                   ))}
                 </div>
               )}
@@ -140,19 +171,6 @@ export default function Sidebar({
           );
         })}
       </nav>
-      <div className="border-t border-gray-700 px-5 py-4 text-xs">
-        <div className="font-medium text-white">{userName}</div>
-        <div className="truncate text-gray-400">{email}</div>
-        <div className="mt-1 inline-block rounded bg-gray-700 px-2 py-0.5 text-gray-300">
-          {roleLabels[role]}
-        </div>
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="mt-3 block w-full rounded-[10px] border border-gray-600 px-3 py-1.5 text-center transition-colors hover:border-gray-500 hover:bg-gray-800 active:bg-gray-700"
-        >
-          退出登录
-        </button>
-      </div>
     </aside>
   );
 }

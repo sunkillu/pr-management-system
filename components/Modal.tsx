@@ -24,12 +24,12 @@ export default function Modal({
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12)]"
+        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-card p-6 shadow-[0_8px_40px_rgba(0,0,0,0.12)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="rounded-full p-1 text-xl leading-none text-gray-400 transition-colors hover:bg-[#f5f5f7] hover:text-gray-700" aria-label="关闭">
+          <button onClick={onClose} className="rounded-full p-1 text-xl leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="关闭">
             ✕
           </button>
         </div>

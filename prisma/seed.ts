@@ -7,6 +7,16 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("开始写入演示数据…");
 
+  // ---------- 品牌 ----------
+  for (const name of ["坚果力", "BOM POP"]) {
+    await prisma.brand.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+  console.log("品牌已预置：坚果力、BOM POP");
+
   // ---------- 用户（岗位占位） ----------
   const password = async (p: string) => bcrypt.hash(p, 10);
   const admin = await prisma.user.upsert({
@@ -204,6 +214,51 @@ async function main() {
     ],
   });
   console.log("发票 OK");
+
+  // 标签种类与示例标签（幂等）
+  const materialCat = await prisma.tagCategory.upsert({
+    where: { key: "MATERIAL" },
+    update: { name: "素材标签" },
+    create: { name: "素材标签", key: "MATERIAL", sort: 1 },
+  });
+  const influencerCat = await prisma.tagCategory.upsert({
+    where: { key: "INFLUENCER" },
+    update: { name: "达人标签" },
+    create: { name: "达人标签", key: "INFLUENCER", sort: 2 },
+  });
+  const ticketCat = await prisma.tagCategory.upsert({
+    where: { key: "TICKET" },
+    update: { name: "工单标签" },
+    create: { name: "工单标签", key: "TICKET", sort: 3 },
+  });
+  const materialTagNames = ["种草", "测评", "开箱", "好物推荐"];
+  for (let i = 0; i < materialTagNames.length; i++) {
+    const name = materialTagNames[i];
+    await prisma.tag.upsert({
+      where: { categoryId_name: { categoryId: materialCat.id, name } },
+      update: {},
+      create: { name, categoryId: materialCat.id, sort: i },
+    });
+  }
+  const influencerTagNames = ["美妆垂类", "母婴", "高转化", "新锐"];
+  for (let i = 0; i < influencerTagNames.length; i++) {
+    const name = influencerTagNames[i];
+    await prisma.tag.upsert({
+      where: { categoryId_name: { categoryId: influencerCat.id, name } },
+      update: {},
+      create: { name, categoryId: influencerCat.id, sort: i },
+    });
+  }
+  const ticketTagNames = ["重点合作", "大促", "新品", "常规"];
+  for (let i = 0; i < ticketTagNames.length; i++) {
+    const name = ticketTagNames[i];
+    await prisma.tag.upsert({
+      where: { categoryId_name: { categoryId: ticketCat.id, name } },
+      update: {},
+      create: { name, categoryId: ticketCat.id, sort: i },
+    });
+  }
+  console.log("标签 OK");
 
   console.log("演示数据写入完成！");
 }

@@ -19,12 +19,14 @@ export default function TicketActions({
   userId,
   role,
   canOperate,
+  confirmedDate,
 }: {
   ticket: Ticket;
   userId: string;
   role: string;
   // 是否可推动工单状态：创建人 / 审批链成员 / ADMIN（后端同样校验）
   canOperate: boolean;
+  confirmedDate?: string | null;
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<null | { title: string; message: string; onOk: () => Promise<void> }>(null);
@@ -78,8 +80,8 @@ export default function TicketActions({
 
   const btns: React.ReactNode[] = [];
 
-  // 审批区（待审批）
-  if (ticket.status === "PENDING_APPROVAL" && canApprove) {
+  // 审批区（待审批 / 待采买审批）
+  if ((ticket.status === "PENDING_APPROVAL" || ticket.status === "PENDING_PROCUREMENT") && canApprove) {
     btns.push(
       <button key="approve" className={btnPrimary}
         onClick={() => setShowApproveBox(true)}>通过</button>
@@ -90,7 +92,7 @@ export default function TicketActions({
     );
   }
   // 提醒审批人：仅申请人（创建人）可见
-  if (ticket.status === "PENDING_APPROVAL" && ticket.creatorId === userId) {
+  if ((ticket.status === "PENDING_APPROVAL" || ticket.status === "PENDING_PROCUREMENT") && ticket.creatorId === userId) {
     btns.push(
       <button key="remind" className="rounded border border-orange-400 px-4 py-2 text-sm text-orange-600 hover:bg-orange-50"
         onClick={() => ask("提醒审批人", "确定向待审批人发送催办提醒吗？", async () => {
@@ -107,6 +109,44 @@ export default function TicketActions({
     );
   }
   // 素材审批：待素材审批状态，仅 PR负责人 / ADMIN
+  if (ticket.status === "AWAITING_DRAFT" && canOperate) {
+    btns.push(
+      <button key="schedule" className={btnSecondary} onClick={() => {
+        const date = window.prompt("请输入确定档期（YYYY-MM-DD）", confirmedDate ?? "");
+        if (!date) return;
+        const reason = window.prompt("请输入确定档期说明", confirmedDate ? "修改确定档期" : "寄品完成后确认档期");
+        if (!reason) return;
+        void (async () => {
+          if (await call(`/api/tickets/${ticket.id}/schedule`, { confirmedDate: date.trim(), reason: reason.trim() })) refresh();
+        })();
+      }}>{confirmedDate ? "修改确定档期" : "填写确定档期"}</button>
+    );
+    btns.push(
+      <button key="return-draft" className={btnPrimary} onClick={() => ask("确认已返稿", "确认素材已上传并将工单推送到已返稿状态？", async () => {
+        if (await call(`/api/tickets/${ticket.id}/return-draft`, {})) refresh();
+      })}>推送已返稿</button>
+    );
+  }
+  if (ticket.status === "DRAFT_RETURNED" && canOperate) {
+    btns.push(
+      <button key="publish" className={btnPrimary} onClick={() => {
+        const link = window.prompt("请输入发布链接");
+        if (!link) return;
+        void (async () => { if (await call(`/api/tickets/${ticket.id}/publish`, { publishLink: link.trim() })) refresh(); })();
+      }}>填写发布链接并标记已发布</button>
+    );
+  }
+  if (ticket.status === "PUBLISHED" && canOperate) {
+    btns.push(
+      <button key="settlement" className={btnPrimary} onClick={() => {
+        const raw = window.prompt("请输入实际结算金额");
+        if (!raw) return;
+        const actualFee = Number(raw);
+        if (!Number.isFinite(actualFee) || actualFee <= 0) return setError("实际费用必须大于 0");
+        void (async () => { if (await call(`/api/tickets/${ticket.id}/settlement-request`, { actualFee })) refresh(); })();
+      }}>提交结算审批</button>
+    );
+  }
   if (ticket.status === "MATERIAL_REVIEW" && canApprove) {
     btns.push(
       <button key="material-approve" className={btnPrimary}
@@ -128,16 +168,16 @@ export default function TicketActions({
   // 重提：仅创建人 / 审批链成员 / ADMIN
   if (ticket.status === "REJECTED" && canOperate) {
     btns.push(
-      <button key="resubmit" className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed]"
+      <button key="resubmit" className="rounded bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90"
         onClick={() => ask("重新提交", "确认重新提交审批吗？将通知原审批人。", async () => {
           if (await call(`/api/tickets/${ticket.id}/resubmit`, {})) refresh();
         })}>重新提交</button>
     );
   }
   // 作废：ADMIN 可作废非终态；创建人/审批链成员仅可作废早期待办状态
-  if (!["SETTLED", "VOIDED"].includes(ticket.status) && (isAdmin || (canOperate && ["DRAFT", "PENDING_APPROVAL", "REJECTED"].includes(ticket.status)))) {
+  if (!["SETTLED", "VOIDED"].includes(ticket.status) && (isAdmin || (canOperate && ["DRAFT", "PENDING_APPROVAL", "PENDING_PROCUREMENT", "REJECTED"].includes(ticket.status)))) {
     btns.push(
-      <button key="void" className="rounded border border-gray-400 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+      <button key="void" className="rounded border border-gray-400 px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
         onClick={() => setShowVoidBox(true)}>作废</button>
     );
   }
@@ -259,15 +299,15 @@ export default function TicketActions({
             <textarea className={inputCls} rows={3} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
+          <p className="mb-3 rounded bg-primary/10 p-2 text-xs text-blue-800">
             确认后将提交素材审批，PR负责人审批通过后自动生成打款单。
           </p>
-          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
+          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
             <input
               type="checkbox"
               checked={amountConfirmed}
               onChange={(e) => setAmountConfirmed(e.target.checked)}
-              className="h-4 w-4 accent-[#0071e3]"
+              className="h-4 w-4 accent-primary"
             />
             我确认以上金额为最终打款金额
           </label>
@@ -303,8 +343,8 @@ export default function TicketActions({
       )}
       {showMaterialApproveBox && (
         <Modal title="素材审批通过" onClose={() => setShowMaterialApproveBox(false)}>
-          <p className="mb-3 rounded bg-blue-50 p-2 text-xs text-blue-800">
-            通过后将自动生成打款单并提交业务审批，工单进入结算中。
+          <p className="mb-3 rounded bg-primary/10 p-2 text-xs text-blue-800">
+            通过后将自动生成打款单并直接提交财务审批，无需业务审批，工单进入结算中。
           </p>
           <Field label="审批意见（选填）">
             <textarea className={inputCls} rows={3} value={materialComment}

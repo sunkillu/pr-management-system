@@ -14,8 +14,10 @@ if (!sample) return NextResponse.json({ error: "寄件请求不存在"}, { statu
 if (sample.status!== "PENDING") {
 return NextResponse.json({ error: "仅待处理的请求可确认信息"}, { status: 400});
 }
-if (sample.infoConfirmed) {
-return NextResponse.json({ error: "信息已确认，无需重复操作"}, { status: 400});
+const body = await req.json().catch(() => ({}));
+const resend = body.resend === true;
+if (sample.infoConfirmed && !resend) {
+return NextResponse.json({ error: "信息已推送过仓库，如有修改请确认后重新推送"}, { status: 400});
 }
 // 仅提交人或管理员可确认
 if (auth.role!== "ADMIN" && sample.createdById!== auth.userId) {
@@ -36,7 +38,7 @@ return NextResponse.json({ error: `信息不全，请补充：${missing.join("�
 const updated = await prisma.$transaction(async (tx) => {
 const u = await tx.sampleShipment.update({
 where: { id: params.id},
-data: { infoConfirmed: true},
+data: { infoConfirmed: true, pushedAt: new Date(), pushCount: { increment: 1 }},
 });
 await writeLog(tx, {
 docType: "SAMPLE",
@@ -45,7 +47,7 @@ action: "APPROVE",
 actorId: auth.userId,
 fromStatus: "PENDING",
 toStatus: "PENDING",
-note: "寄件信息已确认，推送仓库",
+note: resend ? "寄件信息修改后重新推送仓库" : "寄件信息已确认，推送仓库",
 });
 return u;
 });
@@ -56,7 +58,7 @@ select: { id: true},
 });
 await notifyApprovers(
 warehouses.map((w) => w.id),
-`${sample.productName}（收件人：${sample.receiverName}），寄件信息已确认，请仓库接单备货。`,
+`${resend ? "【寄件信息已修改，重新推送】" : ""}${sample.productName}（收件人：${sample.receiverName}），寄件信息已确认，请仓库接单备货。`,
 { type: "SAMPLE", id: sample.id, title: "寄件请求待接单", kind: "APPROVAL_PENDING"}
 );
 return NextResponse.json(updated);

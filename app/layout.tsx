@@ -2,7 +2,7 @@ import "./globals.css";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
-import NotificationBell from "@/components/NotificationBell";
+import Topbar from "@/components/Topbar";
 import NotificationToast from "@/components/NotificationToast";
 import ScrollToAnchor from "@/components/ScrollToAnchor";
 
@@ -19,19 +19,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="zh-CN">
-      <body className="bg-[#f5f5f7] text-gray-900 antialiased">
+      <body className="bg-background text-foreground antialiased">
         {user ? (
           <div className="flex min-h-screen">
-            <Sidebar
-              userName={user.name ?? ""}
-              email={user.email ?? ""}
-              role={user.role ?? "VIEWER"}
-            />
+            <Sidebar role={user.role ?? "VIEWER"} />
             <div className="flex min-w-0 flex-1 flex-col">
-              <header className="flex items-center justify-end border-b border-[#e5e5e5] bg-white px-6 py-2">
-                <NotificationBell />
-              </header>
-              <main className="flex-1 min-w-0 p-8">{children}</main>
+              <Topbar userName={user.name ?? ""} role={user.role ?? "VIEWER"} />
+              <main className="min-w-0 flex-1 p-6">{children}</main>
             </div>
             <NotificationToast />
             <ScrollToAnchor />

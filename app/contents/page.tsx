@@ -2,14 +2,32 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
-import { contentTypeLabels, contentStatusLabels, badgeClass, formatDate } from "@/lib/labels";
+import { PageHeader } from "@/components/ui";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { contentTypeLabels, contentStatusLabels, badgeClass } from "@/lib/labels";
 import ContentsClient from "./ContentsClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+
+const selectCls =
+  "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
 export default async function ContentsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; type?: string; status?: string };
+  searchParams: { q?: string; type?: string; status?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
@@ -21,12 +39,16 @@ export default async function ContentsPage({
   if (searchParams.type) where.type = searchParams.type;
   if (searchParams.status) where.status = searchParams.status;
 
-  const [contents, outlets] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [contents, total, outlets] = await Promise.all([
     prisma.content.findMany({
       where,
       include: { outlet: true },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    prisma.content.count({ where }),
     prisma.mediaOutlet.findMany({
       where: { status: "ACTIVE" },
       select: { id: true, name: true },
@@ -43,58 +65,53 @@ export default async function ContentsPage({
       />
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
-        <input
-          name="q"
-          placeholder="按标题搜索"
-          defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
-        />
-        <select name="type" defaultValue={searchParams.type ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <Input name="q" placeholder="按标题搜索" defaultValue={searchParams.q ?? ""} className="w-48" />
+        <select name="type" defaultValue={searchParams.type ?? ""} className={selectCls}>
           <option value="">全部类型</option>
           {Object.entries(contentTypeLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className={selectCls}>
           <option value="">全部状态</option>
           {Object.entries(contentStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>标题</th>
-              <th className={thCls}>类型</th>
-              <th className={thCls}>关联资源</th>
-              <th className={thCls}>版本</th>
-              <th className={thCls}>状态</th>
-              <th className={thCls}>更新时间</th>
-              <th className={thCls}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>标题</TableHead>
+              <TableHead>类型</TableHead>
+              <TableHead>关联资源</TableHead>
+              <TableHead>版本</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>记录时间</TableHead>
+              <TableHead>操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {contents.map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>
-                  <Link href={`/contents/${c.id}`} className="text-[#0071e3] hover:underline">
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">
+                  <Link href={`/contents/${c.id}`} className="text-primary hover:underline">
                     {c.title}
                   </Link>
-                </td>
-                <td className={tdCls}>{contentTypeLabels[c.type]}</td>
-                <td className={tdCls}>{c.outlet?.name ?? "-"}</td>
-                <td className={tdCls}>v{c.version}</td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(c.status)}`}>
+                </TableCell>
+                <TableCell>{contentTypeLabels[c.type]}</TableCell>
+                <TableCell>{c.outlet?.name ?? "-"}</TableCell>
+                <TableCell>v{c.version}</TableCell>
+                <TableCell>
+                  <Badge className={badgeClass(c.status)}>
                     {contentStatusLabels[c.status]}
-                  </span>
-                </td>
-                <td className={tdCls}>{formatDate(c.updatedAt)}</td>
-                <td className={tdCls + " whitespace-nowrap"}>
+                  </Badge>
+                </TableCell>
+                <TableCell><RecordTimestamps createdAt={c.createdAt} updatedAt={c.updatedAt} compact /></TableCell>
+                <TableCell className="whitespace-nowrap">
                   <ContentsClient
                     role={role}
                     outlets={outlets}
@@ -115,15 +132,20 @@ export default async function ContentsPage({
                       deleteId: canWrite ? c.id : undefined,
                     }}
                   />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {contents.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                  暂无数据
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
+      <Pagination pathname="/contents" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

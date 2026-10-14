@@ -2,15 +2,29 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, thCls, tdCls, btnPrimary } from "@/components/ui";
-import { paymentStatusLabels, badgeClass, formatMoney, formatDate } from "@/lib/labels";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import StatusBadge from "@/components/StatusBadge";
+import { paymentStatusLabels, formatMoney } from "@/lib/labels";
 import PaymentsClient from "./PaymentsClient";
+import Pagination from "@/components/Pagination";
+import { getPagination } from "@/lib/pagination";
 import type { TicketPrefill } from "@/components/PaymentForm";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; newTicket?: string };
+  searchParams: { q?: string; status?: string; newTicket?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as unknown as { id: string; role: string };
@@ -43,12 +57,16 @@ export default async function PaymentsPage({
     }
   }
 
-  const [payments, outlets, campaigns, contents] = await Promise.all([
+  const pagination = getPagination(searchParams.page);
+  const [payments, total, outlets, campaigns, contents] = await Promise.all([
     prisma.paymentRequest.findMany({
       where,
       include: { outlet: true, campaign: true, requester: true, _count: { select: { vouchers: true } } },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    prisma.paymentRequest.count({ where }),
     prisma.mediaOutlet.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.campaign.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.content.findMany({ select: { id: true, title: true }, orderBy: { updatedAt: "desc" }, take: 200 }),
@@ -58,7 +76,7 @@ export default async function PaymentsPage({
     <div>
       <PageHeader
         title="打款审批"
-        desc="两阶段审批：运营提交 → 管理员业务审批 → 财务审批 → 财务标记已打款。发票为选填，不阻塞流程。"
+        desc="普通打款：业务审批 → 财务审批；工单素材审批通过后直接进入财务审批。发票为选填，不阻塞流程。"
         action={
           canSubmit ? (
             <PaymentsClient role={role} outlets={outlets} campaigns={campaigns} contents={contents} ticketPrefill={ticketPrefill} />
@@ -67,63 +85,62 @@ export default async function PaymentsPage({
       />
 
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
-        <input
+        <Input
           name="q"
           placeholder="按标题搜索"
           defaultValue={searchParams.q ?? ""}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-64"
         />
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded border border-gray-300 px-3 py-2 text-sm">
+        <select name="status" defaultValue={searchParams.status ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="">全部状态</option>
           {Object.entries(paymentStatusLabels).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className={btnPrimary}>筛选</button>
+        <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-2xl">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className={thCls}>标题</th>
-              <th className={thCls}>金额（元）</th>
-              <th className={thCls}>收款方</th>
-              <th className={thCls}>关联</th>
-              <th className={thCls}>状态</th>
-              <th className={thCls}>申请人</th>
-              <th className={thCls}>更新时间</th>
-              <th className={thCls}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>标题</TableHead>
+              <TableHead className="tabular-nums">金额（元）</TableHead>
+              <TableHead>收款方</TableHead>
+              <TableHead>关联</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>申请人</TableHead>
+              <TableHead>记录时间</TableHead>
+              <TableHead>操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {payments.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className={tdCls + " font-medium"}>
-                  <Link href={`/payments/${p.id}`} className="text-[#0071e3] hover:underline">
+              <TableRow key={p.id}>
+                <TableCell className="font-medium">
+                  <Link href={`/payments/${p.id}`} className="text-primary hover:underline">
                     {p.title}
                   </Link>
-                </td>
-                <td className={tdCls}>{formatMoney(p.amount)}</td>
-                <td className={tdCls}>{p.payeeName}</td>
-                <td className={tdCls + " text-xs text-gray-500"}>
+                </TableCell>
+                <TableCell className="tabular-nums">{formatMoney(p.amount)}</TableCell>
+                <TableCell>{p.payeeName}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
                   {[p.outlet?.name, p.campaign?.name].filter(Boolean).join(" / ") || "-"}
-                </td>
-                <td className={tdCls}>
-                  <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(p.status)}`}>
-                    {paymentStatusLabels[p.status]}
-                  </span>
-                </td>
-                <td className={tdCls}>{p.requester.name}</td>
-                <td className={tdCls}>{formatDate(p.updatedAt)}</td>
-                <td className={tdCls + " whitespace-nowrap"}>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={p.status} label={paymentStatusLabels[p.status]} />
+                </TableCell>
+                <TableCell>{p.requester.name}</TableCell>
+                <TableCell><RecordTimestamps createdAt={p.createdAt} updatedAt={p.updatedAt} compact /></TableCell>
+                <TableCell className="whitespace-nowrap">
                   <PaymentsClient
                     role={role}
                     outlets={outlets}
                     campaigns={campaigns}
                     contents={contents}
                     editTarget={
-                      canSubmit && (p.status === "PENDING_BIZ" || p.status === "REJECTED")
+                      (canSubmit || (role === "PR_MANAGER" && p.ticketId && p.requesterId === sessionUser.id)) &&
+                      (p.status === "PENDING_BIZ" || p.status === "REJECTED")
                         ? {
                             id: p.id,
                             title: p.title,
@@ -137,18 +154,19 @@ export default async function PaymentsPage({
                           }
                         : undefined
                     }
-                    actionTarget={{ id: p.id, status: p.status, isRequester: p.requesterId === sessionUser.id, voucherCount: p._count.vouchers }}
+                    actionTarget={{ id: p.id, ticketId: p.ticketId, status: p.status, isRequester: p.requesterId === sessionUser.id, voucherCount: p._count.vouchers }}
                     deleteId={canDelete ? p.id : undefined}
                   />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {payments.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-sm text-gray-500">暂无数据</td></tr>
+              <TableRow><TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
+      <Pagination pathname="/payments" page={pagination.page} total={total} query={searchParams} />
     </div>
   );
 }

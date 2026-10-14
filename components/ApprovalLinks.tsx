@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
 import { inputCls, btnPrimary, btnSecondary } from "./ui";
-import { docTypeLabels, contentStatusLabels, paymentStatusLabels, badgeClass } from "@/lib/labels";
+import { docTypeLabels, contentStatusLabels, paymentStatusLabels, badgeClass, formatDateTime } from "@/lib/labels";
 
 export type LinkItem = {
   id: string;
@@ -109,26 +109,26 @@ export default function ApprovalLinks({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-semibold">关联单据</h3>
         {canEdit && (
-          <button onClick={() => { setShowAdd(true); setError(""); }} className="text-sm text-[#0071e3] hover:underline">
+          <button onClick={() => { setShowAdd(true); setError(""); }} className="text-sm text-primary hover:underline">
             + 新增关联
           </button>
         )}
       </div>
       {links.length === 0 ? (
-        <p className="text-sm text-gray-400">暂无关联单据</p>
+        <p className="text-sm text-muted-foreground">暂无关联单据</p>
       ) : (
         <ul className="space-y-2">
           {links.map((l) => (
-            <li key={l.id} className="flex items-center justify-between rounded border border-gray-200 p-2 text-sm">
+            <li key={l.id} className="flex items-center justify-between rounded border border-border p-2 text-sm">
               <div>
-                <Link href={detailHref(l.otherType, l.otherId)} className="font-medium text-[#0071e3] hover:underline">
+                <Link href={detailHref(l.otherType, l.otherId)} className="font-medium text-primary hover:underline">
                   {l.otherTitle}
                 </Link>
-                <div className="mt-0.5 text-xs text-gray-500">
+                <div className="mt-0.5 text-xs text-muted-foreground">
                   <span className={`mr-1 rounded px-1.5 py-0.5 ${badgeClass(l.otherStatus)}`}>
                     {statusLabel(l.otherType, l.otherStatus)}
                   </span>
-                  {docTypeLabels[l.otherType]} · 由 {l.createdByName} 关联
+                  {docTypeLabels[l.otherType]} · 由 {l.createdByName} 于 {formatDateTime(l.createdAt)} 关联
                 </div>
               </div>
               {canEdit && (
@@ -151,7 +151,7 @@ export default function ApprovalLinks({
               <button
                 key={t}
                 onClick={() => { setTab(t); setResults([]); }}
-                className={`rounded px-3 py-1 text-sm ${tab === t ? "bg-[#0071e3] text-white" : "bg-gray-100 text-gray-700"}`}
+                className={`rounded px-3 py-1 text-sm ${tab === t ? "bg-primary text-white" : "bg-muted text-foreground"}`}
               >
                 {docTypeLabels[t]}
               </button>
@@ -171,10 +171,10 @@ export default function ApprovalLinks({
           </div>
           <ul className="mt-3 max-h-64 space-y-2 overflow-auto">
             {results.map((r) => (
-              <li key={r.id} className="flex items-center justify-between rounded border border-gray-200 p-2 text-sm">
+              <li key={r.id} className="flex items-center justify-between rounded border border-border p-2 text-sm">
                 <div>
                   <div className="font-medium">{r.title}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     <span className={`mr-1 rounded px-1.5 py-0.5 ${badgeClass(r.status)}`}>
                       {statusLabel(tab, r.status)}
                     </span>
@@ -183,7 +183,7 @@ export default function ApprovalLinks({
                 <button
                   disabled={busy}
                   onClick={() => doLink(r.id)}
-                  className="shrink-0 rounded bg-[#0071e3] px-3 py-1 text-xs text-white hover:bg-[#0077ed] disabled:opacity-50"
+                  className="shrink-0 rounded bg-primary px-3 py-1 text-xs text-white hover:bg-primary/90 disabled:opacity-50"
                 >
                   关联
                 </button>

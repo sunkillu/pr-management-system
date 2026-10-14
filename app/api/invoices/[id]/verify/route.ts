@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { writeLog } from "@/lib/approval-log";
 
 // 发票核验：财务（管理员兜底也有权限）。待核验 → 已核验 / 异常（异常需备注原因）
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -19,12 +20,33 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (existing.status !== "PENDING") {
     return NextResponse.json({ error: "仅待核验的发票可操作" }, { status: 400 });
   }
-  const invoice = await prisma.invoice.update({
-    where: { id: params.id },
-    data: {
-      status: action === "VERIFY" ? "VERIFIED" : "INVALID",
-      note: body.note?.trim() || existing.note,
-    },
+  const nextStatus = action === "VERIFY" ? "VERIFIED" : "INVALID";
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await tx.invoice.findUniqueOrThrow({ where: { id: params.id } });
+    if (current.status !== "PENDING") return { conflict: true as const };
+    const updated = await tx.invoice.update({
+      where: { id: params.id },
+      data: {
+        status: nextStatus,
+        note: body.note?.trim() || current.note,
+      },
+    });
+    if (current.status !== updated.status) {
+      await writeLog(tx, {
+        docType: "INVOICE",
+        docId: updated.id,
+        action: action === "VERIFY" ? "APPROVE" : "REJECT",
+        actorId: auth.userId,
+        fromStatus: current.status,
+        toStatus: updated.status,
+        note: body.note,
+      });
+    }
+    return { invoice: updated };
   });
+  if ("conflict" in result) {
+    return NextResponse.json({ error: "仅待核验的发票可操作" }, { status: 400 });
+  }
+  const invoice = result.invoice;
   return NextResponse.json(invoice);
 }

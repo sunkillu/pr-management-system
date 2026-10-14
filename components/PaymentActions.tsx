@@ -11,12 +11,14 @@ import { btnPrimarySm, btnDangerSm, btnDanger } from "./ui";
 // 所有操作均经二次确认弹窗；驳回/作废必填理由
 export default function PaymentActions({
   id,
+  ticketId,
   status,
   role,
   isRequester,
   voucherCount = 0,
 }: {
   id: string;
+  ticketId?: string | null;
   status: string;
   role: string;
   isRequester: boolean;
@@ -112,7 +114,7 @@ export default function PaymentActions({
               run: () => call(`/api/payments/${id}/mark-paid`),
             })
           }
-          className="rounded bg-[#0071e3] px-3 py-1 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
+          className="rounded bg-primary px-3 py-1 text-sm text-white hover:bg-primary/90 disabled:opacity-50"
         >
           标记已打款{voucherCount === 0 ? "（需先上传凭证）" : ""}
         </button>
@@ -123,7 +125,9 @@ export default function PaymentActions({
           onClick={() =>
             openConfirm({
               title: "重新提交",
-              message: "修改申请内容后重新提交，将回到待业务审批状态并重新走完整审批链。",
+              message: ticketId
+                ? "修改工单结算申请后重新提交，将直接返回财务审批。"
+                : "修改申请内容后重新提交，将回到待业务审批状态并重新走完整审批链。",
               needReason: true,
               reasonLabel: "修改说明",
               reasonPlaceholder: "请说明本次修改了哪些内容（选填，会记入历史记录）",
@@ -132,7 +136,7 @@ export default function PaymentActions({
               run: (reason) => call(`/api/payments/${id}/resubmit`, { note: reason }),
             })
           }
-          className="rounded bg-[#0071e3] px-3 py-1 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
+          className="rounded bg-primary px-3 py-1 text-sm text-white hover:bg-primary/90 disabled:opacity-50"
         >
           重新提交
         </button>
@@ -207,12 +211,12 @@ function DecisionDialog({
 
   return (
     <Modal title={title} onClose={onClose}>
-      <p className="mb-3 text-sm text-gray-600">请选择审批结果（驳回时必须填写理由）：</p>
-      <label className="mb-1 block text-sm font-medium text-gray-700">
-        审批意见 <span className="text-xs text-gray-400">（通过可留空，驳回必填）</span>
+      <p className="mb-3 text-sm text-muted-foreground">请选择审批结果（驳回时必须填写理由）：</p>
+      <label className="mb-1 block text-sm font-medium text-foreground">
+        审批意见 <span className="text-xs text-muted-foreground">（通过可留空，驳回必填）</span>
       </label>
       <textarea
-        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
+        className="w-full rounded border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         rows={4}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
@@ -220,7 +224,7 @@ function DecisionDialog({
       />
       <div className="mt-4 flex justify-end gap-2">
         <button
-          className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="rounded border border-input px-4 py-2 text-sm text-foreground hover:bg-accent disabled:opacity-50"
           onClick={onClose}
           disabled={busy}
         >
@@ -240,7 +244,7 @@ function DecisionDialog({
           {busy ? "处理中…" : "驳回"}
         </button>
         <button
-          className="rounded bg-[#0071e3] px-4 py-2 text-sm text-white hover:bg-[#0077ed] disabled:opacity-50"
+          className="rounded bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90 disabled:opacity-50"
           disabled={busy}
           onClick={() => onApprove(reason.trim())}
         >

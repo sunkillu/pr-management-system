@@ -108,9 +108,23 @@ export async function notifyApprovers(
   text: string,
   related?: RelatedRef
 ): Promise<void> {
-  for (const id of approverIds) {
-    await notifyUser(id, text, related);
+  const receiverIds = Array.from(new Set(approverIds));
+  if (!FEISHU_ENABLED) {
+    await prisma.notificationLog.createMany({
+      data: receiverIds.map((receiverId) => ({
+        type: "MOCK",
+        kind: related?.kind ?? "SYSTEM",
+        title: related?.title ?? null,
+        receiverId,
+        content: text,
+        relatedType: related?.type ?? null,
+        relatedId: related?.id ?? null,
+        note: "站内通知：飞书推送暂未启用，仅网页内展示",
+      })),
+    });
+    return;
   }
+  await Promise.all(receiverIds.map((id) => notifyUser(id, text, related)));
 }
 
 /** 是否处于飞书 mock 模式（供设置/调试页展示） */
