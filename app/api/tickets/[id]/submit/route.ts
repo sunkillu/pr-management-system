@@ -51,7 +51,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const body = await req.json().catch(() => ({}));
-  const approverIds: string[] = Array.isArray(body.approverIds) ? body.approverIds : [];
+  const approverIds: string[] = Array.isArray(body.approverIds)
+    ? body.approverIds
+        .filter((id: unknown): id is string => typeof id === "string")
+        .filter((id: string, index: number, ids: string[]) => ids.indexOf(id) === index)
+    : [];
   if (approverIds.length === 0) {
     return NextResponse.json({ error: "提交审批必须选择至少一位审批人" }, { status: 400 });
   }
@@ -63,7 +67,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "审批人必须为 PR负责人 或 管理员" }, { status: 400 });
   }
 
-  await prisma.$transaction(async (tx) => {
+  const submitted = await prisma.$transaction(async (tx) => {
+    const statusUpdate = await tx.cooperationTicket.updateMany({
+      where: { id: params.id, ticketKind: "COOPERATION", status: "DRAFT" },
+      data: { status: "PENDING_APPROVAL", escalatedAt: null },
+    });
+    if (statusUpdate.count !== 1) return false;
+
     // 采买转入的工单在创建时未生成进度节点，提交时补建
     const nodeCount = await tx.ticketNode.count({ where: { ticketId: params.id } });
     if (nodeCount === 0) {
@@ -72,9 +82,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         data: nodes.map((n) => ({ ticketId: params.id, ...n })),
       });
     }
-    await tx.cooperationTicket.update({
-      where: { id: params.id },
-      data: { status: "PENDING_APPROVAL", escalatedAt: null },
+    // 采买审批阶段的审批人记录使用相同唯一键；合作审批需替换为本次选择的人。
+    await tx.requestApprover.deleteMany({
+      where: { requestType: "TICKET", requestId: params.id },
     });
     await tx.requestApprover.createMany({
       data: approverIds.map((approverId: string) => ({
@@ -91,7 +101,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       fromStatus: "DRAFT",
       toStatus: "PENDING_APPROVAL",
     });
+    return true;
   });
+
+  if (!submitted) {
+    return NextResponse.json({ error: "工单已由其他人提交或状态已变化，请刷新页面" }, { status: 409 });
+  }
 
   await notifyApprovers(
     approverIds,
