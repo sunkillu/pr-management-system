@@ -4,7 +4,6 @@ import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { notifyApprovers, notifyUser } from "@/lib/feishu-notify";
 import { buildNodesForTicket } from "@/lib/ticket-nodes";
-import { nextTicketNumber } from "@/lib/ticket-number";
 
 // POST /api/tickets/force-create — 管理员强制创建合作工单入口
 // 场景：达人正被其他工单占用（或30天保护期内），普通创建会返回 409，
@@ -115,6 +114,8 @@ export async function POST(req: NextRequest) {
         .map((s: unknown) => ({
           style: String((s as { style?: unknown }).style ?? "").trim(),
           degree: String((s as { degree?: unknown }).degree ?? "").trim(),
+          shelfLife: String((s as { shelfLife?: unknown }).shelfLife ?? "").trim(),
+          boxCount: String((s as { boxCount?: unknown }).boxCount ?? "").trim(),
           note: String((s as { note?: unknown }).note ?? "").trim(),
         }))
         .filter((s: { style: string }) => s.style)
@@ -127,7 +128,11 @@ export async function POST(req: NextRequest) {
   const hasQuoteSchedule = q > 0 && /^\d{4}-\d{2}-\d{2}$/.test(cd);
 
   const ticket = await prisma.$transaction(async (tx) => {
-    const ticketNo = await nextTicketNumber(tx);
+    const today = new Date();
+    const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayCount = await tx.cooperationTicket.count({ where: { createdAt: { gte: dayStart } } });
+    const ticketNo = `${ymd}${String(todayCount + 1).padStart(4, "0")}`;
 
     const created = await tx.cooperationTicket.create({
       data: {

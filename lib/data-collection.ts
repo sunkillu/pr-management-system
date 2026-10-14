@@ -1,7 +1,6 @@
 import { prisma } from "./prisma";
 import { notifyUser } from "./feishu-notify";
 import { platformLabels } from "./labels";
-import { writeLog } from "./approval-log";
 
 /**
  * 数据回收流程（幂等，可重复调用）：
@@ -17,16 +16,18 @@ export const AUTO_CLOSE_DAYS = 30;
 
 // 各平台数据指标字段（与 schema DataCollectionTask.metrics 注释保持一致）
 export const METRIC_FIELDS: Record<string, string[]> = {
-  XIAOHONGSHU: ["views", "likes", "comments", "favorites"],
-  DOUYIN: ["exposures", "views", "likes", "comments", "favorites"],
+  XIAOHONGSHU: ["views", "reads", "likes", "comments", "favorites", "shares"],
+  DOUYIN: ["exposures", "views", "reads", "likes", "comments", "favorites", "shares"],
 };
 
 export const metricFieldLabels: Record<string, string> = {
   exposures: "曝光量",
   views: "浏览量/阅读量",
+  reads: "阅读",
   likes: "点赞数",
   comments: "评论数",
   favorites: "收藏数",
+  shares: "转发",
 };
 
 export function metricFieldsFor(platform: string): string[] {
@@ -67,30 +68,29 @@ export async function createDataTask(
   if (!ticket.publishDate) return { created: 0, existed: 0, dueAt: null, reason: "工单尚未发布" };
 
   const dueAt = addDays(ticket.publishDate, DATA_TASK_DUE_DAYS);
-  const platforms = Array.from(new Set(ticket.platform));
-  const created = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`data-task:${ticketId}`}))`;
-    const existing = await tx.dataCollectionTask.findMany({
-      where: { ticketId, platform: { in: platforms } },
-      select: { platform: true },
-    });
-    const existingPlatforms = new Set(existing.map((task) => task.platform));
-    const missingPlatforms = platforms.filter((platform) => !existingPlatforms.has(platform));
-    if (missingPlatforms.length === 0) return 0;
+  let created = 0;
+  let existed = 0;
 
-    const result = await tx.dataCollectionTask.createMany({
-      data: missingPlatforms.map((platform) => ({
+  for (const platform of ticket.platform) {
+    const exist = await prisma.dataCollectionTask.findFirst({
+      where: { ticketId, platform },
+      select: { id: true },
+    });
+    if (exist) {
+      existed++;
+      continue;
+    }
+    await prisma.dataCollectionTask.create({
+      data: {
         ticketId,
-        brandId: ticket.brandId ?? null,
+        brandId: ticket.brandId ?? null, // 品牌从工单自动透传
         platform,
         publishLink: ticket.publishLink ?? null,
         dueAt,
-      })),
-      skipDuplicates: true,
+      },
     });
-    return result.count;
-  });
-  const existed = platforms.length - created;
+    created++;
+  }
 
   if (created > 0) {
     await notifyUser(
@@ -178,30 +178,11 @@ export async function monthlySummary(
  * 截止前仍未回收完成的数据任务 → 标记 MISSING（数据待补），保留异常记录，不删除。
  */
 export async function markMissingTasks(now: Date = new Date()): Promise<number> {
-  return prisma.$transaction(async (tx) => {
-    const eligible = await tx.dataCollectionTask.findMany({
-      where: { status: "PENDING", dueAt: { lt: now } },
-      select: { id: true },
-    });
-    let changed = 0;
-    for (const task of eligible) {
-      const result = await tx.dataCollectionTask.updateMany({
-        where: { id: task.id, status: "PENDING", dueAt: { lt: now } },
-        data: { status: "MISSING" },
-      });
-      if (result.count === 0) continue;
-      await writeLog(tx, {
-        docType: "DATA_TASK",
-        docId: task.id,
-        action: "EDIT",
-        actorLabel: "系统定时任务",
-        fromStatus: "PENDING",
-        toStatus: "MISSING",
-      });
-      changed += result.count;
-    }
-    return changed;
+  const res = await prisma.dataCollectionTask.updateMany({
+    where: { status: "PENDING", dueAt: { lt: now } },
+    data: { status: "MISSING" },
   });
+  return res.count;
 }
 
 // 不再自动结束的终态（已终结则跳过）
@@ -225,34 +206,15 @@ export async function autoCloseTicket(
   if (!ticket.publishDate) return { closed: false, reason: "工单尚未发布" };
   if (addDays(ticket.publishDate, AUTO_CLOSE_DAYS) > now) return { closed: false, reason: "未满 30 天" };
 
-  const cutoff = addDays(now, -AUTO_CLOSE_DAYS);
-  const closed = await prisma.$transaction(async (tx) => {
-    const result = await tx.cooperationTicket.updateMany({
-      where: {
-        id: ticketId,
-        status: ticket.status,
-        publishDate: { lte: cutoff },
-      },
-      data: { status: "SETTLED" },
-    });
-    if (result.count !== 1) return false;
-
-    await writeLog(tx, {
-      docType: "TICKET",
-      docId: ticketId,
-      action: "EDIT",
-      actorLabel: "系统定时任务",
-      fromStatus: ticket.status,
-      toStatus: "SETTLED",
-      note: "发布满 30 天，自动结束合作流程",
-    });
-    await tx.influencer.updateMany({
-      where: { occupiedByTicketId: ticketId },
-      data: { occupiedByTicketId: null },
-    });
-    return true;
+  await prisma.cooperationTicket.update({
+    where: { id: ticketId },
+    data: { status: "SETTLED" },
   });
-  if (!closed) return { closed: false, reason: "工单状态已变化或已由其他任务处理" };
+  // 释放达人资源占用
+  await prisma.influencer.updateMany({
+    where: { occupiedByTicketId: ticketId },
+    data: { occupiedByTicketId: null },
+  });
 
   await notifyUser(
     ticket.creatorId,

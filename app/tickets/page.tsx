@@ -15,16 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatusBadge from "@/components/StatusBadge";
-import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTagLabels, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
+import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTagLabels, ticketKindLabels, procurementSubTypeLabels, STYLE_OPTIONS } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
-import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 import TicketBoard, { BoardTicket } from "@/components/TicketBoard";
 import AutoRefresh from "@/components/AutoRefresh";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
-import RecordTimestamps from "@/components/RecordTimestamps";
 
 const VIEWS = [
   { key: "list", label: "列表" },
@@ -54,9 +52,6 @@ export default async function TicketsPage({
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
-  const createAction = role === "OPERATOR"
-    ? <PurchaseRequestForm />
-    : <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} />;
 
   const viewTab = (key: string) =>
     `/tickets${key === "board" ? "?view=board" : ""}`;
@@ -81,8 +76,6 @@ export default async function TicketsPage({
       title: t.title,
       type: t.type,
       status: t.status,
-      createdAt: t.createdAt.toISOString(),
-      updatedAt: t.updatedAt.toISOString(),
       budgetFee: String(t.budgetFee),
       influencer: t.influencer,
       makeupArtist: t.makeupArtist,
@@ -97,7 +90,7 @@ export default async function TicketsPage({
         <PageHeader
           title="合作工单"
           desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
-          action={canWrite ? createAction : undefined}
+          action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} /> : undefined}
         />
         <div className="mb-5 flex gap-1 border-b">
           {VIEWS.map((v) => (
@@ -132,8 +125,12 @@ export default async function TicketsPage({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
-  const prs = await prisma.user.findMany({ where: { role: "PR" }, orderBy: { name: "asc" }, select: { id: true, name: true } });
-  const styles = await prisma.styleOption.findMany({ where: { kind: "STYLE", isActive: true }, orderBy: [{ sort: "asc" }, { name: "asc" }], select: { name: true } });
+  // PR 筛选选项：所有 PR 角色用户（与 /api/tickets?prId 的口径一致：优先归属人，无归属人时按创建人）
+  const prUsers = await prisma.user.findMany({
+    where: { role: "PR" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
   let tagTicketIds: string[] | null = null;
   if (searchParams.tagId) {
     const recs = await prisma.tagging.findMany({
@@ -155,7 +152,9 @@ export default async function TicketsPage({
       ...(searchParams.type ? { type: searchParams.type as never } : {}),
       ...(searchParams.ticketKind ? { ticketKind: searchParams.ticketKind as never } : {}),
       ...(searchParams.brandId ? { brandId: searchParams.brandId } : {}),
-      ...(searchParams.prId ? { AND: [{ OR: [{ assigneeId: searchParams.prId }, { creatorId: searchParams.prId }] }] } : {}),
+      ...(searchParams.prId
+        ? { OR: [{ assigneeId: searchParams.prId }, { assigneeId: null, creatorId: searchParams.prId }] }
+        : {}),
       ...(searchParams.style ? { style: { has: searchParams.style } } : {}),
       ...(tagTicketIds ? { id: { in: tagTicketIds } } : {}),
   };
@@ -185,7 +184,7 @@ export default async function TicketsPage({
       <PageHeader
         title="合作工单"
         desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
-        action={canWrite ? createAction : undefined}
+        action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} /> : undefined}
       />
 
       <div className="mb-5 flex gap-1 border-b">
@@ -241,13 +240,17 @@ export default async function TicketsPage({
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </select>
-        <select name="prId" defaultValue={searchParams.prId ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-          <option value="">全部 PR</option>
-          {prs.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+        <select name="prId" defaultValue={searchParams.prId ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <option value="">全部PR</option>
+          {prUsers.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
         </select>
-        <select name="style" defaultValue={searchParams.style ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+        <select name="style" defaultValue={searchParams.style ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="">全部款式</option>
-          {styles.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
+          {STYLE_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
         </select>
         <Button type="submit">筛选</Button>
       </form>
@@ -268,7 +271,6 @@ export default async function TicketsPage({
               <TableHead>状态</TableHead>
               <TableHead>归属PR</TableHead>
               <TableHead>发起人</TableHead>
-              <TableHead>记录时间</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -319,12 +321,11 @@ export default async function TicketsPage({
                     {t.ticketKind === "PROCUREMENT" ? (t.assignee?.name ?? <span className="text-muted-foreground">待接单</span>) : "-"}
                   </TableCell>
                   <TableCell>{t.creator?.name ?? "-"}</TableCell>
-                  <TableCell><RecordTimestamps createdAt={t.createdAt} updatedAt={t.updatedAt} compact /></TableCell>
                 </TableRow>
               );
             })}
             {list.length === 0 && (
-              <TableRow><TableCell colSpan={13} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

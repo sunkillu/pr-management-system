@@ -19,6 +19,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (ticket.ticketKind !== "PROCUREMENT") {
     return NextResponse.json({ error: "仅采买工单可接单" }, { status: 400 });
   }
+  // 新流程（有 ProcurementItem）的采买单走逐条审批 + 分配建单，不再同单翻转
+  const itemCount = await prisma.procurementItem.count({ where: { ticketId: params.id } });
+  if (itemCount > 0) {
+    return NextResponse.json({ error: "该采买工单已使用逐条审批流程，请在详情页逐条审批并分配" }, { status: 400 });
+  }
   if (ticket.status !== "APPROVED") {
     return NextResponse.json({ error: "仅采买通过的工单可接单" }, { status: 400 });
   }
@@ -26,14 +31,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "该工单已被接单" }, { status: 400 });
   }
 
-  const accepted = await prisma.$transaction(async (tx) => {
-    const result = await tx.cooperationTicket.updateMany({
-      where: {
-        id: params.id,
-        ticketKind: "PROCUREMENT",
-        status: "APPROVED",
-        assigneeId: null,
-      },
+  await prisma.$transaction(async (tx) => {
+    await tx.cooperationTicket.update({
+      where: { id: params.id },
       data: {
         assigneeId: auth.userId,
         acceptedAt: new Date(),
@@ -42,8 +42,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         status: "DRAFT",
       },
     });
-    if (result.count !== 1) return false;
-
     await tx.ticketAssigneeLog.create({
       data: {
         ticketId: params.id,
@@ -62,22 +60,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       toStatus: "DRAFT",
       note: `${auth.userName}接单，转入合作工单流程`,
     });
-    return true;
   });
-  if (!accepted) {
-    return NextResponse.json({ error: "该工单已被其他人接单或状态已变化" }, { status: 409 });
-  }
 
   // 通知提交人
-  try {
-    await notifyUser(
-      ticket.creatorId,
-      `采买工单「${ticket.title}」已被 ${auth.userName} 接单，转入合作工单流程。`,
-      { type: "TICKET", id: ticket.id, title: "采买工单已接单", kind: "SYSTEM" },
-    );
-  } catch (error) {
-    console.error("[ticket.accept.notification]", { ticketId: ticket.id, error });
-  }
+  await notifyUser(
+    ticket.creatorId,
+    `采买工单「${ticket.title}」已被 ${auth.userName} 接单，转入合作工单流程。`,
+    { type: "TICKET", id: ticket.id, title: "采买工单已接单", kind: "SYSTEM" },
+  );
 
   return NextResponse.json({ ok: true });
 }
