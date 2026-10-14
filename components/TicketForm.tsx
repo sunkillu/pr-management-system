@@ -180,7 +180,7 @@ export default function TicketForm({
       if (platforms.length === 0) return "请选择合作平台（可多选）";
       if (procurementType === "WEEKLY_STYLE") {
         if (styles.length === 0) return "请选择款式（可多选）";
-        if (!quantity || Number(quantity) <= 0 || !Number.isInteger(Number(quantity))) return "采买数量必须为正整数";
+        if (!/^[1-9]\d*$/.test(quantity.trim())) return "采买数量必须为正整数";
       } else {
         if (!materialType.trim()) return "请填写素材类型";
         if (!reason.trim()) return "请填写需求理由";

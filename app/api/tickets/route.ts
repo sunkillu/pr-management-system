@@ -86,10 +86,11 @@ async function createProcurementTicket(
 
   if (procurementType === "WEEKLY_STYLE") {
     if (styles.length === 0) return NextResponse.json({ error: "请选择款式（可多选）" }, { status: 400 });
-    const quantity = Number(body.quantity);
-    if (!quantity || quantity <= 0 || !Number.isInteger(quantity)) {
+    const quantityRaw = String(body.quantity ?? "").trim();
+    if (!/^[1-9]\d*$/.test(quantityRaw)) {
       return NextResponse.json({ error: "采买数量必须为正整数" }, { status: 400 });
     }
+    const quantity = parseInt(quantityRaw, 10);
     noteLines.push(`采买数量：${quantity}`);
   } else {
     const materialType = String(body.materialType ?? "").trim();
