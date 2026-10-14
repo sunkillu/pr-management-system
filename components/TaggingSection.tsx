@@ -24,7 +24,7 @@ function relTime(iso: string): string {
   if (hour < 24) return `${hour}小时前`;
   const day = Math.floor(hour / 24);
   if (day < 30) return `${day}天前`;
-  return new Date(iso).toISOString().slice(0, 10);
+  return formatDateTime(iso).slice(0, 10).replace(/\//g, "-");
 }
 
 // 通用打标签区：记录"谁给哪个实体打了什么标签"

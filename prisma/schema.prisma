@@ -307,6 +307,7 @@ enum DocType {
   DATA_TASK
   REMINDER_TASK
   SUBTASK
+  STYLE
 }
 
 enum LogAction {
@@ -1227,4 +1228,16 @@ model Tagging {
   @@index([entityType, entityId])
   @@index([tagId])
   @@index([createdById])
+}
+
+// ---------- 款式配置：平台配置中维护，工单按名称引用 ----------
+model StyleOption {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sort])
 }

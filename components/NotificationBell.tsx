@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { relatedUrl } from "@/lib/notification-url";
+import { formatDateTime } from "@/lib/labels";
 
 type Notice = {
   id: string;
@@ -140,7 +141,7 @@ export default function NotificationBell() {
                 <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.content}</div>
                 <div className="mt-1 flex items-center justify-between">
                   <span className="text-[10px] text-muted-foreground">
-                    {new Date(n.createdAt).toLocaleString("zh-CN")}
+                    {formatDateTime(n.createdAt)}
                   </span>
                   {n.kind === "APPROVAL_PENDING" && relatedUrl(n) && (
                     <button
