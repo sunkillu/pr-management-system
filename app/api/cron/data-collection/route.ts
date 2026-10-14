@@ -9,6 +9,8 @@ import {
   monthlySummary,
 } from "@/lib/data-collection";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 数据回收定时任务入口（幂等，重复调用安全）：
  * 1. 扫描已发布满 7 天、未建回收任务的工单 → 创建数据回收任务
@@ -46,8 +48,11 @@ export async function GET(req: NextRequest) {
       where: {
         publishDate: { lte: taskCutoff },
         status: { notIn: ["DRAFT", "PENDING_APPROVAL", "PENDING_PROCUREMENT", "SETTLED", "VOIDED", "REJECTED"] },
+        dataTasks: { none: {} },
       },
       select: { id: true },
+      orderBy: [{ publishDate: "asc" }, { id: "asc" }],
+      take: 100,
     });
     let tasksCreated = 0;
     for (const t of publishCandidates) {
@@ -75,6 +80,8 @@ export async function GET(req: NextRequest) {
         status: { notIn: ["SETTLED", "VOIDED", "REJECTED"] },
       },
       select: { id: true },
+      orderBy: [{ publishDate: "asc" }, { id: "asc" }],
+      take: 100,
     });
     let ticketsClosed = 0;
     for (const t of closeCandidates) {

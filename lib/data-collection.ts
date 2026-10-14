@@ -66,29 +66,30 @@ export async function createDataTask(
   if (!ticket.publishDate) return { created: 0, existed: 0, dueAt: null, reason: "工单尚未发布" };
 
   const dueAt = addDays(ticket.publishDate, DATA_TASK_DUE_DAYS);
-  let created = 0;
-  let existed = 0;
-
-  for (const platform of ticket.platform) {
-    const exist = await prisma.dataCollectionTask.findFirst({
-      where: { ticketId, platform },
-      select: { id: true },
+  const platforms = Array.from(new Set(ticket.platform));
+  const created = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`data-task:${ticketId}`}))`;
+    const existing = await tx.dataCollectionTask.findMany({
+      where: { ticketId, platform: { in: platforms } },
+      select: { platform: true },
     });
-    if (exist) {
-      existed++;
-      continue;
-    }
-    await prisma.dataCollectionTask.create({
-      data: {
+    const existingPlatforms = new Set(existing.map((task) => task.platform));
+    const missingPlatforms = platforms.filter((platform) => !existingPlatforms.has(platform));
+    if (missingPlatforms.length === 0) return 0;
+
+    const result = await tx.dataCollectionTask.createMany({
+      data: missingPlatforms.map((platform) => ({
         ticketId,
-        brandId: ticket.brandId ?? null, // 品牌从工单自动透传
+        brandId: ticket.brandId ?? null,
         platform,
         publishLink: ticket.publishLink ?? null,
         dueAt,
-      },
+      })),
+      skipDuplicates: true,
     });
-    created++;
-  }
+    return result.count;
+  });
+  const existed = platforms.length - created;
 
   if (created > 0) {
     await notifyUser(
@@ -204,15 +205,25 @@ export async function autoCloseTicket(
   if (!ticket.publishDate) return { closed: false, reason: "工单尚未发布" };
   if (addDays(ticket.publishDate, AUTO_CLOSE_DAYS) > now) return { closed: false, reason: "未满 30 天" };
 
-  await prisma.cooperationTicket.update({
-    where: { id: ticketId },
-    data: { status: "SETTLED" },
+  const cutoff = addDays(now, -AUTO_CLOSE_DAYS);
+  const closed = await prisma.$transaction(async (tx) => {
+    const result = await tx.cooperationTicket.updateMany({
+      where: {
+        id: ticketId,
+        status: { notIn: ["SETTLED", "VOIDED", "REJECTED"] },
+        publishDate: { lte: cutoff },
+      },
+      data: { status: "SETTLED" },
+    });
+    if (result.count !== 1) return false;
+
+    await tx.influencer.updateMany({
+      where: { occupiedByTicketId: ticketId },
+      data: { occupiedByTicketId: null },
+    });
+    return true;
   });
-  // 释放达人资源占用
-  await prisma.influencer.updateMany({
-    where: { occupiedByTicketId: ticketId },
-    data: { occupiedByTicketId: null },
-  });
+  if (!closed) return { closed: false, reason: "工单状态已变化或已由其他任务处理" };
 
   await notifyUser(
     ticket.creatorId,
