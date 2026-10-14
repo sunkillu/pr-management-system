@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
 import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
@@ -71,6 +71,7 @@ export default function TicketForm({
   const [procurementType, setProcurementType] = useState<"WEEKLY_STYLE" | "LINK_SPECIFIC">("WEEKLY_STYLE");
   // 采买特有输入：提交时合并写入 note / contentDirection（合作工单子集字段）
   const [quantity, setQuantity] = useState("");
+  const quantityRef = useRef<HTMLInputElement>(null);
   const [materialType, setMaterialType] = useState("");
   const [reason, setReason] = useState("");
   const [publishLinksText, setPublishLinksText] = useState("");
@@ -180,7 +181,7 @@ export default function TicketForm({
       if (platforms.length === 0) return "请选择合作平台（可多选）";
       if (procurementType === "WEEKLY_STYLE") {
         if (styles.length === 0) return "请选择款式（可多选）";
-        if (!/^[1-9]\d*$/.test(quantity.trim())) return "采买数量必须为正整数";
+        if (!/^[1-9]\d*$/.test((quantityRef.current?.value ?? quantity).trim())) return "采买数量必须为正整数";
       } else {
         if (!materialType.trim()) return "请填写素材类型";
         if (!reason.trim()) return "请填写需求理由";
@@ -280,7 +281,7 @@ export default function TicketForm({
     if (isProcurement) {
       const lines = ["【采买信息】"];
       if (procurementType === "WEEKLY_STYLE") {
-        lines.push(`采买数量：${Number(quantity)}`);
+        lines.push(`采买数量：${parseInt((quantityRef.current?.value ?? quantity).trim(), 10)}`);
       } else {
         finalContentDirection = materialType.trim();
         lines.push(`需求理由：${reason.trim()}`);
@@ -430,7 +431,7 @@ export default function TicketForm({
                     </div>
                   </Field>
                   <Field label="采买数量" required hint="无指定达人，按数量采买；将记入备注">
-                    <input inputMode="numeric" className={inputCls}
+                    <input ref={quantityRef} inputMode="numeric" className={inputCls}
                       value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/[^\d]/g, ""))} placeholder="如：20" />
                   </Field>
                 </>
