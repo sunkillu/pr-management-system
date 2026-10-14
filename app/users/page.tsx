@@ -11,8 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { roleLabels, formatDate } from "@/lib/labels";
+import { roleLabels } from "@/lib/labels";
 import UsersClient from "./UsersClient";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
@@ -46,7 +47,7 @@ export default async function UsersPage() {
               <TableHead>姓名</TableHead>
               <TableHead>邮箱</TableHead>
               <TableHead>角色</TableHead>
-              <TableHead>创建时间</TableHead>
+              <TableHead>记录时间</TableHead>
               <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -59,7 +60,7 @@ export default async function UsersPage() {
                 </TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell>{roleLabels[u.role]}</TableCell>
-                <TableCell className="whitespace-nowrap">{formatDate(u.createdAt)}</TableCell>
+                <TableCell><RecordTimestamps createdAt={u.createdAt} updatedAt={u.updatedAt} compact /></TableCell>
                 <TableCell className="whitespace-nowrap">
                   <UsersClient
                     selfId={me.id}

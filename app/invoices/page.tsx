@@ -22,6 +22,8 @@ import {
 import InvoicesClient from "./InvoicesClient";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+import Link from "next/link";
 
 const selectCls =
   "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -99,13 +101,16 @@ export default async function InvoicesPage({
               <TableHead>文件</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>上传人</TableHead>
+              <TableHead>记录时间</TableHead>
               <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {invoices.map((inv) => (
               <TableRow key={inv.id}>
-                <TableCell className="font-medium">{inv.invoiceNo}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/invoices/${inv.id}`} className="text-primary hover:underline">{inv.invoiceNo}</Link>
+                </TableCell>
                 <TableCell>{inv.issuer}</TableCell>
                 <TableCell className="tabular-nums">{formatMoney(inv.amount)}</TableCell>
                 <TableCell>{invoiceTypeLabels[inv.type]}</TableCell>
@@ -124,13 +129,14 @@ export default async function InvoicesPage({
                   <StatusBadge status={inv.status} label={invoiceStatusLabels[inv.status]} />
                 </TableCell>
                 <TableCell>{inv.uploadedBy.name}</TableCell>
+                <TableCell><RecordTimestamps createdAt={inv.createdAt} updatedAt={inv.updatedAt} compact /></TableCell>
                 <TableCell className="whitespace-nowrap">
                   <InvoicesClient row={{ id: inv.id, status: inv.status }} role={role} canDelete={canDelete} />
                 </TableCell>
               </TableRow>
             ))}
             {invoices.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

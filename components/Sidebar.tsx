@@ -51,6 +51,7 @@ const entries: NavEntry[] = [
         { href: "/tickets", label: "合作工单", roles: ALL, icon: ClipboardList },
         { href: "/coop-requests", label: "合作需求", roles: ALL, icon: FileText },
         { href: "/samples", label: "寄品管理", roles: [...ALL, ...WAREHOUSE_ONLY], icon: Package },
+        { href: "/data-tasks", label: "数据回收", roles: ALL, icon: BarChart3 },
       ],
     },
   },

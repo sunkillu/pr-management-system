@@ -7,9 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { formatDateTime } from "@/lib/labels";
 
-type Tag = { id: string; name: string; sort: number };
-type Category = { id: string; name: string; key: string; sort: number; tags: Tag[] };
+type Tag = {
+  id: string;
+  name: string;
+  sort: number;
+  createdAt: Date | string | null;
+  updatedAt: Date | string | null;
+};
+type Category = {
+  id: string;
+  name: string;
+  key: string;
+  sort: number;
+  createdAt: Date | string | null;
+  updatedAt: Date | string | null;
+  tags: Tag[];
+};
 
 export default function TagsClient({ initial }: { initial: Category[] }) {
   const router = useRouter();
@@ -116,6 +131,9 @@ export default function TagsClient({ initial }: { initial: Category[] }) {
               <span className={`text-xs ${c.id === activeId ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                 {c.key} · {c.tags.length} 个标签
               </span>
+              <span className={`text-[10px] ${c.id === activeId ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                更新于 {formatDateTime(c.updatedAt)}
+              </span>
             </Button>
           ))}
           <Separator className="my-3" />
@@ -142,6 +160,9 @@ export default function TagsClient({ initial }: { initial: Category[] }) {
                   <Button variant="outline" size="sm" onClick={renameCategory}>改名</Button>
                   <Button variant="destructive" size="sm" onClick={deleteCategory}>删除种类</Button>
                 </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  创建：{formatDateTime(active.createdAt)} · 最近修改：{formatDateTime(active.updatedAt)}
+                </p>
               </div>
               {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
               <div className="mb-4 flex gap-2">
@@ -152,7 +173,7 @@ export default function TagsClient({ initial }: { initial: Category[] }) {
               </div>
               <div className="flex flex-wrap gap-2">
                 {active.tags.map((t) => (
-                  <Badge key={t.id} variant="secondary" className="gap-1 px-3 py-1.5 text-sm font-normal">
+                  <Badge key={t.id} variant="secondary" className="h-auto flex-col items-start gap-1 px-3 py-1.5 text-sm font-normal">
                     {editingTag === t.id ? (
                       <>
                         <Input
@@ -182,6 +203,9 @@ export default function TagsClient({ initial }: { initial: Category[] }) {
                         </button>
                       </>
                     )}
+                    <span className="text-[10px] text-muted-foreground">
+                      创建 {formatDateTime(t.createdAt)} · 更新 {formatDateTime(t.updatedAt)}
+                    </span>
                   </Badge>
                 ))}
                 {active.tags.length === 0 && (

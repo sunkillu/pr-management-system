@@ -23,6 +23,8 @@ import SampleActions from "@/components/SampleActions";
 import AutoRefresh from "@/components/AutoRefresh";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+import Link from "next/link";
 
 const selectCls =
   "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -122,6 +124,7 @@ export default async function SamplesPage({
               <TableHead>异常标记</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>记录人</TableHead>
+              <TableHead>记录时间</TableHead>
               <TableHead>流转操作</TableHead>
               {(canWrite || canShip) && <TableHead>维护</TableHead>}
             </TableRow>
@@ -129,7 +132,9 @@ export default async function SamplesPage({
           <TableBody>
             {list.map((r) => (
               <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">{r.sampleNo}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  <Link href={`/samples/${r.id}`} className="text-primary hover:underline">{r.sampleNo}</Link>
+                </TableCell>
                 <TableCell className="font-medium">{r.productName}</TableCell>
                 <TableCell>{r.influencer?.name ?? "-"}</TableCell>
                 <TableCell>{r.receiverName ?? "-"}</TableCell>
@@ -160,6 +165,7 @@ export default async function SamplesPage({
                   </Badge>
                 </TableCell>
                 <TableCell>{r.createdBy?.name ?? "-"}</TableCell>
+                <TableCell><RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact /></TableCell>
                 <TableCell className="whitespace-nowrap">
                   <SampleActions
                     sample={{ id: r.id, productName: r.productName, status: r.status, infoConfirmed: r.infoConfirmed, createdById: r.createdBy.id }}
@@ -218,7 +224,7 @@ export default async function SamplesPage({
             {list.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={(canWrite || canShip) ? 13 : 12}
+                  colSpan={(canWrite || canShip) ? 14 : 13}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   暂无数据

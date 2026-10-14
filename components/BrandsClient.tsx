@@ -1,19 +1,26 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { formatDateTime } from "@/lib/labels";
+import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 
-type Brand = { id: string; name: string; isActive: boolean };
+type Brand = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+  history: TimelineItem[];
+};
 
-export default function BrandsClient() {
-  const [brands, setBrands] = useState<Brand[]>([]);
+export default function BrandsClient({ initialBrands }: { initialBrands: Brand[] }) {
+  const router = useRouter();
+  const [brands, setBrands] = useState<Brand[]>(initialBrands);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function load() {
-    const res = await fetch("/api/brands");
-    if (res.ok) setBrands(await res.json());
-  }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { setBrands(initialBrands); }, [initialBrands]);
 
   async function add() {
     if (!name.trim()) return setError("品牌名称不能为空");
@@ -27,7 +34,7 @@ export default function BrandsClient() {
     setBusy(false);
     if (!res.ok) return setError(data.error || "添加失败");
     setName("");
-    load();
+    router.refresh();
   }
 
   async function toggle(b: Brand) {
@@ -36,7 +43,7 @@ export default function BrandsClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !b.isActive }),
     });
-    if (res.ok) load();
+    if (res.ok) router.refresh();
   }
 
   async function remove(b: Brand) {
@@ -45,7 +52,7 @@ export default function BrandsClient() {
     const res = await fetch(`/api/brands/${b.id}`, { method: "DELETE" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return setError(data.error || "删除失败");
-    load();
+    router.refresh();
   }
 
   return (
@@ -79,6 +86,9 @@ export default function BrandsClient() {
             <tr className="border-b border-border text-left text-muted-foreground">
               <th className="px-4 py-3 font-medium">品牌名称</th>
               <th className="px-4 py-3 font-medium">状态</th>
+              <th className="px-4 py-3 font-medium">创建时间</th>
+              <th className="px-4 py-3 font-medium">最近修改</th>
+              <th className="px-4 py-3 font-medium">状态历史</th>
               <th className="px-4 py-3 font-medium" style={{ width: 180 }}>操作</th>
             </tr>
           </thead>
@@ -90,6 +100,16 @@ export default function BrandsClient() {
                   <span className={`rounded-full px-2 py-0.5 text-xs ${b.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                     {b.isActive ? "启用" : "停用"}
                   </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">{formatDateTime(b.createdAt)}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">{b.updatedAt ? formatDateTime(b.updatedAt) : "历史时间未记录"}</td>
+                <td className="px-4 py-3">
+                  <details>
+                    <summary className="cursor-pointer text-xs text-primary hover:underline">查看（{b.history.length}）</summary>
+                    <div className="mt-2 max-h-64 overflow-auto rounded border bg-background p-3">
+                      <ApprovalTimeline items={b.history} />
+                    </div>
+                  </details>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
@@ -104,7 +124,7 @@ export default function BrandsClient() {
               </tr>
             ))}
             {brands.length === 0 && (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">暂无品牌</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">暂无品牌</td></tr>
             )}
           </tbody>
         </table>

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatDateTime } from "@/lib/labels";
 
 type EntityType = "INFLUENCER" | "COOP_REQUEST" | "MATERIAL" | "TICKET";
 
@@ -199,6 +200,7 @@ export default function TaggingSection({
                       className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-blue-700 ring-1 ring-blue-200"
                     >
                       {item.tag.name}
+                      <span className="text-[10px] text-blue-600">{formatDateTime(item.createdAt)}</span>
                       {canDel && (
                         <button
                           type="button"

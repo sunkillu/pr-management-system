@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { LOGISTICS_STATUSES, ABNORMAL_FLAGS } from "@/lib/logistics";
+import { writeLog } from "@/lib/approval-log";
 
 const WRITE = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
@@ -78,9 +79,37 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         status: body.status ?? undefined,
         ...logisticsData,
       };
-  const updated = await prisma.sampleShipment.update({
-    where: { id: params.id },
-    data,
+  const updated = await prisma.$transaction(async (tx) => {
+    const record = await tx.sampleShipment.update({
+      where: { id: params.id },
+      data,
+    });
+    if (body.status !== undefined && body.status !== existing.status) {
+      await writeLog(tx, {
+        docType: "SAMPLE",
+        docId: record.id,
+        action: "EDIT",
+        actorId: auth.userId,
+        fromStatus: existing.status,
+        toStatus: record.status,
+        note: "通过寄品维护操作更新状态",
+      });
+    }
+    if (
+      logisticsData.logisticsStatus !== undefined &&
+      logisticsData.logisticsStatus !== existing.logisticsStatus
+    ) {
+      await writeLog(tx, {
+        docType: "SAMPLE",
+        docId: record.id,
+        action: "EDIT",
+        actorId: auth.userId,
+        fromStatus: existing.logisticsStatus,
+        toStatus: record.logisticsStatus,
+        note: "物流状态变更",
+      });
+    }
+    return record;
   });
   return NextResponse.json(updated);
 }

@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { notifyUser } from "./feishu-notify";
 import { platformLabels } from "./labels";
+import { writeLog } from "./approval-log";
 
 /**
  * 数据回收流程（幂等，可重复调用）：
@@ -177,11 +178,30 @@ export async function monthlySummary(
  * 截止前仍未回收完成的数据任务 → 标记 MISSING（数据待补），保留异常记录，不删除。
  */
 export async function markMissingTasks(now: Date = new Date()): Promise<number> {
-  const res = await prisma.dataCollectionTask.updateMany({
-    where: { status: "PENDING", dueAt: { lt: now } },
-    data: { status: "MISSING" },
+  return prisma.$transaction(async (tx) => {
+    const eligible = await tx.dataCollectionTask.findMany({
+      where: { status: "PENDING", dueAt: { lt: now } },
+      select: { id: true },
+    });
+    let changed = 0;
+    for (const task of eligible) {
+      const result = await tx.dataCollectionTask.updateMany({
+        where: { id: task.id, status: "PENDING", dueAt: { lt: now } },
+        data: { status: "MISSING" },
+      });
+      if (result.count === 0) continue;
+      await writeLog(tx, {
+        docType: "DATA_TASK",
+        docId: task.id,
+        action: "EDIT",
+        actorLabel: "系统定时任务",
+        fromStatus: "PENDING",
+        toStatus: "MISSING",
+      });
+      changed += result.count;
+    }
+    return changed;
   });
-  return res.count;
 }
 
 // 不再自动结束的终态（已终结则跳过）
@@ -210,13 +230,22 @@ export async function autoCloseTicket(
     const result = await tx.cooperationTicket.updateMany({
       where: {
         id: ticketId,
-        status: { notIn: ["SETTLED", "VOIDED", "REJECTED"] },
+        status: ticket.status,
         publishDate: { lte: cutoff },
       },
       data: { status: "SETTLED" },
     });
     if (result.count !== 1) return false;
 
+    await writeLog(tx, {
+      docType: "TICKET",
+      docId: ticketId,
+      action: "EDIT",
+      actorLabel: "系统定时任务",
+      fromStatus: ticket.status,
+      toStatus: "SETTLED",
+      note: "发布满 30 天，自动结束合作流程",
+    });
     await tx.influencer.updateMany({
       where: { occupiedByTicketId: ticketId },
       data: { occupiedByTicketId: null },

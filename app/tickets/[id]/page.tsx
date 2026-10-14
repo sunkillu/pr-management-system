@@ -37,6 +37,8 @@ import ProcurementAssignee from "@/components/ProcurementAssignee";
 import TicketForm from "@/components/TicketForm";
 import TicketChildren from "@/components/TicketChildren";
 import ScheduleChangeTimeline from "@/components/ScheduleChangeTimeline";
+import RecordTimestamps from "@/components/RecordTimestamps";
+import StateHistory from "@/components/StateHistory";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -123,6 +125,42 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     include: { actor: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
+  const subtaskLogs = ticket.subtasks.length
+    ? await prisma.approvalLog.findMany({
+        where: {
+          docType: "SUBTASK",
+          docId: { in: ticket.subtasks.map((subtask) => subtask.id) },
+        },
+        include: { actor: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const subtaskHistory = new Map<string, typeof subtaskLogs>();
+  for (const log of subtaskLogs) {
+    const history = subtaskHistory.get(log.docId) ?? [];
+    history.push(log);
+    subtaskHistory.set(log.docId, history);
+  }
+  const reminderTasks = await prisma.reminderTask.findMany({
+    where: { ticketId: ticket.id },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  const reminderLogs = reminderTasks.length
+    ? await prisma.approvalLog.findMany({
+        where: {
+          docType: "REMINDER_TASK",
+          docId: { in: reminderTasks.map((task) => task.id) },
+        },
+        include: { actor: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const reminderHistory = new Map<string, typeof reminderLogs>();
+  for (const log of reminderLogs) {
+    const history = reminderHistory.get(log.docId) ?? [];
+    history.push(log);
+    reminderHistory.set(log.docId, history);
+  }
   const notifications = await prisma.notificationLog.findMany({
     where: { relatedType: "TICKET", relatedId: params.id },
     include: { receiver: { select: { name: true } } },
@@ -185,7 +223,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? ticketStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -298,6 +336,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         <div className="bg-card rounded-lg lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           {/* 基本信息 */}
           <Section title="基本信息">
+            <div className="mb-4 border-b pb-3">
+              <RecordTimestamps createdAt={ticket.createdAt} updatedAt={ticket.updatedAt} />
+            </div>
             <dl>
               <InfoRow label="工单编号">
                 <span className="font-mono text-sm">{ticket.ticketNo}</span>
@@ -505,6 +546,42 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             />
           </Section>
 
+          <Section title={`自动提醒记录（${reminderTasks.length}）`}>
+            {reminderTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">暂无提醒任务</p>
+            ) : (
+              <ul className="space-y-3">
+                {reminderTasks.map((task) => (
+                  <li key={task.id} className="rounded border border-border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="font-medium">{task.type}</span>
+                      <span className="text-muted-foreground">{task.status}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      计划：{formatDateTime(task.scheduledAt)}{task.sentAt ? ` · 执行：${formatDateTime(task.sentAt)}` : ""}
+                    </div>
+                    <div className="mt-1">
+                      <RecordTimestamps createdAt={task.createdAt} updatedAt={task.updatedAt} compact />
+                    </div>
+                    <div className="mt-2">
+                      <StateHistory
+                        items={(reminderHistory.get(task.id) ?? []).map((log) => ({
+                          id: log.id,
+                          action: log.action,
+                          actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
+                          createdAt: log.createdAt,
+                          note: log.note,
+                          fromStatusLabel: log.fromStatus,
+                          toStatusLabel: log.toStatus,
+                        }))}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
           {/* 节点时间线：计划 vs 实际 */}
           <Section title="节点时间线">
             <NodeTimeline
@@ -531,6 +608,16 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 sortOrder: s.sortOrder,
                 blockedReason: s.blockedReason,
                 blockedAt: s.blockedAt ? s.blockedAt.toISOString() : null,
+                createdAt: s.createdAt.toISOString(),
+                updatedAt: s.updatedAt?.toISOString() ?? null,
+                stateHistory: (subtaskHistory.get(s.id) ?? []).map((log) => ({
+                  id: log.id,
+                  actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
+                  createdAt: log.createdAt.toISOString(),
+                  fromStatus: log.fromStatus,
+                  toStatus: log.toStatus,
+                  note: log.note,
+                })),
               }))}
               users={users}
               canManage={canManageSubtasks}

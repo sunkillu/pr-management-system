@@ -18,6 +18,7 @@ import ApprovalRecords from "@/components/ApprovalRecords";
 import CoopRequestActions from "@/components/CoopRequestActions";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 import TaggingSection from "@/components/TaggingSection";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function CoopRequestDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -59,7 +60,7 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? coopRequestStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -83,6 +84,9 @@ export default async function CoopRequestDetailPage({ params }: { params: { id: 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="bg-card rounded-lg lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           <Section>
+            <div className="mb-4 border-b pb-3">
+              <RecordTimestamps createdAt={request.createdAt} updatedAt={request.updatedAt} />
+            </div>
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(request.status)}`}>
                 {coopRequestStatusLabels[request.status]}

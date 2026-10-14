@@ -25,6 +25,7 @@ import Link from "next/link";
 import CoopRequestForm from "@/components/CoopRequestForm";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 const selectCls =
   "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -101,7 +102,7 @@ export default async function CoopRequestsPage({
               <TableHead>平台</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>提交人</TableHead>
-              <TableHead>更新时间</TableHead>
+              <TableHead>记录时间</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -122,7 +123,7 @@ export default async function CoopRequestsPage({
                   <StatusBadge status={r.status} label={coopRequestStatusLabels[r.status]} />
                 </TableCell>
                 <TableCell>{r.submitter?.name ?? "-"}</TableCell>
-                <TableCell className="whitespace-nowrap">{r.updatedAt.toISOString().slice(0, 16).replace("T", " ")}</TableCell>
+                <TableCell><RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact /></TableCell>
               </TableRow>
             ))}
             {list.length === 0 && (

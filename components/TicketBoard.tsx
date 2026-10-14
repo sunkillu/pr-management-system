@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
 import { ticketStatusLabels, coopTypeLabels, formatMoney } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export type BoardTicket = {
   id: string;
@@ -14,6 +15,8 @@ export type BoardTicket = {
   title: string;
   type: string;
   status: string;
+  createdAt: string;
+  updatedAt: string;
   budgetFee: unknown;
   influencer: { name: string } | null;
   makeupArtist: { name: string } | null;
@@ -171,6 +174,9 @@ export default function TicketBoard({
                         </Link>
                         <div>{partner} · {coopTypeLabels[t.type] ?? t.type}</div>
                         <div className="tabular-nums">¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
+                      </div>
+                      <div className="mt-2">
+                        <RecordTimestamps createdAt={t.createdAt} updatedAt={t.updatedAt} compact />
                       </div>
                       <SubtaskBar subtasks={t.subtasks} nodes={t.nodes} />
                       {/* 快捷操作 */}

@@ -14,11 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatusBadge from "@/components/StatusBadge";
-import { paymentStatusLabels, formatMoney, formatDate } from "@/lib/labels";
+import { paymentStatusLabels, formatMoney } from "@/lib/labels";
 import PaymentsClient from "./PaymentsClient";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
 import type { TicketPrefill } from "@/components/PaymentForm";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function PaymentsPage({
   searchParams,
@@ -109,7 +110,7 @@ export default async function PaymentsPage({
               <TableHead>关联</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>申请人</TableHead>
-              <TableHead>更新时间</TableHead>
+              <TableHead>记录时间</TableHead>
               <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -130,7 +131,7 @@ export default async function PaymentsPage({
                   <StatusBadge status={p.status} label={paymentStatusLabels[p.status]} />
                 </TableCell>
                 <TableCell>{p.requester.name}</TableCell>
-                <TableCell className="whitespace-nowrap">{formatDate(p.updatedAt)}</TableCell>
+                <TableCell><RecordTimestamps createdAt={p.createdAt} updatedAt={p.updatedAt} compact /></TableCell>
                 <TableCell className="whitespace-nowrap">
                   <PaymentsClient
                     role={role}

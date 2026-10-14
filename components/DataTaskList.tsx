@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { platformLabels, formatDate } from "@/lib/labels";
+import { platformLabels, formatDate, formatDateTime } from "@/lib/labels";
 import { metricFieldsFor, metricFieldLabels } from "@/lib/data-collection";
 import { inputCls, btnPrimarySm, btnSecondarySm, thCls, tdCls } from "./ui";
 
@@ -14,6 +14,16 @@ export type DataTask = {
   status: "PENDING" | "COLLECTED" | "MISSING";
   dueAt: string | null;
   createdAt: string;
+  updatedAt: string | null;
+  stateHistory: {
+    id: string;
+    action: string;
+    actorName: string;
+    createdAt: string;
+    note: string | null;
+    fromStatus: string | null;
+    toStatus: string | null;
+  }[];
   ticket: { id: string; ticketNo: string; title: string; publishDate: string | null };
 };
 
@@ -135,11 +145,18 @@ export default function DataTaskList({
   const [items, setItems] = useState<DataTask[]>(initial);
   const [filter, setFilter] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  React.useEffect(() => setItems(initial), [initial]);
 
   const visible = filter ? items.filter((t) => t.status === filter) : items;
 
   function onSaved(updated: DataTask) {
-    setItems((list) => list.map((t) => (t.id === updated.id ? { ...updated, ticket: t.ticket } : t)));
+    setItems((list) =>
+      list.map((t) =>
+        t.id === updated.id
+          ? { ...updated, ticket: t.ticket, stateHistory: t.stateHistory }
+          : t
+      )
+    );
     setExpandedId(null);
     router.refresh();
   }
@@ -177,6 +194,7 @@ export default function DataTaskList({
                 <th className={thCls}>发布链接</th>
                 <th className={thCls}>回收截止</th>
                 <th className={thCls}>状态</th>
+                <th className={thCls}>记录时间 / 状态历史</th>
                 <th className={thCls}>操作</th>
               </tr>
             </thead>
@@ -227,6 +245,29 @@ export default function DataTaskList({
                         </span>
                       </td>
                       <td className={tdCls}>
+                        <div className="text-xs text-muted-foreground">
+                          创建：{formatDateTime(t.createdAt)} · 最近修改：{t.updatedAt ? formatDateTime(t.updatedAt) : "历史时间未记录"}
+                        </div>
+                        <details className="mt-1">
+                          <summary className="cursor-pointer text-xs text-primary hover:underline">
+                            状态历史（{t.stateHistory.length}）
+                          </summary>
+                          {t.stateHistory.length === 0 ? (
+                            <p className="mt-1 text-xs text-muted-foreground">暂无状态变更记录</p>
+                          ) : (
+                            <ol className="mt-1 space-y-1 border-l pl-2 text-xs text-muted-foreground">
+                              {t.stateHistory.map((entry) => (
+                                <li key={entry.id}>
+                                  {entry.fromStatus ?? "新建"}{entry.toStatus ? ` → ${entry.toStatus}` : ""}
+                                  {" · "}{entry.actorName} · {formatDateTime(entry.createdAt)}
+                                  {entry.note && <div>{entry.note}</div>}
+                                </li>
+                              ))}
+                            </ol>
+                          )}
+                        </details>
+                      </td>
+                      <td className={tdCls}>
                         {canEdit && (
                           <button className={btnSecondarySm} onClick={() => setExpandedId(expanded ? null : t.id)}>
                             {expanded ? "收起" : "填写数据"}
@@ -236,7 +277,7 @@ export default function DataTaskList({
                     </tr>
                     {expanded && (
                       <tr>
-                        <td colSpan={6} className="bg-background px-4 py-3">
+                        <td colSpan={7} className="bg-background px-4 py-3">
                           <MetricsEditor task={t} onSaved={onSaved} />
                         </td>
                       </tr>

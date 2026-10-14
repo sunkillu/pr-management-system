@@ -27,6 +27,7 @@ import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 import { influencerOwnerFilter } from "@/lib/influencer-access";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export type InfluencerSearchParams = {
   q?: string;
@@ -239,6 +240,7 @@ export default async function InfluencerList({
               <TableHead>平均评价</TableHead>
               <TableHead>审核状态</TableHead>
               <TableHead>登记人</TableHead>
+              <TableHead>记录时间</TableHead>
               {canWrite && <TableHead>操作</TableHead>}
             </TableRow>
           </TableHeader>
@@ -292,6 +294,7 @@ export default async function InfluencerList({
                   <StatusBadge status={r.status} label={influencerStatusLabels[r.status]} />
                 </TableCell>
                 <TableCell>{r.registeredBy?.name ?? "-"}</TableCell>
+                <TableCell><RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact /></TableCell>
                 {canWrite && (
                   <TableCell className="whitespace-nowrap">
                     {r.status === "APPROVED" ? (
@@ -309,7 +312,7 @@ export default async function InfluencerList({
               </TableRow>
             ))}
             {list.length === 0 && (
-              <TableRow><TableCell colSpan={canWrite ? 12 : 11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={canWrite ? 13 : 12} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

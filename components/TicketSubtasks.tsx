@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { subtaskStatusLabels, formatDate } from "@/lib/labels";
+import { subtaskStatusLabels, formatDate, formatDateTime } from "@/lib/labels";
 import { inputCls, btnPrimary } from "./ui";
 import ConfirmDialog from "./ConfirmDialog";
 
@@ -15,6 +15,16 @@ type Subtask = {
   sortOrder: number;
   blockedReason: string | null;
   blockedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  stateHistory: {
+    id: string;
+    actorName: string;
+    createdAt: string;
+    fromStatus: string | null;
+    toStatus: string | null;
+    note: string | null;
+  }[];
 };
 
 const NEXT_STATUS: Record<Subtask["status"], Subtask["status"]> = {
@@ -163,6 +173,25 @@ export default function TicketSubtasks({
                 </span>
                 {blocked && s.blockedReason && (
                   <p className="mt-0.5 text-xs text-red-600">阻塞原因：{s.blockedReason}</p>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  创建：{formatDateTime(s.createdAt)} · 最近修改：{s.updatedAt ? formatDateTime(s.updatedAt) : "历史时间未记录"}
+                </p>
+                {s.stateHistory.length > 0 && (
+                  <details className="mt-1">
+                    <summary className="cursor-pointer text-[10px] text-primary hover:underline">
+                      状态历史（{s.stateHistory.length}）
+                    </summary>
+                    <ol className="mt-1 space-y-1 border-l pl-2 text-[10px] text-muted-foreground">
+                      {s.stateHistory.map((entry) => (
+                        <li key={entry.id}>
+                          {entry.fromStatus ?? "新建"}{entry.toStatus ? ` → ${entry.toStatus}` : ""}
+                          {" · "}{entry.actorName} · {formatDateTime(entry.createdAt)}
+                          {entry.note && <div>{entry.note}</div>}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
                 )}
               </div>
               {blocked && (

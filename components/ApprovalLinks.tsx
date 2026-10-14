@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
 import { inputCls, btnPrimary, btnSecondary } from "./ui";
-import { docTypeLabels, contentStatusLabels, paymentStatusLabels, badgeClass } from "@/lib/labels";
+import { docTypeLabels, contentStatusLabels, paymentStatusLabels, badgeClass, formatDateTime } from "@/lib/labels";
 
 export type LinkItem = {
   id: string;
@@ -128,7 +128,7 @@ export default function ApprovalLinks({
                   <span className={`mr-1 rounded px-1.5 py-0.5 ${badgeClass(l.otherStatus)}`}>
                     {statusLabel(l.otherType, l.otherStatus)}
                   </span>
-                  {docTypeLabels[l.otherType]} · 由 {l.createdByName} 关联
+                  {docTypeLabels[l.otherType]} · 由 {l.createdByName} 于 {formatDateTime(l.createdAt)} 关联
                 </div>
               </div>
               {canEdit && (

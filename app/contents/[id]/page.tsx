@@ -13,6 +13,7 @@ import { getLinksWithCounterparts } from "@/lib/approval-links";
 import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalLinks from "@/components/ApprovalLinks";
 import ContentsClient from "../ContentsClient";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function ContentDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -50,7 +51,7 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? contentStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -71,6 +72,9 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="bg-card rounded-lg p-6 lg:col-span-2 h-fit">
+          <div className="mb-4 border-b pb-3">
+            <RecordTimestamps createdAt={content.createdAt} updatedAt={content.updatedAt} />
+          </div>
           <div className="mb-3 flex items-center gap-3">
             <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(content.status)}`}>
               {contentStatusLabels[content.status]}

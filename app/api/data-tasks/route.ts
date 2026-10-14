@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { metricFieldsFor } from "@/lib/data-collection";
+import { writeLog } from "@/lib/approval-log";
 
 const READ_ROLES = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER", "WAREHOUSE"] as const;
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
@@ -98,13 +99,27 @@ export async function PATCH(req: NextRequest) {
     if (allFilled && hasLink && task.status === "PENDING") status = "COLLECTED";
   }
 
-  const updated = await prisma.dataCollectionTask.update({
-    where: { id },
-    data: {
-      ...(publishLink !== undefined ? { publishLink } : {}),
-      ...(metrics ? { metrics } : {}),
-      status,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const current = await tx.dataCollectionTask.findUniqueOrThrow({ where: { id } });
+    const result = await tx.dataCollectionTask.update({
+      where: { id },
+      data: {
+        ...(publishLink !== undefined ? { publishLink } : {}),
+        ...(metrics ? { metrics } : {}),
+        status,
+      },
+    });
+    if (current.status !== result.status) {
+      await writeLog(tx, {
+        docType: "DATA_TASK",
+        docId: result.id,
+        action: "EDIT",
+        actorId: auth.userId,
+        fromStatus: current.status,
+        toStatus: result.status,
+      });
+    }
+    return result;
   });
 
   return NextResponse.json({ task: updated });

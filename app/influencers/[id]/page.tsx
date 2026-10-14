@@ -20,6 +20,7 @@ import InfluencerActions from "@/components/InfluencerActions";
 import TaggingSection from "@/components/TaggingSection";
 import SensitiveFields from "@/components/SensitiveFields";
 import { canViewSensitive, INFLUENCER_LEVEL_A_FIELDS } from "@/lib/sensitive";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 export default async function InfluencerDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -86,7 +87,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? influencerStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -108,6 +109,9 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="bg-card rounded-lg lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           <Section>
+            <div className="mb-4 border-b pb-3">
+              <RecordTimestamps createdAt={influencer.createdAt} updatedAt={influencer.updatedAt} />
+            </div>
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className={`rounded px-2 py-0.5 text-xs ${badgeClass(influencer.status)}`}>
                 {influencerStatusLabels[influencer.status]}
@@ -256,9 +260,12 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
               <ul className="space-y-2 text-sm">
                 {influencer.cooperationRecords.map((r) => (
                   <li key={r.id} className="flex justify-between border-b pb-2">
-                    <span>{r.coopDate.toISOString().slice(0, 10)} · {r.note ?? ""}</span>
-                    <span className="font-medium">{formatFee(r.fee)}</span>
-                  </li>
+                      <div>
+                        <div>{r.coopDate.toISOString().slice(0, 10)} · {r.note ?? ""}</div>
+                        <RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact />
+                      </div>
+                      <span className="font-medium">{formatFee(r.fee)}</span>
+                    </li>
                 ))}
               </ul>
             )}

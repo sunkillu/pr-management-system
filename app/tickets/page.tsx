@@ -23,6 +23,7 @@ import TicketBoard, { BoardTicket } from "@/components/TicketBoard";
 import AutoRefresh from "@/components/AutoRefresh";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 const VIEWS = [
   { key: "list", label: "列表" },
@@ -76,6 +77,8 @@ export default async function TicketsPage({
       title: t.title,
       type: t.type,
       status: t.status,
+      createdAt: t.createdAt.toISOString(),
+      updatedAt: t.updatedAt.toISOString(),
       budgetFee: String(t.budgetFee),
       influencer: t.influencer,
       makeupArtist: t.makeupArtist,
@@ -249,6 +252,7 @@ export default async function TicketsPage({
               <TableHead>状态</TableHead>
               <TableHead>归属PR</TableHead>
               <TableHead>发起人</TableHead>
+              <TableHead>记录时间</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -299,11 +303,12 @@ export default async function TicketsPage({
                     {t.ticketKind === "PROCUREMENT" ? (t.assignee?.name ?? <span className="text-muted-foreground">待接单</span>) : "-"}
                   </TableCell>
                   <TableCell>{t.creator?.name ?? "-"}</TableCell>
+                  <TableCell><RecordTimestamps createdAt={t.createdAt} updatedAt={t.updatedAt} compact /></TableCell>
                 </TableRow>
               );
             })}
             {list.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={13} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
