@@ -89,6 +89,8 @@ export const docTypeLabels: Record<string, string> = {
 };
 
 export const logActionLabels: Record<string, string> = {
+  CREATE: "创建记录",
+  EDIT: "编辑记录",
   SUBMIT: "提交审批",
   RESUBMIT: "重新提交",
   APPROVE: "通过",
@@ -98,6 +100,12 @@ export const logActionLabels: Record<string, string> = {
   VOID: "作废",
   LINK: "关联单据",
   UNLINK: "解除关联",
+  ACCEPT: "接单",
+  ASSIGN: "分配",
+  DUP_DETECTED: "检测到重复",
+  DUP_MERGED: "合并重复记录",
+  DUP_KEPT: "保留原记录",
+  DUP_REJECTED: "拒绝重复项",
 };
 
 export const invoiceTypeLabels: Record<string, string> = {

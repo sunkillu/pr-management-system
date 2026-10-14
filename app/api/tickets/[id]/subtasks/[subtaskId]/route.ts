@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { canOperateTicket } from "@/lib/ticket-permission";
+import { writeLog } from "@/lib/approval-log";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 const TERMINAL = ["VOIDED", "SETTLED", "FOLLOW_UP"];
@@ -61,10 +62,24 @@ export async function PATCH(
   if ("dueDate" in body) data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
   if (typeof body.sortOrder === "number") data.sortOrder = body.sortOrder;
 
-  const updated = await prisma.ticketSubtask.update({
-    where: { id: found.subtask.id },
-    data,
-    include: { assignee: { select: { id: true, name: true } } },
+  const updated = await prisma.$transaction(async (tx) => {
+    const current = await tx.ticketSubtask.findUniqueOrThrow({ where: { id: found.subtask.id } });
+    const result = await tx.ticketSubtask.update({
+      where: { id: found.subtask.id },
+      data,
+      include: { assignee: { select: { id: true, name: true } } },
+    });
+    if (current.status !== result.status) {
+      await writeLog(tx, {
+        docType: "SUBTASK",
+        docId: result.id,
+        action: "EDIT",
+        actorId: auth.userId,
+        fromStatus: current.status,
+        toStatus: result.status,
+      });
+    }
+    return result;
   });
   return NextResponse.json(updated);
 }

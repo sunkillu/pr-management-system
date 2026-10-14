@@ -52,20 +52,22 @@ export async function ensureReminder(
   });
 }
 
-/** 自动规则写操作日志：actor 默认为工单创建人，note 标注"系统自动" */
+/** 自动规则写操作日志 */
 async function logAutoOp(
   ticketId: string,
   action: "CREATE" | "VOID",
-  actorId: string,
-  note: string
+  actorId: string | null,
+  note: string,
+  actorLabel?: string
 ) {
   try {
+    const actor = actorId ? { actorId } : { actorId: null, actorLabel: actorLabel ?? "系统定时任务" };
     await writeLog(prisma, {
       docType: "TICKET",
       docId: ticketId,
       action,
-      actorId,
-      note: `【系统自动】${note}`,
+      ...actor,
+      note: actorId ? note : `【系统自动】${note}`,
     });
   } catch (e) {
     console.error("提醒操作日志写入失败:", e);
@@ -232,14 +234,28 @@ export async function sendDueReminders(): Promise<{ sent: number; cancelled: num
   for (const r of due) {
     try {
       if ((TERMINAL_STATUSES as readonly string[]).includes(r.ticket.status)) {
-        await prisma.reminderTask.update({
-          where: { id: r.id },
-          data: { status: "CANCELLED", sentAt: new Date(), note: "工单已完结，未发送自动取消" },
+        const changed = await prisma.$transaction(async (tx) => {
+          const result = await tx.reminderTask.updateMany({
+            where: { id: r.id, status: "PENDING" },
+            data: { status: "CANCELLED", sentAt: new Date(), note: "工单已完结，未发送自动取消" },
+          });
+          if (result.count === 0) return false;
+          await writeLog(tx, {
+            docType: "REMINDER_TASK",
+            docId: r.id,
+            action: "VOID",
+            actorLabel: "系统定时任务",
+            fromStatus: "PENDING",
+            toStatus: "CANCELLED",
+            note: "工单已完结，未发送自动取消",
+          });
+          return true;
         });
+        if (!changed) continue;
         await logAutoOp(
           r.ticket.id,
           "VOID",
-          r.ticket.creatorId,
+          null,
           `工单状态为${r.ticket.status}，取消未发送的 ${r.type} 提醒`
         );
         cancelled++;
@@ -258,11 +274,23 @@ export async function sendDueReminders(): Promise<{ sent: number; cancelled: num
           kind: "REMIND",
         });
       }
-      await prisma.reminderTask.update({
-        where: { id: r.id },
-        data: { status: "SENT", sentAt: new Date() },
+      const changed = await prisma.$transaction(async (tx) => {
+        const result = await tx.reminderTask.updateMany({
+          where: { id: r.id, status: "PENDING" },
+          data: { status: "SENT", sentAt: new Date() },
+        });
+        if (result.count === 0) return false;
+        await writeLog(tx, {
+          docType: "REMINDER_TASK",
+          docId: r.id,
+          action: "EDIT",
+          actorLabel: "系统定时任务",
+          fromStatus: "PENDING",
+          toStatus: "SENT",
+        });
+        return true;
       });
-      sent++;
+      if (changed) sent++;
     } catch (e) {
       console.error(`提醒 ${r.id} (${r.type}) 发送失败:`, e);
     }

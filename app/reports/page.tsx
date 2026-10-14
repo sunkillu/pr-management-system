@@ -11,10 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatMoney, formatDate } from "@/lib/labels";
+import { formatMoney, formatDate, campaignStatusLabels } from "@/lib/labels";
 import ReportsClient from "./ReportsClient";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+import StateHistory from "@/components/StateHistory";
 
 const selectCls =
   "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -55,7 +57,7 @@ export default async function ReportsPage({
   const [summaryCampaigns, reportTotals, paidTotals] = await Promise.all([
     prisma.campaign.findMany({
       ...(campaignId ? { where: { id: campaignId } } : {}),
-      select: { id: true, name: true },
+      select: { id: true, name: true, status: true, createdAt: true, updatedAt: true },
       orderBy: { name: "asc" },
     }),
     prisma.report.groupBy({
@@ -71,11 +73,27 @@ export default async function ReportsPage({
   ]);
   const reportTotalsByCampaign = new Map(reportTotals.map((r) => [r.campaignId, r._sum]));
   const paidTotalsByCampaign = new Map(paidTotals.map((p) => [p.campaignId, Number(p._sum.amount ?? 0)]));
+  const campaignLogs = summaryCampaigns.length
+    ? await prisma.approvalLog.findMany({
+        where: { docType: "CAMPAIGN", docId: { in: summaryCampaigns.map((campaign) => campaign.id) } },
+        include: { actor: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const historyByCampaign = new Map<string, typeof campaignLogs>();
+  for (const log of campaignLogs) {
+    const history = historyByCampaign.get(log.docId) ?? [];
+    history.push(log);
+    historyByCampaign.set(log.docId, history);
+  }
   const agg = summaryCampaigns.map((c) => {
     const report = reportTotalsByCampaign.get(c.id);
     return ({
     id: c.id,
     name: c.name,
+    status: c.status,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
     impressions: report?.impressions ?? 0,
     reads: report?.reads ?? 0,
     likes: report?.likes ?? 0,
@@ -109,6 +127,9 @@ export default async function ReportsPage({
           <TableHeader>
             <TableRow>
               <TableHead>项目</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>记录时间</TableHead>
+              <TableHead>状态历史</TableHead>
               <TableHead className="tabular-nums">曝光</TableHead>
               <TableHead className="tabular-nums">阅读</TableHead>
               <TableHead className="tabular-nums">点赞</TableHead>
@@ -122,6 +143,21 @@ export default async function ReportsPage({
             {agg.map((a) => (
               <TableRow key={a.id}>
                 <TableCell className="font-medium">{a.name}</TableCell>
+                <TableCell>{campaignStatusLabels[a.status] ?? a.status}</TableCell>
+                <TableCell><RecordTimestamps createdAt={a.createdAt} updatedAt={a.updatedAt} compact /></TableCell>
+                <TableCell>
+                  <StateHistory
+                    items={(historyByCampaign.get(a.id) ?? []).map((log) => ({
+                      id: log.id,
+                      action: log.action,
+                      actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
+                      createdAt: log.createdAt,
+                      note: log.note,
+                      fromStatusLabel: log.fromStatus ? campaignStatusLabels[log.fromStatus] ?? log.fromStatus : null,
+                      toStatusLabel: log.toStatus ? campaignStatusLabels[log.toStatus] ?? log.toStatus : null,
+                    }))}
+                  />
+                </TableCell>
                 <TableCell className="tabular-nums">{a.impressions.toLocaleString()}</TableCell>
                 <TableCell className="tabular-nums">{a.reads.toLocaleString()}</TableCell>
                 <TableCell className="tabular-nums">{a.likes.toLocaleString()}</TableCell>
@@ -132,7 +168,7 @@ export default async function ReportsPage({
               </TableRow>
             ))}
             {agg.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -162,6 +198,7 @@ export default async function ReportsPage({
               <TableHead className="tabular-nums">转化</TableHead>
               <TableHead className="tabular-nums">GMV（元）</TableHead>
               <TableHead>记录日期</TableHead>
+              <TableHead>记录时间</TableHead>
               {canWrite && <TableHead>操作</TableHead>}
             </TableRow>
           </TableHeader>
@@ -177,6 +214,7 @@ export default async function ReportsPage({
                 <TableCell className="tabular-nums">{r.conversions.toLocaleString()}</TableCell>
                 <TableCell className="tabular-nums">{formatMoney(r.gmv)}</TableCell>
                 <TableCell className="whitespace-nowrap">{formatDate(r.recordDate)}</TableCell>
+                <TableCell><RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact /></TableCell>
                 {canWrite && (
                   <TableCell className="whitespace-nowrap">
                     <ReportsClient
@@ -203,7 +241,7 @@ export default async function ReportsPage({
               </TableRow>
             ))}
             {reports.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={canWrite ? 11 : 10} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

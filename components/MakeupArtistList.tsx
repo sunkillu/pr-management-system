@@ -16,6 +16,7 @@ import Link from "next/link";
 import MakeupArtistForm from "@/components/MakeupArtistForm";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
 import { Prisma } from "@prisma/client";
 
 export type MakeupArtistSearchParams = {
@@ -93,6 +94,7 @@ export default async function MakeupArtistList({
               <TableHead>累计费用</TableHead>
               <TableHead>平均评价</TableHead>
               <TableHead>备注</TableHead>
+              <TableHead>记录时间</TableHead>
               {canWrite && <TableHead>操作</TableHead>}
             </TableRow>
           </TableHeader>
@@ -113,6 +115,7 @@ export default async function MakeupArtistList({
                     : "-"}
                 </TableCell>
                 <TableCell>{r.notes ?? "-"}</TableCell>
+                <TableCell><RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact /></TableCell>
                 {canWrite && (
                   <TableCell className="whitespace-nowrap">
                     <Link
@@ -137,7 +140,7 @@ export default async function MakeupArtistList({
               </TableRow>
             ))}
             {list.length === 0 && (
-              <TableRow><TableCell colSpan={canWrite ? 9 : 8} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={canWrite ? 10 : 9} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

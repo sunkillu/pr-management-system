@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
+import { writeLog } from "@/lib/approval-log";
 
 // 更新品牌（改名/启用停用）：仅管理员
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -15,7 +16,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
   try {
-    const brand = await prisma.brand.update({ where: { id: params.id }, data });
+    const brand = await prisma.$transaction(async (tx) => {
+      const current = await tx.brand.findUniqueOrThrow({ where: { id: params.id } });
+      const updated = await tx.brand.update({ where: { id: params.id }, data });
+      if (current.isActive !== updated.isActive) {
+        await writeLog(tx, {
+          docType: "BRAND",
+          docId: updated.id,
+          action: "EDIT",
+          actorId: auth.userId,
+          fromStatus: String(current.isActive),
+          toStatus: String(updated.isActive),
+        });
+      }
+      return updated;
+    });
     return NextResponse.json(brand);
   } catch {
     return NextResponse.json({ error: "品牌不存在或名称重复" }, { status: 400 });

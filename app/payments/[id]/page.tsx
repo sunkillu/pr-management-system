@@ -58,7 +58,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? paymentStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -74,6 +74,7 @@ export default async function PaymentDetailPage({ params }: { params: { id: stri
     ["关联内容", payment.content?.title ?? "-"],
     ["申请人", `${payment.requester.name}（${payment.requester.email}）`],
     ["申请时间", formatDateTime(payment.createdAt)],
+    ["最近修改", formatDateTime(payment.updatedAt)],
   ];
 
   return (

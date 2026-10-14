@@ -1,4 +1,4 @@
-import { approverStatusLabels } from "@/lib/labels";
+import { approverStatusLabels, formatDateTime } from "@/lib/labels";
 import StatusBadge from "./StatusBadge";
 import {
   Table,
@@ -13,6 +13,7 @@ export type ApproverRecord = {
   id: string;
   approver: { name: string };
   status: string;
+  createdAt: string | Date;
   decidedAt: string | Date | null;
   comment: string | null;
 };
@@ -29,6 +30,7 @@ export default function ApprovalRecords({ records }: { records: ApproverRecord[]
           <TableHeader>
             <TableRow>
               <TableHead>审批人</TableHead>
+              <TableHead>指派时间</TableHead>
               <TableHead>决定</TableHead>
               <TableHead>决定时间</TableHead>
               <TableHead>审批意见</TableHead>
@@ -38,6 +40,7 @@ export default function ApprovalRecords({ records }: { records: ApproverRecord[]
             {records.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.approver.name}</TableCell>
+                <TableCell>{formatDateTime(r.createdAt)}</TableCell>
                 <TableCell>
                   <StatusBadge status={r.status} label={approverStatusLabels[r.status] ?? r.status} />
                 </TableCell>
@@ -49,7 +52,7 @@ export default function ApprovalRecords({ records }: { records: ApproverRecord[]
             ))}
             {decided.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="py-4 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={5} className="py-4 text-center text-xs text-muted-foreground">
                   审批人尚未作出决定
                 </TableCell>
               </TableRow>

@@ -15,10 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { contentTypeLabels, contentStatusLabels, badgeClass, formatDate } from "@/lib/labels";
+import { contentTypeLabels, contentStatusLabels, badgeClass } from "@/lib/labels";
 import ContentsClient from "./ContentsClient";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
 
 const selectCls =
   "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -89,7 +90,7 @@ export default async function ContentsPage({
               <TableHead>关联资源</TableHead>
               <TableHead>版本</TableHead>
               <TableHead>状态</TableHead>
-              <TableHead>更新时间</TableHead>
+              <TableHead>记录时间</TableHead>
               <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -109,7 +110,7 @@ export default async function ContentsPage({
                     {contentStatusLabels[c.status]}
                   </Badge>
                 </TableCell>
-                <TableCell>{formatDate(c.updatedAt)}</TableCell>
+                <TableCell><RecordTimestamps createdAt={c.createdAt} updatedAt={c.updatedAt} compact /></TableCell>
                 <TableCell className="whitespace-nowrap">
                   <ContentsClient
                     role={role}

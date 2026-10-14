@@ -17,6 +17,8 @@ import { outletTypeLabels, platformLabels, outletStatusLabels, formatMoney } fro
 import OutletsClient from "./OutletsClient";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
+import RecordTimestamps from "@/components/RecordTimestamps";
+import StateHistory from "@/components/StateHistory";
 
 const selectCls =
   "h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -46,6 +48,19 @@ export default async function OutletsPage({
     }),
     prisma.mediaOutlet.count({ where }),
   ]);
+  const statusLogs = outlets.length
+    ? await prisma.approvalLog.findMany({
+        where: { docType: "OUTLET", docId: { in: outlets.map((outlet) => outlet.id) } },
+        include: { actor: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const historyByOutlet = new Map<string, typeof statusLogs>();
+  for (const log of statusLogs) {
+    const history = historyByOutlet.get(log.docId) ?? [];
+    history.push(log);
+    historyByOutlet.set(log.docId, history);
+  }
 
   return (
     <div>
@@ -95,6 +110,8 @@ export default async function OutletsPage({
               <TableHead className="tabular-nums">报价（元）</TableHead>
               <TableHead>评分</TableHead>
               <TableHead>状态</TableHead>
+              <TableHead>记录时间</TableHead>
+              <TableHead>状态历史</TableHead>
               {canWrite && <TableHead>操作</TableHead>}
             </TableRow>
           </TableHeader>
@@ -110,6 +127,20 @@ export default async function OutletsPage({
                 <TableCell>{o.rating ?? "-"}</TableCell>
                 <TableCell>
                   <StatusBadge status={o.status} label={outletStatusLabels[o.status]} />
+                </TableCell>
+                <TableCell><RecordTimestamps createdAt={o.createdAt} updatedAt={o.updatedAt} compact /></TableCell>
+                <TableCell>
+                  <StateHistory
+                    items={(historyByOutlet.get(o.id) ?? []).map((log) => ({
+                      id: log.id,
+                      action: log.action,
+                      actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
+                      createdAt: log.createdAt,
+                      note: log.note,
+                      fromStatusLabel: log.fromStatus,
+                      toStatusLabel: log.toStatus,
+                    }))}
+                  />
                 </TableCell>
                 {canWrite && (
                   <TableCell className="whitespace-nowrap">
@@ -135,7 +166,7 @@ export default async function OutletsPage({
               </TableRow>
             ))}
             {outlets.length === 0 && (
-              <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={canWrite ? 11 : 10} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
