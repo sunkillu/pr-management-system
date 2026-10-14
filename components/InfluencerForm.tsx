@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
 import { PLATFORM_TAG_OPTIONS, INFLUENCER_TYPE_OPTIONS } from "@/lib/labels";
@@ -26,8 +26,9 @@ export default function InfluencerForm({
   const [influencerType, setInfluencerType] = useState(initial?.influencerType ?? "");
   const [platforms, setPlatforms] = useState<string[]>(initial?.platforms ?? []);
   const [contactInfo, setContactInfo] = useState("");
-  const [xhsUrl, setXhsUrl] = useState("");
-  const [douyinUrl, setDouyinUrl] = useState("");
+  const [xhsLink, setXhsLink] = useState("");
+  const [douyinLink, setDouyinLink] = useState("");
+  const [quoteMode, setQuoteMode] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -58,7 +59,11 @@ export default function InfluencerForm({
 
   async function submit() {
     setError("");
-    if (!name.trim()) return setError("达人姓名不能为空");
+    if (!name.trim()) return setError("昵称不能为空");
+    const xhs = xhsLink.trim();
+    const douyin = douyinLink.trim();
+    if ((xhs && !xhs.startsWith("http")) || (douyin && !douyin.startsWith("http")))
+      return setError("主页链接须以 http 开头");
     setSaving(true);
     const res = await fetch("/api/influencers", {
       method: "POST",
@@ -67,9 +72,10 @@ export default function InfluencerForm({
         name: name.trim(),
         influencerType: influencerType || null,
         platforms,
-        quoteMode: contactInfo.trim() || null,
-        xhsUrl: xhsUrl.trim() || null,
-        douyinUrl: douyinUrl.trim() || null,
+        contactInfo: contactInfo.trim() || null,
+        homepageId: xhs || null,
+        douyinUrl: douyin || null,
+        bio: quoteMode ? `报价模式：${quoteMode}` : null,
         tags,
         attachments,
       }),
@@ -90,7 +96,7 @@ export default function InfluencerForm({
       </button>
       {open && (
         <Modal title="提报达人登记" onClose={() => setOpen(false)}>
-          <Field label="达人姓名" required>
+          <Field label="昵称" required>
             <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="如：美妆老王" />
           </Field>
           <Field label="达人类型">
@@ -115,14 +121,24 @@ export default function InfluencerForm({
               ))}
             </div>
           </Field>
-          <Field label="小红书主页链接" hint="可直接粘贴主页链接">
-            <input className={inputCls} value={xhsUrl} onChange={(e) => setXhsUrl(e.target.value)} placeholder="https://www.xiaohongshu.com/..." />
+          <Field label="联系方式">
+            <input className={inputCls} value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} />
           </Field>
-          <Field label="抖音主页链接" hint="可直接粘贴主页链接">
-            <input className={inputCls} value={douyinUrl} onChange={(e) => setDouyinUrl(e.target.value)} placeholder="https://www.douyin.com/..." />
+          <Field label="小红书主页链接" hint="选填，须以 http 开头">
+            <input className={inputCls} value={xhsLink} onChange={(e) => setXhsLink(e.target.value)} placeholder="https://xiaohongshu.com/..." />
           </Field>
-          <Field label="报价" hint="选填，可填写报价区间或报价说明">
-            <input className={inputCls} value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="如：图文 3000-5000 元" />
+          <Field label="抖音主页链接" hint="选填，须以 http 开头">
+            <input className={inputCls} value={douyinLink} onChange={(e) => setDouyinLink(e.target.value)} placeholder="https://www.douyin.com/..." />
+          </Field>
+          <Field label="报价模式">
+            <select className={inputCls} value={quoteMode} onChange={(e) => setQuoteMode(e.target.value)}>
+              <option value="">未选择</option>
+              <option value="单条报价">单条报价</option>
+              <option value="打包价">打包价</option>
+              <option value="分佣">分佣</option>
+              <option value="置换">置换</option>
+              <option value="待定">待定</option>
+            </select>
           </Field>
           <Field label="达人标签" hint="可多选，标签由管理员在标签管理中维护">
             {tagOptions.length === 0 ? (
@@ -150,7 +166,25 @@ export default function InfluencerForm({
               </div>
             )}
           </Field>
-          <Field label="达人脸部/主页截图" hint="建议直接截图后粘贴或上传，便于识别达人；支持图片/PDF">
+          <Field label="附件（达人的脸）" hint="请上传达人正脸照片，可截图直接粘贴（Ctrl+V）">
+            <div
+              onPaste={(e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                for (const item of Array.from(items)) {
+                  if (item.kind === "file" && item.type.startsWith("image/")) {
+                    const file = item.getAsFile();
+                    if (file) uploadFile(file);
+                  }
+                }
+              }}
+            >
+            <div
+              tabIndex={0}
+              className="mb-2 rounded-md border border-dashed border-gray-300 px-3 py-2 text-center text-xs text-muted-foreground"
+            >
+              点击此处后按 Ctrl+V 粘贴截图
+            </div>
             <input
               type="file"
               accept="image/*,.pdf"
@@ -162,19 +196,6 @@ export default function InfluencerForm({
                 e.target.value = "";
               }}
               className="text-sm"
-            />
-            <textarea
-              className={`${inputCls} mt-2`}
-              rows={2}
-              placeholder="也可以直接在这里粘贴截图"
-              onPaste={(e) => {
-                const image = Array.from(e.clipboardData.items).find((item) => item.type.startsWith("image/"));
-                const file = image?.getAsFile();
-                if (file) {
-                  e.preventDefault();
-                  void uploadFile(new File([file], `clipboard-${Date.now()}.png`, { type: file.type }));
-                }
-              }}
             />
             {uploading && <p className="mt-1 text-xs text-muted-foreground">上传中…</p>}
             {attachments.length > 0 && (
@@ -203,6 +224,7 @@ export default function InfluencerForm({
                 ))}
               </div>
             )}
+            </div>
           </Field>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">

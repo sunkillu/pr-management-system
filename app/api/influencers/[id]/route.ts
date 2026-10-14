@@ -66,6 +66,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       name: body.name.trim(),
       platforms: Array.isArray(body.platforms) ? body.platforms : [],
       contactInfo: body.contactInfo || null,
+      homepageId: String(body.homepageId ?? "").trim() || null,
+      douyinUrl: String(body.douyinUrl ?? "").trim() || null,
       bio: body.bio || null,
     },
   });

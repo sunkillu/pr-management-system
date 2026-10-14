@@ -89,8 +89,6 @@ export const docTypeLabels: Record<string, string> = {
 };
 
 export const logActionLabels: Record<string, string> = {
-  CREATE: "创建记录",
-  EDIT: "编辑记录",
   SUBMIT: "提交审批",
   RESUBMIT: "重新提交",
   APPROVE: "通过",
@@ -100,12 +98,6 @@ export const logActionLabels: Record<string, string> = {
   VOID: "作废",
   LINK: "关联单据",
   UNLINK: "解除关联",
-  ACCEPT: "接单",
-  ASSIGN: "分配",
-  DUP_DETECTED: "检测到重复",
-  DUP_MERGED: "合并重复记录",
-  DUP_KEPT: "保留原记录",
-  DUP_REJECTED: "拒绝重复项",
 };
 
 export const invoiceTypeLabels: Record<string, string> = {
@@ -168,20 +160,19 @@ export function formatMoney(v: unknown): string {
   return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// 日期格式化：统一按北京时间显示，避免服务端（UTC 容器）与浏览器结果不一致
-export const DISPLAY_TZ = "Asia/Shanghai";
+// 日期格式化
 export function formatDate(v: unknown): string {
   if (!v) return "-";
   const d = new Date(v as string);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN", { timeZone: DISPLAY_TZ });
+  return d.toLocaleDateString("zh-CN");
 }
 
 export function formatDateTime(v: unknown): string {
   if (!v) return "-";
   const d = new Date(v as string);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("zh-CN", { hour12: false, timeZone: DISPLAY_TZ });
+  return d.toLocaleString("zh-CN", { hour12: false });
 }
 
 // ---------- 合作管理 ----------
@@ -251,14 +242,19 @@ export const materialTypeLabels: Record<string, string> = {
   OTHER: "其他",
 };
 
-// 工单类型：合作工单 / 采买工单
+// 工单类型：合作工单 / 采买工单 / 维护工单
 export const ticketKindLabels: Record<string, string> = {
   COOPERATION: "合作工单",
   PROCUREMENT: "采买工单",
   MAINTENANCE: "维护工单",
 };
 
-// 采买工单子类型
+// 采买逐条请求状态
+export const procurementItemStatusLabels: Record<string, string> = {
+  PENDING: "待审批",
+  APPROVED: "已通过",
+  REJECTED: "已驳回",
+};
 export const procurementSubTypeLabels: Record<string, string> = {
   WEEKLY_STYLE: "周维度款式采买",
   LINK_SPECIFIC: "指定达人链接采买",
@@ -266,13 +262,15 @@ export const procurementSubTypeLabels: Record<string, string> = {
 
 // 合作工单状态
 export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
-  MAINTAINING: "维护中",
   PENDING_APPROVAL: "待审批",
   PENDING_PROCUREMENT: "待采买审批",
   APPROVED: "已通过（待执行）",
   IN_PROGRESS: "执行中",
   MATERIAL_REVIEW: "待素材审批",
   COMPLETED: "已完成",
+  PENDING_REVIEW: "待返稿",
+  REVIEWED: "已返稿",
+  PUBLISHED: "已发布",
   SETTLING: "结算中",
   FOLLOW_UP: "跟进中",
   SETTLED: "已结算",
