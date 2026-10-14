@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
+import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels } from "@/lib/labels";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
 import { OccupancyWarning } from "./OccupancyWarning";
+import ShipItemEditor from "./ShipItemEditor";
+import type { ShipItem } from "@/lib/ship-items";
 import { InfluencerHistory } from "./InfluencerHistory";
 import type { OccupancyInfo } from "@/lib/occupancy";
 
@@ -64,17 +66,12 @@ export default function TicketForm({
   const [approvers, setApprovers] = useState<Approver[]>([]);
   // 工单类型：运营只能发起采买工单；从采买工单转来时固定为合作工单
   const isOperator = userRole === "OPERATOR";
-  const [ticketKind, setTicketKind] = useState<"COOPERATION" | "PROCUREMENT">(
+  const [ticketKind, setTicketKind] = useState<"COOPERATION" | "PROCUREMENT" | "MAINTENANCE">(
     isOperator ? "PROCUREMENT" : "COOPERATION"
   );
-  // 采买子类型
-  const [procurementType, setProcurementType] = useState<"WEEKLY_STYLE" | "LINK_SPECIFIC">("WEEKLY_STYLE");
-  // 采买特有输入：提交时合并写入 note / contentDirection（合作工单子集字段）
-  const [quantity, setQuantity] = useState("");
-  const quantityRef = useRef<HTMLInputElement>(null);
-  const [materialType, setMaterialType] = useState("");
-  const [reason, setReason] = useState("");
-  const [publishLinksText, setPublishLinksText] = useState("");
+  // 采买请求：动态行列表，每行 = 款式 + 数量；参考链接全局一个（选填）
+  const [procurementItems, setProcurementItems] = useState<{ style: string; quantity: string }[]>([{ style: "", quantity: "" }]);
+  const [procurementLink, setProcurementLink] = useState("");
   const [title, setTitle] = useState(editTicket?.title ?? "");
   const [note, setNote] = useState(editTicket?.note ?? "");
   const [budgetFee, setBudgetFee] = useState(editTicket?.budgetFee ?? "");
@@ -95,15 +92,12 @@ export default function TicketForm({
   const [priceNote, setPriceNote] = useState(editTicket?.priceNote ?? "");
   const [contentNote, setContentNote] = useState(editTicket?.contentNote ?? "");
   const [estimatedSchedule, setEstimatedSchedule] = useState(editTicket?.estimatedSchedule ?? "");
-  // v2: 预估发布年月 / 预估报价 / 确定档期（确认或暂不确认）
-  const [estimatedPublishMonth, setEstimatedPublishMonth] = useState(editTicket?.estimatedPublishMonth ?? "");
-  const [quoteAmount, setQuoteAmount] = useState(editTicket?.quoteAmount ?? "");
   const [confirmSchedule, setConfirmSchedule] = useState(!!editTicket?.confirmedDate);
   const [confirmedDate, setConfirmedDate] = useState(editTicket?.confirmedDate ?? "");
   const [selected, setSelected] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  // 寄品明细：可寄多个款式，每行 {款式名、度数、寄品备注}
-  const [shipItems, setShipItems] = useState<{ style: string; degree: string; note: string }[]>([]);
+  // 寄品明细：可寄多个款式，每行 {款式、度数、抛期、盒数、寄品备注}
+  const [shipItems, setShipItems] = useState<ShipItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -173,40 +167,45 @@ export default function TicketForm({
   }
 
   async function validate(): Promise<string | null> {
-    if (!title.trim()) return "标题不能为空";
     if (!brandId) return "请选择所属品牌";
-    if (!budgetFee || Number(budgetFee) <= 0) return "预算费用必须大于 0";
-    // 采买工单：字段为合作工单子集，按子类型校验
+    // 采买工单：只保留品牌 / 平台 / 参考链接 / 采买请求列表（标题走 __AUTO__，无预算/素材类型/子类型）
     if (ticketKind === "PROCUREMENT" && !isEdit) {
       if (platforms.length === 0) return "请选择合作平台（可多选）";
-      if (procurementType === "WEEKLY_STYLE") {
-        if (styles.length === 0) return "请选择款式（可多选）";
-        if (!/^[1-9]\d*$/.test((quantityRef.current?.value ?? quantity).trim())) return "采买数量必须为正整数";
-      } else {
-        if (!materialType.trim()) return "请填写素材类型";
-        if (!reason.trim()) return "请填写需求理由";
-        const links = publishLinksText.split("\n").map((s) => s.trim()).filter(Boolean);
-        if (links.length === 0) return "请至少填写一条发布链接";
+      if (procurementItems.length === 0) return "请至少添加一行采买请求";
+      for (let i = 0; i < procurementItems.length; i++) {
+        if (!procurementItems[i].style) return `第 ${i + 1} 行请选择款式`;
+        if (!/^[1-9]\d*$/.test(procurementItems[i].quantity.trim())) return `第 ${i + 1} 行数量必须为正整数`;
       }
       return null;
     }
+    // 维护工单：只校验品牌、合作对象、平台、款式（无预算/档期/报价/采买字段）
+    if (ticketKind === "MAINTENANCE" && !isEdit) {
+      if (!partnerId) return "请选择合作对象";
+      if (platforms.length === 0) return "请选择合作平台（可多选）";
+      if (styles.length === 0) return "请选择款式（可多选）";
+      return null;
+    }
+    if (!budgetFee || Number(budgetFee) <= 0) return "预算费用必须大于 0";
     // 合作工单：原有校验
     if (!partnerId) return "请选择合作对象";
     if (platforms.length === 0) return "请选择合作平台（可多选）";
     if (styles.length === 0) return "请选择款式（可多选）";
     if (coopCategories.length === 0) return "请选择合作类目（可多选）";
-    if (!estimatedSchedule.trim()) return "请填写预估档期";
-    // v2: 预估发布年月 / 预估报价必填；确定档期确认时必填
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(estimatedPublishMonth.trim())) return "请填写预估发布年月（如 2026-11）";
-    if (!quoteAmount || Number(quoteAmount) <= 0) return "预估报价必须大于 0";
+    // 时间段选填；确定档期确认时必填
     if (confirmSchedule && !/^\d{4}-\d{2}-\d{2}$/.test(confirmedDate)) return "请使用日期选择器填写确定档期";
     return null;
   }
 
   function cleanShipItems() {
     return shipItems
-      .map((s) => ({ style: s.style.trim(), degree: s.degree.trim(), note: s.note.trim() }))
-      .filter((s) => s.style || s.degree || s.note);
+      .map((s) => ({
+        style: s.style.trim(),
+        degree: s.degree.trim(),
+        shelfLife: s.shelfLife.trim(),
+        boxCount: s.boxCount.trim(),
+        note: s.note.trim(),
+      }))
+      .filter((s) => s.style || s.degree || s.shelfLife || s.boxCount || s.note);
   }
 
   async function submit(submitForApproval: boolean) {
@@ -246,8 +245,6 @@ export default function TicketForm({
           priceNote: priceNote.trim() || null,
           contentNote: contentNote.trim() || null,
           estimatedSchedule: estimatedSchedule.trim(),
-          estimatedPublishMonth: estimatedPublishMonth.trim() || null,
-          quoteAmount: quoteAmount || null,
           confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
           startDate: startDate || null,
           endDate: endDate || null,
@@ -275,30 +272,40 @@ export default function TicketForm({
       return;
     }
 
-    // 采买工单：特有字段单独传给后端，由后端校验并组装【采买信息】结构化 note；
-    // 前端只传用户原始备注，避免 note 被前后端重复拼接
-    let finalContentDirection: string | null = contentDirection.trim() || null;
-    const procurementFields: Record<string, unknown> = {};
+    // 采买工单：只传品牌 / 平台 / 参考链接 / 采买请求列表；标题后端自动生成
     if (isProcurement) {
-      if (procurementType === "WEEKLY_STYLE") {
-        procurementFields.quantity = (quantityRef.current?.value ?? quantity).trim();
-      } else {
-        finalContentDirection = materialType.trim();
-        procurementFields.materialType = materialType.trim();
-        procurementFields.reason = reason.trim();
-        procurementFields.publishLinks = publishLinksText.split("\n").map((s) => s.trim()).filter(Boolean);
-      }
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "__AUTO__",
+          ticketKind,
+          brandId,
+          platform: platforms,
+          link: procurementLink.trim() || null,
+          items: procurementItems.map((it) => ({ style: it.style, quantity: Number(it.quantity) })),
+          approverIds: selected,
+          submit: submitForApproval,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setSaving(false);
+      if (!res.ok) return setError(data.error || "提交失败");
+      setOpen(false);
+      router.refresh();
+      return;
     }
 
+    const finalContentDirection: string | null = contentDirection.trim() || null;
     const res = await fetch("/api/tickets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: title.trim(),
+        // 合作/维护工单标题由后端自动生成（达人+平台+工单号）
+        title: "__AUTO__",
         ticketKind,
         type,
         brandId,
-        ...(isProcurement ? { procurementType, ...procurementFields } : {}),
         influencerId: type === "MAKEUP" ? null : partnerId,
         makeupArtistId: type === "MAKEUP" ? partnerId : null,
         budgetFee,
@@ -310,8 +317,6 @@ export default function TicketForm({
         priceNote: priceNote.trim() || null,
         contentNote: contentNote.trim() || null,
         estimatedSchedule: estimatedSchedule.trim(),
-        estimatedPublishMonth: estimatedPublishMonth.trim() || null,
-        quoteAmount: quoteAmount || null,
         confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
         startDate: startDate || null,
         endDate: endDate || null,
@@ -331,13 +336,25 @@ export default function TicketForm({
     router.refresh();
   }
 
+  // 合作工单标题由后端自动生成（达人+平台+工单号），确认弹窗里显示预览
+  const autoTitlePreview = (() => {
+    const partnerName = partners.find((p) => p.id === partnerId)?.name ?? "";
+    const platformLabel =
+      platforms.length > 0
+        ? (PLATFORM_TAG_OPTIONS.find((p) => p.value === platforms[0])?.label ?? platforms[0])
+        : "";
+    if (partnerName) return `${partnerName}+${platformLabel}+工单号`;
+    if (platformLabel) return `${platformLabel}+工单号`;
+    return "自动生成";
+  })();
+
   return (
     <>
       <button className={btnPrimary} onClick={() => setOpen(true)}>
         {isEdit ? "编辑工单" : isOperator ? "发起采买工单" : "发起工单"}
       </button>
       {open && (
-        <Modal title={isEdit ? "编辑工单" : ticketKind === "PROCUREMENT" ? "发起采买工单" : "发起合作工单"} onClose={() => setOpen(false)}>
+        <Modal title={isEdit ? "编辑工单" : ticketKind === "PROCUREMENT" ? "发起采买工单" : ticketKind === "MAINTENANCE" ? "发起维护工单" : "发起合作工单"} onClose={() => setOpen(false)}>
           {!isOperator && !isEdit && (
             <Field label="工单类型" required hint="采买工单是合作工单的前置环节，运营提交采买需求">
               <div className="flex gap-2">
@@ -345,7 +362,7 @@ export default function TicketForm({
                   <button
                     key={v}
                     type="button"
-                    onClick={() => setTicketKind(v as "COOPERATION" | "PROCUREMENT")}
+                    onClick={() => setTicketKind(v as "COOPERATION" | "PROCUREMENT" | "MAINTENANCE")}
                     className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
                       ticketKind === v
                         ? "bg-primary text-white"
@@ -372,28 +389,7 @@ export default function TicketForm({
           </Field>
           {ticketKind === "PROCUREMENT" && !isEdit ? (
             <>
-              <Field label="采买子类型" required>
-                <div className="flex gap-2">
-                  {(Object.entries(procurementSubTypeLabels) as [string, string][]).map(([v, l]) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setProcurementType(v as "WEEKLY_STYLE" | "LINK_SPECIFIC")}
-                      className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
-                        procurementType === v
-                          ? "bg-primary text-white"
-                          : "bg-card text-foreground ring-1 ring-border hover:ring-primary"
-                      }`}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="标题" required hint="如：双11款式采买">
-                <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />
-              </Field>
-              {/* 合作平台：与合作工单同字段，接单转入后直接沿用 */}
+              {/* 采买请求：平台（上方品牌为共享字段）+ 参考链接 + 动态行列表 */}
               <Field label="合作平台（可多选）" required>
                 <div className="flex flex-wrap gap-3">
                   {PLATFORM_TAG_OPTIONS.map((p) => (
@@ -410,59 +406,117 @@ export default function TicketForm({
                   ))}
                 </div>
               </Field>
-              {procurementType === "WEEKLY_STYLE" ? (
-                <>
-                  <Field label="款式（可多选）" required>
-                    <div className="flex flex-wrap gap-3">
-                      {STYLE_OPTIONS.map((s) => (
-                        <label key={s.value} className="flex items-center gap-1 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={styles.includes(s.value)}
-                            onChange={() =>
-                              setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
-                            }
-                          />
-                          {s.label}
-                        </label>
-                      ))}
+              <Field label="参考链接" hint="选填，如达人发布链接">
+                <input className={inputCls} value={procurementLink}
+                  onChange={(e) => setProcurementLink(e.target.value)} placeholder="https://..." />
+              </Field>
+              <Field label="采买请求" required hint="每行一款式 + 数量，至少 1 行">
+                <div className="space-y-2">
+                  {procurementItems.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <select
+                        className={inputCls}
+                        value={row.style}
+                        onChange={(e) =>
+                          setProcurementItems(procurementItems.map((r, j) => (j === i ? { ...r, style: e.target.value } : r)))
+                        }
+                      >
+                        <option value="">请选择款式</option>
+                        {STYLE_OPTIONS.map((s) => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                      <input
+                        inputMode="numeric"
+                        className={inputCls}
+                        value={row.quantity}
+                        onChange={(e) =>
+                          setProcurementItems(procurementItems.map((r, j) => (j === i ? { ...r, quantity: e.target.value.replace(/[^\d]/g, "") } : r)))
+                        }
+                        placeholder="数量"
+                      />
+                      <button
+                        type="button"
+                        className={btnSecondary}
+                        disabled={procurementItems.length <= 1}
+                        onClick={() => setProcurementItems(procurementItems.filter((_, j) => j !== i))}
+                        title={procurementItems.length <= 1 ? "至少保留 1 行" : "删除本行"}
+                      >
+                        删除
+                      </button>
                     </div>
-                  </Field>
-                  <Field label="采买数量" required hint="无指定达人，按数量采买；将记入备注">
-                    <input ref={quantityRef} inputMode="numeric" className={inputCls}
-                      value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/[^\d]/g, ""))} placeholder="如：20" />
-                  </Field>
-                </>
-              ) : (
-                <>
-                  <Field label="素材类型" required hint="将记入内容方向">
-                    <input className={inputCls} value={materialType}
-                      onChange={(e) => setMaterialType(e.target.value)} placeholder="如：短视频 / 图文笔记" />
-                  </Field>
-                  <Field label="需求理由" required hint="已是本品牌款式，但可能未授权/未上传；将记入备注">
-                    <textarea className={inputCls} rows={2} value={reason}
-                      onChange={(e) => setReason(e.target.value)} placeholder="请说明采买理由" />
-                  </Field>
-                  <Field label="发布链接" required hint="每行一条，可填多条；将记入备注">
-                    <textarea className={inputCls} rows={3} value={publishLinksText}
-                      onChange={(e) => setPublishLinksText(e.target.value)}
-                      placeholder="https://...&#10;https://..." />
-                  </Field>
-                </>
-              )}
-              <Field label="预算费用（元）" required>
-                <input type="number" min={0.01} step="0.01" className={inputCls}
-                  value={budgetFee} onChange={(e) => setBudgetFee(e.target.value)} />
+                  ))}
+                  <button
+                    type="button"
+                    className={btnSecondary}
+                    onClick={() => setProcurementItems([...procurementItems, { style: "", quantity: "" }])}
+                  >
+                    + 新增一行
+                  </button>
+                </div>
               </Field>
-              <Field label="备注">
-                <textarea className={inputCls} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
-              </Field>
+            </>
+
+          ) : ticketKind === "MAINTENANCE" && !isEdit ? (
+            <>
+          {/* 维护工单：只显示品牌（上方共享）/合作对象/平台/款式/内容方向/备注；无档期/时间段、报价、采买字段 */}
+          <Field label="合作类型" required>
+            <select className={inputCls} value={type} onChange={(e) => { setType(e.target.value); setPartnerId(""); }}>
+              {Object.entries(coopTypeLabels).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label={type === "MAKEUP" ? "合作化妆师" : "合作达人"} required
+            hint={type === "MAKEUP" ? "" : "仅可选择已通过审核的达人"}>
+            <select className={inputCls} value={partnerId} onChange={(e) => onPartnerChange(e.target.value)}>
+              <option value="">请选择</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="合作平台（可多选）" required>
+            <div className="flex flex-wrap gap-3">
+              {PLATFORM_TAG_OPTIONS.map((p) => (
+                <label key={p.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes(p.value)}
+                    onChange={() =>
+                      setPlatforms(platforms.includes(p.value) ? platforms.filter((x) => x !== p.value) : [...platforms, p.value])
+                    }
+                  />
+                  {p.label}
+                </label>
+              ))}
+            </div>
+          </Field>
+          <Field label="款式（可多选）" required>
+            <div className="flex flex-wrap gap-3">
+              {STYLE_OPTIONS.map((s) => (
+                <label key={s.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={styles.includes(s.value)}
+                    onChange={() =>
+                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
+                    }
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+          </Field>
+          <Field label="内容方向">
+            <textarea className={inputCls} rows={2} value={contentDirection} onChange={(e) => setContentDirection(e.target.value)} />
+          </Field>
+          <Field label="备注">
+            <textarea className={inputCls} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
             </>
           ) : (
             <>
-          <Field label="标题" required hint="如：双11美妆老王达播合作">
-            <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />
-          </Field>
           <Field label="合作类型" required>
             <select className={inputCls} value={type} onChange={(e) => { setType(e.target.value); setPartnerId(""); }}>
               {Object.entries(coopTypeLabels).map(([v, l]) => (
@@ -539,22 +593,12 @@ export default function TicketForm({
               ))}
             </div>
           </Field>
-          <Field label="预估档期" required hint='如"10月下旬"或"2026-10-20~2026-10-31"，仅作参考，不锁定工单'>
+          <Field label="时间段" hint="可选，如 2026-11-01 ~ 2026-11-15">
             <input className={inputCls} value={estimatedSchedule}
               onChange={(e) => setEstimatedSchedule(e.target.value)}
-              placeholder='如：10月下旬 / 2026-10-20~2026-10-31' />
+              placeholder="如：2026-11-01 ~ 2026-11-15" />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="预估发布年月" required>
-              <input type="month" className={inputCls} value={estimatedPublishMonth}
-                onChange={(e) => setEstimatedPublishMonth(e.target.value)} />
-            </Field>
-            <Field label="预估报价（元）" required>
-              <input type="number" min={0.01} step="0.01" className={inputCls} autoComplete="off"
-                value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} />
-            </Field>
-          </div>
-          <Field label="确定档期" hint="暂不确认不能进入合作中；报价+确定档期齐全才能进合作中">
+          <Field label="确定档期" hint="暂不确认不能进入合作中；确定档期齐全才能进合作中">
             <div className="flex gap-2 mb-2">
               <button type="button" onClick={() => setConfirmSchedule(true)}
                 className={`px-3 py-1.5 rounded-md text-sm border ${confirmSchedule ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
@@ -581,16 +625,17 @@ export default function TicketForm({
               <textarea className={inputCls} rows={2} value={contentNote} onChange={(e) => setContentNote(e.target.value)} />
             </Field>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Field label="预算费用（元）" required>
               <input type="number" min={0.01} step="0.01" className={inputCls}
                 value={budgetFee} onChange={(e) => setBudgetFee(e.target.value)} />
             </Field>
-            <Field label="档期开始">
-              <input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </Field>
-            <Field label="档期结束">
-              <input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <Field label="时间段（起止日期，可选）">
+              <div className="flex items-center gap-2">
+                <input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <span className="shrink-0 text-sm text-muted-foreground">~</span>
+                <input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
             </Field>
           </div>
           <Field label="备注">
@@ -598,7 +643,7 @@ export default function TicketForm({
           </Field>
             </>
           )}
-          {tagOptions.length > 0 && (
+          {tagOptions.length > 0 && !(ticketKind === "PROCUREMENT" && !isEdit) && (
             <Field label="标签" hint="从标签管理中选择，可多选">
               <div className="flex flex-wrap gap-1.5">
                 {tagOptions.map((t) => {
@@ -621,46 +666,12 @@ export default function TicketForm({
               </div>
             </Field>
           )}
+          {ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (
           <Field label="寄品明细" hint="需要寄样时填写，可寄多个款式；与合作款式独立">
-            <div className="space-y-2">
-              {shipItems.map((s, i) => (
-                <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted p-2">
-                  <div className="min-w-[120px] flex-1">
-                    <label className="mb-1 block text-xs text-muted-foreground">款式名 *</label>
-                    <input className={inputCls} value={s.style}
-                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, style: e.target.value } : x))}
-                      placeholder="如：A款-红色" />
-                  </div>
-                  <div className="w-24">
-                    <label className="mb-1 block text-xs text-muted-foreground">度数</label>
-                    <input className={inputCls} value={s.degree}
-                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, degree: e.target.value } : x))}
-                      placeholder="选填" />
-                  </div>
-                  <div className="min-w-[140px] flex-1">
-                    <label className="mb-1 block text-xs text-muted-foreground">寄品备注</label>
-                    <input className={inputCls} value={s.note}
-                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, note: e.target.value } : x))}
-                      placeholder="选填" />
-                  </div>
-                  <button
-                    type="button"
-                    className="rounded border border-red-300 px-2.5 py-2 text-xs text-red-600 hover:bg-red-50"
-                    onClick={() => setShipItems(shipItems.filter((_, j) => j !== i))}
-                  >
-                    删除
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="rounded border border-dashed border-input px-3 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary"
-                onClick={() => setShipItems([...shipItems, { style: "", degree: "", note: "" }])}
-              >
-                + 增加一款
-              </button>
-            </div>
+            <ShipItemEditor value={shipItems} onChange={setShipItems} />
           </Field>
+          )}
+          {ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (
           <Field label="插图 / 附件" hint="可上传产品图、参考图等，图片会显示缩略图">
             <input
               type="file"
@@ -702,6 +713,7 @@ export default function TicketForm({
               </div>
             )}
           </Field>
+          )}
           <Field label="审批人（可多选，或签）" hint="提交审批时必填">
             <div className="max-h-36 space-y-1 overflow-y-auto rounded border border-border p-2">
               {approvers.map((a) => (
@@ -723,7 +735,9 @@ export default function TicketForm({
             {isEdit
               ? "保存后仍为草稿；补充完整合作信息（合作对象/类目/档期）后可提交审批。"
               : ticketKind === "PROCUREMENT"
-              ? "提交后进入待采买审批，审批通过后PR接单即转入合作工单流程（同单流转）。"
+              ? "提交后进入待采买审批，管理员逐条审批后分配给 PR 生成合作工单。"
+              : ticketKind === "MAINTENANCE"
+              ? "存为草稿后可在详情页转为合作工单；提交审批通过后也可转化，转化后回到草稿、补充合作信息后走完整合作流程。"
               : "提交审批后将按合作类型自动生成进度节点（寄品→执行→发布→数据回收）。"}
           </p>
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
@@ -742,8 +756,10 @@ export default function TicketForm({
         <ConfirmDialog
           title="确认提交审批"
           message={ticketKind === "PROCUREMENT"
-            ? `标题：${title.trim()}\n类型：${procurementSubTypeLabels[procurementType]}\n预算费用：¥${budgetFee}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
-            : `标题：${title.trim()}\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n预算费用：¥${budgetFee}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`}
+            ? `采买请求：\n${procurementItems.map((it, i) => `${i + 1}. ${STYLE_OPTIONS.find((o) => o.value === it.style)?.label ?? it.style} × ${it.quantity}`).join("\n")}${procurementLink.trim() ? `\n参考链接：${procurementLink.trim()}` : ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
+            : ticketKind === "MAINTENANCE"
+            ? `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
+            : `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n预算费用：¥${budgetFee}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`}
           confirmText="确认提交"
           busy={saving}
           onClose={() => setShowSubmitConfirm(false)}

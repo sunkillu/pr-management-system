@@ -1,57 +1,53 @@
+// 寄品明细行结构（存于 CooperationTicket.shipItems / SampleShipment.items JSON，不改 schema）
+// 款式：下拉，选项 = lib/labels 的 STYLE_OPTIONS（旧自由文本仍兼容展示）
+// 度数：下拉预设 + "其他"自定义；抛期/盒数：input + datalist 可搜索下拉
 export type ShipItem = {
   style: string;
-  period: string;
   degree: string;
-  boxes: number;
+  shelfLife: string;
+  boxCount: string;
   note: string;
 };
 
-function toTrimmedString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : String(value ?? "").trim();
+export const DEGREE_OPTIONS = [
+  "100",
+  "200",
+  "300",
+  "400",
+  "500",
+  "600",
+  "700",
+  "800",
+  "1000",
+  "1200",
+] as const;
+
+export const SHELF_LIFE_OPTIONS = ["3个月", "6个月", "9个月", "12个月", "18个月", "24个月"] as const;
+
+export const BOX_COUNT_OPTIONS = ["1", "2", "3", "5", "10", "20", "50", "100"] as const;
+
+export function emptyShipItem(): ShipItem {
+  return { style: "", degree: "", shelfLife: "", boxCount: "", note: "" };
 }
 
-export function sanitizeShipItems(raw: unknown): { items: ShipItem[]; error?: string } {
-  if (raw == null) return { items: [] };
-  if (!Array.isArray(raw)) return { items: [], error: "寄品明细格式非法" };
-  if (raw.length > 50) return { items: [], error: "寄品明细最多填写 50 行" };
-
-  const items: ShipItem[] = [];
-  for (let index = 0; index < raw.length; index += 1) {
-    const item = raw[index];
-    const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-    const style = toTrimmedString(row.style);
-    const period = toTrimmedString(row.period);
-    const degree = toTrimmedString(row.degree);
-    const note = toTrimmedString(row.note);
-    const boxesRaw = row.boxes;
-    const boxes = typeof boxesRaw === "number" ? boxesRaw : Number(boxesRaw);
-
-    const hasAnyValue = Boolean(style || period || degree || note || boxesRaw !== undefined && boxesRaw !== null && String(boxesRaw).trim() !== "");
-    if (!hasAnyValue) continue;
-
-    if (!style || style.length > 50) return { items: [], error: `第 ${index + 1} 行寄品款式不能为空且不能超过 50 个字` };
-    if (!period || period.length > 50) return { items: [], error: `第 ${index + 1} 行抛期不能为空且不能超过 50 个字` };
-    if (!degree || degree.length > 50) return { items: [], error: `第 ${index + 1} 行度数不能为空且不能超过 50 个字` };
-    if (!Number.isInteger(boxes) || boxes < 1 || boxes > 99) return { items: [], error: `第 ${index + 1} 行盒数必须为 1-99 的整数` };
-    if (note.length > 200) return { items: [], error: `第 ${index + 1} 行备注不能超过 200 个字` };
-
-    items.push({ style, period, degree, boxes, note });
-  }
-
-  return { items };
+/** 旧数据兼容：把任意 JSON 行规范化为 ShipItem（缺失字段补空串） */
+export function normalizeShipItem(s: unknown): ShipItem {
+  const o = (s ?? {}) as Record<string, unknown>;
+  return {
+    style: String(o.style ?? "").trim(),
+    degree: String(o.degree ?? "").trim(),
+    shelfLife: String(o.shelfLife ?? "").trim(),
+    boxCount: String(o.boxCount ?? "").trim(),
+    note: String(o.note ?? "").trim(),
+  };
 }
 
-export function formatShipItem(item: Partial<ShipItem> | null | undefined): string {
-  if (!item || typeof item !== "object") return "-";
-  const parts = [item.style, item.period, item.degree, Number.isFinite(item.boxes) ? `${Number(item.boxes)}盒` : undefined]
-    .map((part) => (typeof part === "string" ? part.trim() : part))
-    .filter((part): part is string => Boolean(part));
-  return parts.join(" · ") || "-";
-}
-
-export function totalBoxes(items: Array<Partial<ShipItem> | null | undefined>): number {
-  return items.reduce((sum, item) => {
-    const boxes = Number(item?.boxes);
-    return sum + (Number.isInteger(boxes) && boxes > 0 ? boxes : 1);
-  }, 0);
+/** 一行寄品明细的人类可读摘要，用于寄件确认弹窗 / 寄品列表展示 */
+export function shipItemSummary(s: ShipItem): string {
+  const parts = [s.style];
+  if (s.degree) parts.push(`${s.degree}度`);
+  if (s.shelfLife) parts.push(`抛期${s.shelfLife}`);
+  if (s.boxCount) parts.push(`${s.boxCount}盒`);
+  if (s.note) parts.push(`（${s.note}）`);
+  return parts.filter(Boolean).join(" · ");
 }

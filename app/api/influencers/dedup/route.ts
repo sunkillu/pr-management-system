@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     if (action === "MERGE") {
       // 按字段合并：新提交的非空字段覆盖到原有记录；品牌取并集
       const patch: Record<string, unknown> = {};
-      const fields = ["name", "influencerType", "platforms", "contactInfo", "homepageId", "bio", "tags"] as const;
+      const fields = ["name", "influencerType", "platforms", "contactInfo", "homepageId", "douyinUrl", "bio", "tags"] as const;
       for (const f of fields) {
         const v = newData[f];
         if (v === null || v === undefined) continue;
