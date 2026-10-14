@@ -430,8 +430,13 @@ export default function TicketForm({
                     </div>
                   </Field>
                   <Field label="采买数量" required hint="无指定达人，按数量采买；将记入备注">
-                    <input type="number" min={1} step={1} className={inputCls}
-                      value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="如：20" />
+                    <select className={inputCls}
+                      value={quantity} onChange={(e) => setQuantity(e.target.value)}>
+                      <option value="">请选择数量</option>
+                      {[5, 10, 15, 20, 25, 30, 40, 50, 80, 100, 150, 200].map((n) => (
+                        <option key={n} value={String(n)}>{n}</option>
+                      ))}
+                    </select>
                   </Field>
                 </>
               ) : (
