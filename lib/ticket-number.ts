@@ -15,7 +15,7 @@ export async function nextTicketNumber(
   const datePrefix = utcDatePrefix(now);
 
   // Serialize number allocation per UTC day across all ticket creation routes.
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`cooperation-ticket:${datePrefix}`}))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`cooperation-ticket:${datePrefix}`}))`;
   const existingCount = await tx.cooperationTicket.count({
     where: { ticketNo: { startsWith: datePrefix } },
   });

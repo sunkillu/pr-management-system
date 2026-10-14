@@ -6,9 +6,9 @@ import { nextTicketNumber } from "../lib/ticket-number";
 test("ticket number allocation locks the UTC date and increments its sequence", async () => {
   const calls: string[] = [];
   const tx = {
-    $queryRaw: async (query: TemplateStringsArray, ...values: unknown[]) => {
+    $executeRaw: async (query: TemplateStringsArray, ...values: unknown[]) => {
       calls.push(`${query.join("?")}:${values.join(",")}`);
-      return [];
+      return 1;
     },
     cooperationTicket: {
       count: async (args: { where: { ticketNo: { startsWith: string } } }) => {
@@ -20,13 +20,14 @@ test("ticket number allocation locks the UTC date and increments its sequence", 
 
   assert.equal(await nextTicketNumber(tx, new Date("2026-10-14T23:59:59.000Z")), "202610140009");
   assert.equal(calls.length, 1);
+  assert.match(calls[0], /^SELECT pg_advisory_xact_lock/);
   assert.match(calls[0], /pg_advisory_xact_lock/);
   assert.match(calls[0], /cooperation-ticket:20261014/);
 });
 
 test("ticket number prefix rolls over at UTC midnight", async () => {
   const tx = {
-    $queryRaw: async () => [],
+    $executeRaw: async () => 1,
     cooperationTicket: { count: async () => 0 },
   } as unknown as Prisma.TransactionClient;
 
