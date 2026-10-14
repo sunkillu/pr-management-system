@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * 工单状态推动权限：创建人、接单人、审批链上的人（RequestApprover）、ADMIN 可操作。
+ * 工单状态推动权限：仅创建人、被分配人（assignee）、审批链上的人（RequestApprover）、ADMIN 可操作。
  * 用于：标记完成、作废、重提、子任务/节点推进、跟进记录等。
  */
 export async function canOperateTicket(
@@ -15,7 +15,8 @@ export async function canOperateTicket(
     select: { creatorId: true, assigneeId: true },
   });
   if (!ticket) return false;
-  if (ticket.creatorId === userId || ticket.assigneeId === userId) return true;
+  if (ticket.creatorId === userId) return true;
+  if (ticket.assigneeId === userId) return true;
   const approver = await prisma.requestApprover.findFirst({
     where: { requestType: "TICKET", requestId: ticketId, approverId: userId },
   });
