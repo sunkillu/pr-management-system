@@ -8,6 +8,7 @@ import { checkApprovalTimeouts} from "@/lib/timeout-check";
 import { canOccupy, OccupancyConflictError} from "@/lib/occupancy";
 import { nextTicketNumber } from "@/lib/ticket-number";
 import { parsePositiveIntegerQuantity } from "@/lib/procurement-quantity";
+import { randomUUID } from "crypto";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 // 采买工单：运营可提交
@@ -126,6 +127,13 @@ async function createProcurementTicket(
     }
   }
 
+  const tagIds: string[] = Array.isArray(body.tagIds)
+    ? Array.from(new Set<string>((body.tagIds as unknown[]).map((s) => String(s)).filter(Boolean))).slice(0, 20)
+    : [];
+  const tags = tagIds.length > 0
+    ? await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true } })
+    : [];
+
   const ticket = await prisma.$transaction(async (tx) => {
     const ticketNo = await nextTicketNumber(tx);
     const created = await tx.cooperationTicket.create({
@@ -164,34 +172,29 @@ async function createProcurementTicket(
         toStatus: "PENDING_PROCUREMENT",
       });
     }
-    return created;
-  });
-
-  if (submit) {
-    await notifyApprovers(
-      approverIds,
-      `${auth.userName}发起了采买工单「${ticket.title}」，请审批。`,
-      { type: "TICKET", id: ticket.id, title: "采买工单待审批", kind: "APPROVAL_PENDING" },
-    );
-  }
-
-  // 工单标签
-  const tagIds: string[] = Array.isArray(body.tagIds)
-    ? Array.from(new Set<string>((body.tagIds as unknown[]).map((s) => String(s)).filter(Boolean))).slice(0, 20)
-    : [];
-  if (tagIds.length > 0) {
-    const tags = await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true } });
-    const validIds = tags.map((t) => t.id);
-    if (validIds.length > 0) {
-      await prisma.tagging.createMany({
-        data: validIds.map((tagId) => ({
-          tagId,
+    if (tags.length > 0) {
+      await tx.tagging.createMany({
+        data: tags.map((tag) => ({
+          tagId: tag.id,
           entityType: "TICKET" as const,
-          entityId: ticket.id,
+          entityId: created.id,
           createdById: auth.userId,
         })),
         skipDuplicates: true,
       });
+    }
+    return created;
+  });
+
+  if (submit) {
+    try {
+      await notifyApprovers(
+        approverIds,
+        `${auth.userName}发起了采买工单「${ticket.title}」，请审批。`,
+        { type: "TICKET", id: ticket.id, title: "采买工单待审批", kind: "APPROVAL_PENDING" },
+      );
+    } catch (error) {
+      console.error("[ticket.create.procurement.notification]", { ticketId: ticket.id, error });
     }
   }
 
@@ -206,7 +209,16 @@ if (!body.title?.trim()) return NextResponse.json({ error: "标题不能为空"}
 
 // ---------- 采买工单分支 ----------
 if (ticketKind === "PROCUREMENT") {
-return createProcurementTicket(req, body, auth);
+try {
+  return await createProcurementTicket(req, body, auth);
+} catch (error) {
+  const requestId = randomUUID();
+  console.error("[ticket.create.procurement]", { requestId, error });
+  return NextResponse.json(
+    { error: "采买工单创建失败，请联系管理员并提供错误编号", requestId },
+    { status: 500 },
+  );
+}
 }
 
 // ---------- 合作工单（原有逻辑） ----------
