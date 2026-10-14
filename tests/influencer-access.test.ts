@@ -14,7 +14,7 @@ test("PR visibility is limited to records registered by that user", () => {
   assert.equal(canViewInfluencer("FINANCE", "finance-1", "pr-2"), true);
 });
 
-test("influencer registration requires valid stored attachments", () => {
+test("influencer attachments are validated before re-submission", () => {
   assert.deepEqual(parseInfluencerAttachments([]), {
     ok: false,
     error: "至少上传一张参考图或附件",

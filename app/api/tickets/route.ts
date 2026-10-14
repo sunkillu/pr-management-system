@@ -6,6 +6,8 @@ import { notifyApprovers, notifyUser} from "@/lib/feishu-notify";
 import { buildNodesForTicket} from "@/lib/ticket-nodes";
 import { checkApprovalTimeouts} from "@/lib/timeout-check";
 import { canOccupy, OccupancyConflictError} from "@/lib/occupancy";
+import { nextTicketNumber } from "@/lib/ticket-number";
+import { parsePositiveIntegerQuantity } from "@/lib/procurement-quantity";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 // 采买工单：运营可提交
@@ -87,10 +89,10 @@ async function createProcurementTicket(
   if (procurementType === "WEEKLY_STYLE") {
     if (styles.length === 0) return NextResponse.json({ error: "请选择款式（可多选）" }, { status: 400 });
     const quantityRaw = String(body.quantity ?? "").trim();
-    if (!/^[1-9]\d*$/.test(quantityRaw)) {
+    const quantity = parsePositiveIntegerQuantity(quantityRaw);
+    if (quantity === null) {
       return NextResponse.json({ error: "采买数量必须为正整数" }, { status: 400 });
     }
-    const quantity = parseInt(quantityRaw, 10);
     noteLines.push(`采买数量：${quantity}`);
   } else {
     const materialType = String(body.materialType ?? "").trim();
@@ -125,11 +127,7 @@ async function createProcurementTicket(
   }
 
   const ticket = await prisma.$transaction(async (tx) => {
-    const today = new Date();
-    const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
-    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayCount = await tx.cooperationTicket.count({ where: { createdAt: { gte: dayStart } } });
-    const ticketNo = `${ymd}${String(todayCount + 1).padStart(4, "0")}`;
+    const ticketNo = await nextTicketNumber(tx);
     const created = await tx.cooperationTicket.create({
       data: {
         ticketNo,
@@ -324,12 +322,7 @@ const shipItems = Array.isArray(body.shipItems)
 let ticket;
 try {
 ticket = await prisma.$transaction(async (tx) => {
-// 生成工单编号 YYYYMMDD + 4位序号（如 202610100001）
-const today = new Date();
-const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
-const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-const todayCount = await tx.cooperationTicket.count({ where: { createdAt: { gte: dayStart } } });
-const ticketNo = `${ymd}${String(todayCount + 1).padStart(4, "0")}`;
+const ticketNo = await nextTicketNumber(tx);
 const created = await tx.cooperationTicket.create({
 data: {
 ticketNo,

@@ -1,12 +1,12 @@
 // 子工单 CRUD（v2 父子工单模型）
 // GET：列出指定父工单的子工单；POST：创建子工单（parentId 固定为 URL 中的 id，标题按规范自动生成）
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRoles, RoleName } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { notifyUser } from "@/lib/feishu-notify";
 import { buildChildTitle, ChildTicketSubType, CHILD_SUB_TYPES } from "@/lib/ticket-title";
+import { nextTicketNumber } from "@/lib/ticket-number";
 
 const READ_ROLES: RoleName[] = ["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER", "WAREHOUSE"];
 const WRITE_ROLES: RoleName[] = ["ADMIN", "PR", "PR_MANAGER"];
@@ -19,15 +19,6 @@ function toDateStr(v: Date | string | null | undefined): string | null {
   const d = v instanceof Date ? v : new Date(v);
   if (isNaN(d.getTime())) return null;
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// 工单编号：YYYYMMDD + 4 位序号
-async function nextTicketNo(tx: Prisma.TransactionClient) {
-  const today = new Date();
-  const ymd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
-  const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayCount = await tx.cooperationTicket.count({ where: { createdAt: { gte: dayStart } } });
-  return `${ymd}${String(todayCount + 1).padStart(4, "0")}`;
 }
 
 // 子工单列表：所有登录用户可查
@@ -123,7 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const note = String(body.note ?? "").trim() || null;
 
   const child = await prisma.$transaction(async (tx) => {
-    const ticketNo = await nextTicketNo(tx);
+    const ticketNo = await nextTicketNumber(tx);
     const created = await tx.cooperationTicket.create({
       data: {
         ticketNo,

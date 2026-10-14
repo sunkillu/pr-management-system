@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendDueReminders } from "@/lib/reminders";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 定时任务入口：扫描到期的 PENDING 提醒并发送，发送后标记 SENT。
  *

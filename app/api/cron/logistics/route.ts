@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runLogisticsChecks } from "@/lib/logistics";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 寄品物流定时任务入口：
  * 1. 发货后 T+1 检测物流状态（无接口时标记待手动确认）

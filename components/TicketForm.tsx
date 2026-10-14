@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { parsePositiveIntegerQuantity } from "@/lib/procurement-quantity";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
 import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
 import Modal from "./Modal";
@@ -181,7 +182,7 @@ export default function TicketForm({
       if (platforms.length === 0) return "请选择合作平台（可多选）";
       if (procurementType === "WEEKLY_STYLE") {
         if (styles.length === 0) return "请选择款式（可多选）";
-        if (!/^[1-9]\d*$/.test((quantityRef.current?.value ?? quantity).trim())) return "采买数量必须为正整数";
+        if (parsePositiveIntegerQuantity(quantityRef.current?.value ?? quantity) === null) return "采买数量必须为正整数";
       } else {
         if (!materialType.trim()) return "请填写素材类型";
         if (!reason.trim()) return "请填写需求理由";
@@ -324,6 +325,7 @@ export default function TicketForm({
         shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
         coopRequestId: initialCoopRequestId ?? null,
         tagIds,
+        ...(isProcurement && procurementType === "WEEKLY_STYLE" ? { quantity: quantity.trim() } : {}),
       }),
     });
     const data = await res.json().catch(() => ({}));
