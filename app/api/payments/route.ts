@@ -14,6 +14,18 @@ export async function POST(req: NextRequest) {
   if (!amount || amount <= 0) return NextResponse.json({ error: "金额必须大于 0" }, { status: 400 });
   if (!body.payeeName?.trim()) return NextResponse.json({ error: "收款方不能为空" }, { status: 400 });
 
+  // 关联合作工单的打款单必须在素材审批通过后（结算阶段）才能创建；正常流程由素材审批自动生成
+  if (body.ticketId) {
+    const linked = await prisma.cooperationTicket.findUnique({
+      where: { id: String(body.ticketId) },
+      select: { status: true },
+    });
+    if (!linked) return NextResponse.json({ error: "关联工单不存在" }, { status: 400 });
+    if (!["COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"].includes(linked.status)) {
+      return NextResponse.json({ error: "工单素材尚未审批通过，不能创建打款单" }, { status: 400 });
+    }
+  }
+
   const [payment] = await prisma.$transaction(async (tx) => {
     const created = await tx.paymentRequest.create({
       data: {

@@ -18,6 +18,7 @@ export async function ensureTicketSample(
       id: true,
       title: true,
       brandId: true,
+      creatorId: true,
       influencerId: true,
       shipItems: true,
       influencer: { select: { name: true } },
@@ -39,7 +40,8 @@ export async function ensureTicketSample(
       items: items as unknown as Prisma.InputJsonValue,
       receiverName: ticket.influencer?.name ?? null,
       status: "PENDING",
-      createdById: actorId,
+      // 归属工单创建人：由其维护并确认收件信息；实际操作人记在日志里
+      createdById: ticket.creatorId,
     },
   });
   await writeLog(tx, {

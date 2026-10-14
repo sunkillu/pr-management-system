@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { canOperateTicket } from "@/lib/ticket-permission";
+import { notifyApprovers } from "@/lib/feishu-notify";
 
 // 标记完成：执行中 → 待素材审批，同时写入合作评价（评分 1-5 + 文字评价），沉淀到达人/化妆师档案
 // 必须先回收至少 1 条素材；PR负责人审批素材通过后才自动生成打款单
@@ -103,6 +104,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
     return u;
   });
+
+  // 通知素材审批人：工单审批链成员优先，没有则通知 PR负责人 / 管理员
+  try {
+    const chain = await prisma.requestApprover.findMany({
+      where: { requestType: "TICKET", requestId: params.id },
+      select: { approverId: true },
+    });
+    let receiverIds = chain.map((a) => a.approverId);
+    if (receiverIds.length === 0) {
+      const users = await prisma.user.findMany({
+        where: { role: { in: ["PR_MANAGER", "ADMIN"] } },
+        select: { id: true },
+      });
+      receiverIds = users.map((u) => u.id);
+    }
+    receiverIds = receiverIds.filter((id) => id !== auth.userId);
+    if (receiverIds.length > 0) {
+      await notifyApprovers(
+        receiverIds,
+        `${auth.userName}已提交工单「${ticket.title}」的素材（${materialCount} 条），请审批素材；通过后才会生成打款单。`,
+        { type: "TICKET", id: params.id, title: "素材待审批", kind: "APPROVAL_PENDING" }
+      );
+    }
+  } catch (error) {
+    console.error("[ticket.complete.material-notification]", { ticketId: params.id, error });
+  }
 
   return NextResponse.json(updated);
 }
