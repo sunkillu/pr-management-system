@@ -41,11 +41,24 @@ export type ChildTitleInput = {
   publishDate?: string | null;
 };
 
-/** 父工单标题：[达人合作] 达人昵称｜款式｜合作类型｜预估发布年月 */
+export type TicketTitleInput = {
+  partnerName?: string | null;
+  platforms?: (string | null | undefined)[] | null;
+  prName?: string | null;
+  fallback?: string | null;
+};
+
+/** 采买转合作、维护转合作等场景使用的父工单标题。 */
+export function buildTicketTitle(input: TicketTitleInput): string {
+  const partner = input.partnerName?.trim() || "待补达人";
+  const platform = toPlatformNames(input.platforms);
+  const pr = input.prName?.trim() || "待分配PR";
+  return `[合作] ${partner}${SEP}${platform}${SEP}${pr}` || input.fallback || "合作工单";
+}
+
+/** 父工单标题：[达人合作] 达人昵称｜款式｜合作类型；不再拼接预估发布年月 */
 export function buildParentTitle(input: ParentTitleInput): string {
-  return `[达人合作] ${joinNames([input.influencerName])}${SEP}${toStyleNames(input.styles)}${SEP}${toCoopType(
-    input.coopType,
-  )}${SEP}${toDate(input.estimatedPublishMonth)}`;
+  return `[达人合作] ${joinNames([input.influencerName])}${SEP}${toStyleNames(input.styles)}${SEP}${toCoopType(input.coopType)}`;
 }
 
 /** 子工单·寄品标题：[寄品] 达人昵称｜款式 */

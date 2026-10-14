@@ -255,6 +255,7 @@ export const materialTypeLabels: Record<string, string> = {
 export const ticketKindLabels: Record<string, string> = {
   COOPERATION: "合作工单",
   PROCUREMENT: "采买工单",
+  MAINTENANCE: "维护工单",
 };
 
 // 采买工单子类型
@@ -265,6 +266,7 @@ export const procurementSubTypeLabels: Record<string, string> = {
 
 // 合作工单状态
 export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
+  MAINTAINING: "维护中",
   PENDING_APPROVAL: "待审批",
   PENDING_PROCUREMENT: "待采买审批",
   APPROVED: "已通过（待执行）",

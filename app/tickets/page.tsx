@@ -19,6 +19,7 @@ import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTa
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
+import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 import TicketBoard, { BoardTicket } from "@/components/TicketBoard";
 import AutoRefresh from "@/components/AutoRefresh";
 import Pagination from "@/components/Pagination";
@@ -33,7 +34,7 @@ const VIEWS = [
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; type?: string; ticketKind?: string; view?: string; page?: string; tagId?: string; brandId?: string };
+  searchParams: { q?: string; status?: string; type?: string; ticketKind?: string; view?: string; page?: string; tagId?: string; brandId?: string; prId?: string; style?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as unknown as { role: string }).role;
@@ -53,6 +54,9 @@ export default async function TicketsPage({
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
+  const createAction = role === "OPERATOR"
+    ? <PurchaseRequestForm />
+    : <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} />;
 
   const viewTab = (key: string) =>
     `/tickets${key === "board" ? "?view=board" : ""}`;
@@ -93,7 +97,7 @@ export default async function TicketsPage({
         <PageHeader
           title="合作工单"
           desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
-          action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} /> : undefined}
+          action={canWrite ? createAction : undefined}
         />
         <div className="mb-5 flex gap-1 border-b">
           {VIEWS.map((v) => (
@@ -128,6 +132,8 @@ export default async function TicketsPage({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+  const prs = await prisma.user.findMany({ where: { role: "PR" }, orderBy: { name: "asc" }, select: { id: true, name: true } });
+  const styles = await prisma.styleOption.findMany({ where: { kind: "STYLE", isActive: true }, orderBy: [{ sort: "asc" }, { name: "asc" }], select: { name: true } });
   let tagTicketIds: string[] | null = null;
   if (searchParams.tagId) {
     const recs = await prisma.tagging.findMany({
@@ -149,6 +155,8 @@ export default async function TicketsPage({
       ...(searchParams.type ? { type: searchParams.type as never } : {}),
       ...(searchParams.ticketKind ? { ticketKind: searchParams.ticketKind as never } : {}),
       ...(searchParams.brandId ? { brandId: searchParams.brandId } : {}),
+      ...(searchParams.prId ? { AND: [{ OR: [{ assigneeId: searchParams.prId }, { creatorId: searchParams.prId }] }] } : {}),
+      ...(searchParams.style ? { style: { has: searchParams.style } } : {}),
       ...(tagTicketIds ? { id: { in: tagTicketIds } } : {}),
   };
   const pagination = getPagination(searchParams.page);
@@ -177,7 +185,7 @@ export default async function TicketsPage({
       <PageHeader
         title="合作工单"
         desc="PR 发起合作 → 审批 → 进度管理 → 打款结算"
-        action={canWrite ? <TicketForm influencers={influencers} makeupArtists={makeupArtists} userRole={role} /> : undefined}
+        action={canWrite ? createAction : undefined}
       />
 
       <div className="mb-5 flex gap-1 border-b">
@@ -232,6 +240,14 @@ export default async function TicketsPage({
           {brands.map((b) => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
+        </select>
+        <select name="prId" defaultValue={searchParams.prId ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <option value="">全部 PR</option>
+          {prs.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+        </select>
+        <select name="style" defaultValue={searchParams.style ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <option value="">全部款式</option>
+          {styles.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
         </select>
         <Button type="submit">筛选</Button>
       </form>

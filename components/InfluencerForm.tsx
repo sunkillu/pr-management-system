@@ -26,29 +26,14 @@ export default function InfluencerForm({
   const [influencerType, setInfluencerType] = useState(initial?.influencerType ?? "");
   const [platforms, setPlatforms] = useState<string[]>(initial?.platforms ?? []);
   const [contactInfo, setContactInfo] = useState("");
-  const [homepageId, setHomepageId] = useState("");
-  const [bio, setBio] = useState("");
+  const [xhsUrl, setXhsUrl] = useState("");
+  const [douyinUrl, setDouyinUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
-  const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const tagOptions = influencerTags ?? [];
-
-  useEffect(() => {
-    if (open) {
-      fetch("/api/brands?active=1")
-        .then((r) => r.json())
-        .then((d) => setBrandOptions(Array.isArray(d) ? d : []))
-        .catch(() => setBrandOptions([]));
-    }
-  }, [open ]);
-
-  function toggleBrand(name: string) {
-    setBrands((list) => (list.includes(name) ? list.filter((x) => x !== name) : [...list, name]));
-  }
 
   function toggleTag(t: string) {
     setTags((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t].slice(0, 20)));
@@ -82,11 +67,10 @@ export default function InfluencerForm({
         name: name.trim(),
         influencerType: influencerType || null,
         platforms,
-        contactInfo: contactInfo.trim() || null,
-        homepageId: homepageId.trim() || null,
-        bio: bio.trim() || null,
+        quoteMode: contactInfo.trim() || null,
+        xhsUrl: xhsUrl.trim() || null,
+        douyinUrl: douyinUrl.trim() || null,
         tags,
-        brands,
         attachments,
       }),
     });
@@ -131,14 +115,14 @@ export default function InfluencerForm({
               ))}
             </div>
           </Field>
-          <Field label="联系方式">
-            <input className={inputCls} value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} />
+          <Field label="小红书主页链接" hint="可直接粘贴主页链接">
+            <input className={inputCls} value={xhsUrl} onChange={(e) => setXhsUrl(e.target.value)} placeholder="https://www.xiaohongshu.com/..." />
           </Field>
-          <Field label="达人主页ID" hint="如小红书号/抖音号，发起工单时自动带入">
-            <input className={inputCls} value={homepageId} onChange={(e) => setHomepageId(e.target.value)} />
+          <Field label="抖音主页链接" hint="可直接粘贴主页链接">
+            <input className={inputCls} value={douyinUrl} onChange={(e) => setDouyinUrl(e.target.value)} placeholder="https://www.douyin.com/..." />
           </Field>
-          <Field label="简介">
-            <textarea className={inputCls} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
+          <Field label="报价" hint="选填，可填写报价区间或报价说明">
+            <input className={inputCls} value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="如：图文 3000-5000 元" />
           </Field>
           <Field label="达人标签" hint="可多选，标签由管理员在标签管理中维护">
             {tagOptions.length === 0 ? (
@@ -166,33 +150,7 @@ export default function InfluencerForm({
               </div>
             )}
           </Field>
-          <Field label="合作品牌（可多选）" hint="该达人合作过的品牌">
-            {brandOptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">暂无可选品牌，请联系管理员在品牌管理中添加</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {brandOptions.map((b) => (
-                  <label
-                    key={b.id}
-                    className={`cursor-pointer rounded-full px-3 py-1 text-xs ring-1 ${
-                      brands.includes(b.name)
-                        ? "bg-primary text-primary-foreground ring-primary"
-                        : "bg-card text-foreground ring-gray-300 hover:ring-primary"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={brands.includes(b.name)}
-                      onChange={() => toggleBrand(b.name)}
-                    />
-                    {b.name}
-                  </label>
-                ))}
-              </div>
-            )}
-          </Field>
-          <Field label="附件（参考图）" hint="可上传达人主页截图、过往作品等，图片显示缩略图">
+          <Field label="达人脸部/主页截图" hint="建议直接截图后粘贴或上传，便于识别达人；支持图片/PDF">
             <input
               type="file"
               accept="image/*,.pdf"
@@ -204,6 +162,19 @@ export default function InfluencerForm({
                 e.target.value = "";
               }}
               className="text-sm"
+            />
+            <textarea
+              className={`${inputCls} mt-2`}
+              rows={2}
+              placeholder="也可以直接在这里粘贴截图"
+              onPaste={(e) => {
+                const image = Array.from(e.clipboardData.items).find((item) => item.type.startsWith("image/"));
+                const file = image?.getAsFile();
+                if (file) {
+                  e.preventDefault();
+                  void uploadFile(new File([file], `clipboard-${Date.now()}.png`, { type: file.type }));
+                }
+              }}
             />
             {uploading && <p className="mt-1 text-xs text-muted-foreground">上传中…</p>}
             {attachments.length > 0 && (

@@ -9,8 +9,11 @@ type FollowUp = {
   followNo: number;
   noteUrl: string | null;
   views: number | null;
+  impressions: number | null;
   likes: number | null;
+  favorites: number | null;
   comments: number | null;
+  shares: number | null;
   note: string | null;
   createdAt: string;
   createdBy: { name: string } | null;
@@ -32,8 +35,11 @@ export default function TicketFollowUps({
   const [open, setOpen] = useState(false);
   const [noteUrl, setNoteUrl] = useState("");
   const [views, setViews] = useState("");
+  const [impressions, setImpressions] = useState("");
   const [likes, setLikes] = useState("");
+  const [favorites, setFavorites] = useState("");
   const [comments, setComments] = useState("");
+  const [shares, setShares] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -54,8 +60,11 @@ export default function TicketFollowUps({
         body: JSON.stringify({
           noteUrl: noteUrl.trim() || null,
           views: views || null,
+          impressions: impressions || null,
           likes: likes || null,
+          favorites: favorites || null,
           comments: comments || null,
+          shares: shares || null,
           note: note.trim() || null,
         }),
       });
@@ -71,15 +80,18 @@ export default function TicketFollowUps({
           followNo: data.record.followNo,
           noteUrl: data.record.noteUrl,
           views: data.record.views,
+          impressions: data.record.impressions,
           likes: data.record.likes,
+          favorites: data.record.favorites,
           comments: data.record.comments,
+          shares: data.record.shares,
           note: data.record.note,
           createdAt: data.record.createdAt,
           createdBy: null,
         },
       ]);
       setOpen(false);
-      setNoteUrl(""); setViews(""); setLikes(""); setComments(""); setNote("");
+      setNoteUrl(""); setViews(""); setImpressions(""); setLikes(""); setFavorites(""); setComments(""); setShares(""); setNote("");
       router.refresh();
     } finally {
       setSaving(false);
@@ -128,8 +140,11 @@ export default function TicketFollowUps({
             </div>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               {f.views !== null && <span>播放/阅读：{f.views}</span>}
+              {f.impressions !== null && <span>曝光：{f.impressions}</span>}
               {f.likes !== null && <span>点赞：{f.likes}</span>}
+              {f.favorites !== null && <span>收藏：{f.favorites}</span>}
               {f.comments !== null && <span>评论：{f.comments}</span>}
+              {f.shares !== null && <span>转发：{f.shares}</span>}
               {f.noteUrl && (
                 <a href={f.noteUrl} target="_blank" className="text-primary hover:underline">
                   笔记链接 ↗
@@ -156,18 +171,30 @@ export default function TicketFollowUps({
                 <input className={inputCls} value={noteUrl} onChange={(e) => setNoteUrl(e.target.value)}
                   placeholder="https://" />
               </Field>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 <Field label="播放/阅读量">
                   <input type="number" min={0} className={inputCls} value={views}
                     onChange={(e) => setViews(e.target.value)} />
+                </Field>
+                <Field label="曝光量">
+                  <input type="number" min={0} className={inputCls} value={impressions}
+                    onChange={(e) => setImpressions(e.target.value)} />
                 </Field>
                 <Field label="点赞数">
                   <input type="number" min={0} className={inputCls} value={likes}
                     onChange={(e) => setLikes(e.target.value)} />
                 </Field>
+                <Field label="收藏数">
+                  <input type="number" min={0} className={inputCls} value={favorites}
+                    onChange={(e) => setFavorites(e.target.value)} />
+                </Field>
                 <Field label="评论数">
                   <input type="number" min={0} className={inputCls} value={comments}
                     onChange={(e) => setComments(e.target.value)} />
+                </Field>
+                <Field label="转发数">
+                  <input type="number" min={0} className={inputCls} value={shares}
+                    onChange={(e) => setShares(e.target.value)} />
                 </Field>
               </div>
               <Field label="备注">

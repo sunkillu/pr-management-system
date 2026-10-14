@@ -35,6 +35,7 @@ import AutoRefresh from "@/components/AutoRefresh";
 import TaggingSection from "@/components/TaggingSection";
 import ProcurementAssignee from "@/components/ProcurementAssignee";
 import TicketForm from "@/components/TicketForm";
+import MaintenanceActions from "@/components/MaintenanceActions";
 import TicketChildren from "@/components/TicketChildren";
 import ScheduleChangeTimeline from "@/components/ScheduleChangeTimeline";
 import RecordTimestamps from "@/components/RecordTimestamps";
@@ -279,7 +280,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     canOperate &&
     !["VOIDED", "MATERIAL_REVIEW"].includes(ticket.status);
   const canManageMaterials =
-    canOperate && ticket.status === "IN_PROGRESS";
+    canOperate && ["IN_PROGRESS", "AWAITING_DRAFT"].includes(ticket.status);
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
@@ -299,7 +300,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   id: ticket.id,
                   title: ticket.title,
                   type: ticket.type,
-                  brandId: ticket.brandId,
+                  brandId: ticket.brandId ?? "",
                   platform: ticket.platform as string[],
                   style: ticket.style as string[],
                   budgetFee: String(ticket.budgetFee),
@@ -319,6 +320,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   makeupArtistId: ticket.makeupArtistId,
                 }}
               />
+            )}
+            {ticket.ticketKind === "MAINTENANCE" && ticket.status === "MAINTAINING" && (
+              <MaintenanceActions ticketId={ticket.id} />
             )}
             <Link href="/tickets" className="text-sm text-primary hover:underline">
               ← 返回合作工单
@@ -421,18 +425,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   </span>
                 )}
               </InfoRow>
-              {/* v2: 预估发布年月 / 确定档期 / 报价（A级敏感，仅授权角色） */}
-              {ticket.estimatedPublishMonth && (
-                <InfoRow label="预估发布年月"><span>{ticket.estimatedPublishMonth}</span></InfoRow>
-              )}
               <InfoRow label="确定档期">
                 <span>{ticket.confirmedDate ? formatDate(ticket.confirmedDate) : "暂不确认"}</span>
               </InfoRow>
-              {(role === "ADMIN" || role === "PR_MANAGER" || ticket.creatorId === me.id || ticket.assigneeId === me.id) && ticket.quoteAmount != null && (
-                <InfoRow label="合作报价">
-                  <span>¥{Number(ticket.quoteAmount).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span>
-                </InfoRow>
-              )}
               {ticket.occupiesResource && (
                 <InfoRow label="资源占用">
                   <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 ring-1 ring-green-300">
@@ -708,7 +703,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             ) : (
               <p className="mb-3 text-sm text-muted-foreground">草稿状态，尚未提交审批</p>
             )}
-            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
+            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} confirmedDate={ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : null} userId={me.id} role={role} canOperate={canOperate} />
             {/* 采买工单接单后同单转入合作工单流程（accept 接口直接翻转 ticketKind），无需转工单按钮 */}
             {/* 采买工单接单 / 人工分配 */}
             {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && (
@@ -768,8 +763,11 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   followNo: f.followNo,
                   noteUrl: f.noteUrl,
                   views: f.views,
+                  impressions: f.impressions,
                   likes: f.likes,
+                  favorites: f.favorites,
                   comments: f.comments,
+                  shares: f.shares,
                   note: f.note,
                   createdAt: f.createdAt.toISOString(),
                   createdBy: f.createdBy,

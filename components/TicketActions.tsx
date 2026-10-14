@@ -19,12 +19,14 @@ export default function TicketActions({
   userId,
   role,
   canOperate,
+  confirmedDate,
 }: {
   ticket: Ticket;
   userId: string;
   role: string;
   // 是否可推动工单状态：创建人 / 审批链成员 / ADMIN（后端同样校验）
   canOperate: boolean;
+  confirmedDate?: string | null;
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<null | { title: string; message: string; onOk: () => Promise<void> }>(null);
@@ -107,6 +109,44 @@ export default function TicketActions({
     );
   }
   // 素材审批：待素材审批状态，仅 PR负责人 / ADMIN
+  if (ticket.status === "AWAITING_DRAFT" && canOperate) {
+    btns.push(
+      <button key="schedule" className={btnSecondary} onClick={() => {
+        const date = window.prompt("请输入确定档期（YYYY-MM-DD）", confirmedDate ?? "");
+        if (!date) return;
+        const reason = window.prompt("请输入确定档期说明", confirmedDate ? "修改确定档期" : "寄品完成后确认档期");
+        if (!reason) return;
+        void (async () => {
+          if (await call(`/api/tickets/${ticket.id}/schedule`, { confirmedDate: date.trim(), reason: reason.trim() })) refresh();
+        })();
+      }}>{confirmedDate ? "修改确定档期" : "填写确定档期"}</button>
+    );
+    btns.push(
+      <button key="return-draft" className={btnPrimary} onClick={() => ask("确认已返稿", "确认素材已上传并将工单推送到已返稿状态？", async () => {
+        if (await call(`/api/tickets/${ticket.id}/return-draft`, {})) refresh();
+      })}>推送已返稿</button>
+    );
+  }
+  if (ticket.status === "DRAFT_RETURNED" && canOperate) {
+    btns.push(
+      <button key="publish" className={btnPrimary} onClick={() => {
+        const link = window.prompt("请输入发布链接");
+        if (!link) return;
+        void (async () => { if (await call(`/api/tickets/${ticket.id}/publish`, { publishLink: link.trim() })) refresh(); })();
+      }}>填写发布链接并标记已发布</button>
+    );
+  }
+  if (ticket.status === "PUBLISHED" && canOperate) {
+    btns.push(
+      <button key="settlement" className={btnPrimary} onClick={() => {
+        const raw = window.prompt("请输入实际结算金额");
+        if (!raw) return;
+        const actualFee = Number(raw);
+        if (!Number.isFinite(actualFee) || actualFee <= 0) return setError("实际费用必须大于 0");
+        void (async () => { if (await call(`/api/tickets/${ticket.id}/settlement-request`, { actualFee })) refresh(); })();
+      }}>提交结算审批</button>
+    );
+  }
   if (ticket.status === "MATERIAL_REVIEW" && canApprove) {
     btns.push(
       <button key="material-approve" className={btnPrimary}

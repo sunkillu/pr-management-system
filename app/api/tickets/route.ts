@@ -9,6 +9,7 @@ import { canOccupy, OccupancyConflictError} from "@/lib/occupancy";
 import { nextTicketNumber } from "@/lib/ticket-number";
 import { parsePositiveIntegerQuantity } from "@/lib/procurement-quantity";
 import { randomUUID } from "crypto";
+import { sanitizeShipItems } from "@/lib/ship-items";
 
 const WRITE_ROLES = ["ADMIN", "PR", "PR_MANAGER"] as const;
 // 采买工单：运营可提交
@@ -139,7 +140,7 @@ async function createProcurementTicket(
     const created = await tx.cooperationTicket.create({
       data: {
         ticketNo,
-        title: (body.title as string).trim(),
+        title: String(body.title ?? "").trim() || `采买请求-${new Date().toISOString().slice(0, 10)}`,
         type: "INFLUENCER_POST",
         brandId,
         ticketKind: "PROCUREMENT",
@@ -202,11 +203,10 @@ async function createProcurementTicket(
 }
 export async function POST(req: NextRequest) {
 const body = await req.json();
-const ticketKind = (body.ticketKind as string) === "PROCUREMENT" ? "PROCUREMENT" : "COOPERATION";
+const rawTicketKind = body.ticketKind as string;
+const ticketKind = rawTicketKind === "PROCUREMENT" ? "PROCUREMENT" : rawTicketKind === "MAINTENANCE" ? "MAINTENANCE" : "COOPERATION";
 const auth = await requireRoles(ticketKind === "PROCUREMENT" ? [...PROCUREMENT_WRITE_ROLES] : [...WRITE_ROLES]);
 if (!auth.ok) return auth.res;
-if (!body.title?.trim()) return NextResponse.json({ error: "标题不能为空"}, { status: 400});
-
 // ---------- 采买工单分支 ----------
 if (ticketKind === "PROCUREMENT") {
 try {
@@ -222,12 +222,12 @@ try {
 }
 
 // ---------- 合作工单（原有逻辑） ----------
-const type = body.type as "INFLUENCER_POST" | "INFLUENCER_LIVE" | "MAKEUP" | undefined;
+const type = (body.type as "INFLUENCER_POST" | "INFLUENCER_LIVE" | "MAKEUP" | undefined) ?? "INFLUENCER_POST";
 if (!type || !["INFLUENCER_POST", "INFLUENCER_LIVE", "MAKEUP"].includes(type)) {
 return NextResponse.json({ error: "合作类型非法"}, { status: 400});
 }
-const budgetFee = Number(body.budgetFee);
-if (!budgetFee || budgetFee <= 0) {
+const budgetFee = ticketKind === "MAINTENANCE" ? 0 : Number(body.budgetFee);
+if (ticketKind !== "MAINTENANCE" && (!budgetFee || budgetFee <= 0)) {
 return NextResponse.json({ error: "预算费用必须大于 0"}, { status: 400});
 }
 // 品牌必填
@@ -241,34 +241,31 @@ return NextResponse.json({ error: "品牌不存在或已停用"}, { status: 400}
 }
 // 合作平台多选必填
 const platforms: string[] = Array.isArray(body.platform) ? body.platform.map((s: unknown) => String(s)).filter((s: string) => ["XIAOHONGSHU", "DOUYIN"].includes(s)) : [];
-if (platforms.length === 0) {
+if (ticketKind !== "MAINTENANCE" && platforms.length === 0) {
 return NextResponse.json({ error: "请选择合作平台（可多选）"}, { status: 400});
 }
 // 款式多选必填
 const styles: string[] = Array.isArray(body.style) ? body.style.map((s: unknown) => String(s)).filter(Boolean) : [];
-if (styles.length === 0) {
+if (ticketKind !== "MAINTENANCE" && styles.length === 0) {
 return NextResponse.json({ error: "请选择款式（可多选）" }, { status: 400});
 }
 // 合作类目多选必填
 const coopCategories: string[] = Array.isArray(body.coopCategory) ? body.coopCategory.map((s: unknown) => String(s)).filter(Boolean) : [];
-if (coopCategories.length === 0) {
+if (ticketKind !== "MAINTENANCE" && coopCategories.length === 0) {
 return NextResponse.json({ error: "请选择合作类目（可多选）" }, { status: 400});
 }
 // 预估档期必填
 const estimatedSchedule = String(body.estimatedSchedule ?? "").trim();
-if (!estimatedSchedule) {
-return NextResponse.json({ error: "请填写预估档期" }, { status: 400});
-}
 // v2: 预估发布年月（YYYY-MM，提报必填）
 const estimatedPublishMonth =
 typeof body.estimatedPublishMonth === "string" && /^\d{4}-\d{2}$/.test(body.estimatedPublishMonth.trim())
 ? body.estimatedPublishMonth.trim()
 : null;
 const { influencerId, makeupArtistId} = pickPartner(body);
-if (type === "MAKEUP" &&!makeupArtistId) {
+if (ticketKind !== "MAINTENANCE" && type === "MAKEUP" &&!makeupArtistId) {
 return NextResponse.json({ error: "化妆师合作必须选择化妆师"}, { status: 400});
 }
-if (type!== "MAKEUP" &&!influencerId) {
+if (ticketKind !== "MAINTENANCE" && type!== "MAKEUP" &&!influencerId) {
 return NextResponse.json({ error: "达人合作必须选择达人"}, { status: 400});
 }
 // 达人合作要求达人已通过审核
@@ -318,16 +315,9 @@ const attachments = Array.isArray(body.attachments)
   ? body.attachments.filter((a: unknown) => a && typeof (a as { fileUrl?: unknown }).fileUrl === "string").slice(0, 20)
   : undefined;
 // 寄品明细：[{style, degree?, note?}]，款式名必填
-const shipItems = Array.isArray(body.shipItems)
-  ? body.shipItems
-      .map((s: unknown) => ({
-        style: String((s as { style?: unknown }).style ?? "").trim(),
-        degree: String((s as { degree?: unknown }).degree ?? "").trim(),
-        note: String((s as { note?: unknown }).note ?? "").trim(),
-      }))
-      .filter((s: { style: string }) => s.style)
-      .slice(0, 50)
-  : undefined;
+const shipParsed = sanitizeShipItems(body.shipItems);
+if (shipParsed.error) return NextResponse.json({ error: shipParsed.error }, { status: 400 });
+const shipItems = shipParsed.items.length > 0 ? shipParsed.items : undefined;
 
 // v2 达人资源占用：占用冲突在事务内抛 OccupancyConflictError（事务自动回滚），
 // 外层统一转为 409 响应（不含报价等敏感字段）
@@ -338,10 +328,11 @@ const ticketNo = await nextTicketNumber(tx);
 const created = await tx.cooperationTicket.create({
 data: {
 ticketNo,
-title: body.title.trim(),
-type,
+ title: String(body.title ?? "").trim() || `${ticketKind === "MAINTENANCE" ? "维护" : "合作"}工单-${new Date().toISOString().slice(0, 10)}`,
+ type,
+ ticketKind: ticketKind as "COOPERATION" | "MAINTENANCE",
 brandId,
-budgetFee: body.budgetFee,
+ budgetFee,
 actualFee: body.actualFee? body.actualFee: null,
 platform: platforms,
 homepageId,
@@ -355,7 +346,7 @@ estimatedPublishMonth,
 startDate: body.startDate? new Date(body.startDate): null,
 endDate: body.endDate? new Date(body.endDate): null,
 note: body.note?.trim() || null,
-status: submit? "PENDING_APPROVAL": "DRAFT",
+ status: ticketKind === "MAINTENANCE" ? "MAINTAINING" : submit ? "PENDING_APPROVAL" : "DRAFT",
 influencerId,
 makeupArtistId,
 // 来源合作需求（从需求详情页"发起工单"跳转时带入，已在上方校验）

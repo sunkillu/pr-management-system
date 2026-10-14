@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 // 路由前缀 → 标题，按最长前缀匹配
 const titles: Array<[string, string]> = [
   ["/reports/platform", "平台汇总"],
-  ["/coop-requests", "合作需求"],
   ["/admin/import", "数据导入"],
   ["/admin/export", "数据导出"],
   ["/partners", "合作资源"],

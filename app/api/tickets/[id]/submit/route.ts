@@ -39,16 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!(ticket.coopCategory as string[]).length) {
     return NextResponse.json({ error: "请选择合作类目" }, { status: 400 });
   }
-  if (!ticket.estimatedSchedule || ticket.estimatedSchedule === "-") {
-    return NextResponse.json({ error: "请填写预估档期" }, { status: 400 });
-  }
-  // v2 档期报价：合作报价与确定档期必填，否则不能提交审批
-  if (ticket.quoteAmount == null) {
-    return NextResponse.json({ error: "请填写合作报价" }, { status: 400 });
-  }
-  if (!ticket.confirmedDate) {
-    return NextResponse.json({ error: "请填写确定档期（暂不确认档期不能进入合作中）" }, { status: 400 });
-  }
+  // 预估时间段可选；合作报价已移除；确定档期在寄品签收后再补填。
 
   const body = await req.json().catch(() => ({}));
   const approverIds: string[] = Array.isArray(body.approverIds)

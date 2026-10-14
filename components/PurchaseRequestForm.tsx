@@ -34,7 +34,7 @@ export default function PurchaseRequestForm() {
   useEffect(() => {
     if (!open) return;
     setLoadingStyles(true);
-    fetch("/api/styles?active=1")
+    fetch("/api/styles?active=1&kind=STYLE")
       .then((res) => res.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [];

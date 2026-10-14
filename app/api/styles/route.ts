@@ -9,9 +9,11 @@ const MANAGE = ["ADMIN", "PR_MANAGER"] as const;
 export async function GET(req: NextRequest) {
   const auth = await requireRoles(["ADMIN", "PR", "OPERATOR", "FINANCE", "VIEWER", "PR_MANAGER", "WAREHOUSE"]);
   if (!auth.ok) return auth.res;
-  const activeOnly = new URL(req.url).searchParams.get("active") === "1";
+  const params = new URL(req.url).searchParams;
+  const activeOnly = params.get("active") === "1";
+  const kind = params.get("kind") ?? "STYLE";
   const styles = await prisma.styleOption.findMany({
-    where: activeOnly ? { isActive: true } : {},
+    where: { kind, ...(activeOnly ? { isActive: true } : {}) },
     orderBy: [{ sort: "asc" }, { name: "asc" }],
   });
   return NextResponse.json(styles);
@@ -27,9 +29,9 @@ export async function POST(req: NextRequest) {
   if (name.length > 50) return NextResponse.json({ error: "款式名称不能超过 50 个字" }, { status: 400 });
   try {
     const style = await prisma.$transaction(async (tx) => {
-      const last = await tx.styleOption.aggregate({ _max: { sort: true } });
+      const last = await tx.styleOption.aggregate({ where: { kind: "STYLE" }, _max: { sort: true } });
       const created = await tx.styleOption.create({
-        data: { name, sort: (last._max.sort ?? 0) + 1 },
+        data: { kind: "STYLE", name, sort: (last._max.sort ?? 0) + 1 },
       });
       await writeLog(tx, {
         docType: "STYLE",
