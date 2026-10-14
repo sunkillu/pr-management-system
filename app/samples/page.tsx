@@ -15,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { sampleStatusLabels, badgeClass } from "@/lib/labels";
+import { sampleStatusLabels, badgeClass, styleLabels } from "@/lib/labels";
+import { normalizeShipItem, shipItemSummary } from "@/lib/ship-items";
 import { logisticsStatusLabels, abnormalFlagLabels, logisticsBadgeClass, abnormalBadgeClass } from "@/lib/logistics";
 import SampleForm from "@/components/SampleForm";
 import SampleShipForm from "@/components/SampleShipForm";
@@ -23,8 +24,6 @@ import SampleActions from "@/components/SampleActions";
 import AutoRefresh from "@/components/AutoRefresh";
 import Pagination from "@/components/Pagination";
 import { getPagination } from "@/lib/pagination";
-import RecordTimestamps from "@/components/RecordTimestamps";
-import Link from "next/link";
 
 const selectCls =
   "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -46,7 +45,6 @@ export default async function SamplesPage({
       ...(searchParams.q
         ? {
             OR: [
-              { sampleNo: { contains: searchParams.q, mode: "insensitive" } },
               { productName: { contains: searchParams.q, mode: "insensitive" } },
               { trackingNo: { contains: searchParams.q, mode: "insensitive" } },
             ],
@@ -90,7 +88,7 @@ export default async function SamplesPage({
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
         <Input
           name="q"
-          placeholder="按寄品单号/产品/快递单号搜索"
+          placeholder="按产品/快递单号搜索"
           defaultValue={searchParams.q ?? ""}
           className="w-56"
         />
@@ -113,8 +111,8 @@ export default async function SamplesPage({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>寄品单号</TableHead>
               <TableHead>产品名称</TableHead>
+              <TableHead>寄品明细</TableHead>
               <TableHead>达人</TableHead>
               <TableHead>收件人</TableHead>
               <TableHead>数量</TableHead>
@@ -124,7 +122,6 @@ export default async function SamplesPage({
               <TableHead>异常标记</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>记录人</TableHead>
-              <TableHead>记录时间</TableHead>
               <TableHead>流转操作</TableHead>
               {(canWrite || canShip) && <TableHead>维护</TableHead>}
             </TableRow>
@@ -132,10 +129,19 @@ export default async function SamplesPage({
           <TableBody>
             {list.map((r) => (
               <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">
-                  <Link href={`/samples/${r.id}`} className="text-primary hover:underline">{r.sampleNo}</Link>
-                </TableCell>
                 <TableCell className="font-medium">{r.productName}</TableCell>
+                <TableCell className="max-w-[240px]">
+                  {Array.isArray(r.items) && r.items.length > 0 ? (
+                    <ul className="space-y-0.5 text-xs text-muted-foreground">
+                      {(r.items as unknown[]).map((raw, i) => {
+                        const s = normalizeShipItem(raw);
+                        return <li key={i}>{shipItemSummary({ ...s, style: styleLabels[s.style] ?? s.style })}</li>;
+                      })}
+                    </ul>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
                 <TableCell>{r.influencer?.name ?? "-"}</TableCell>
                 <TableCell>{r.receiverName ?? "-"}</TableCell>
                 <TableCell>{r.quantity}</TableCell>
@@ -165,7 +171,6 @@ export default async function SamplesPage({
                   </Badge>
                 </TableCell>
                 <TableCell>{r.createdBy?.name ?? "-"}</TableCell>
-                <TableCell><RecordTimestamps createdAt={r.createdAt} updatedAt={r.updatedAt} compact /></TableCell>
                 <TableCell className="whitespace-nowrap">
                   <SampleActions
                     sample={{ id: r.id, productName: r.productName, status: r.status, infoConfirmed: r.infoConfirmed, createdById: r.createdBy.id }}
@@ -184,9 +189,6 @@ export default async function SamplesPage({
                             influencerId: r.influencerId ?? "",
                             productName: r.productName,
                             quantity: r.quantity,
-                            receiverName: r.receiverName ?? "",
-                            receiverPhone: r.receiverPhone ?? "",
-                            receiverAddress: r.receiverAddress ?? "",
                             courier: r.courier ?? "",
                             trackingNo: r.trackingNo ?? "",
                             shippedDate: r.shippedDate ? r.shippedDate.toISOString().slice(0, 10) : "",
@@ -224,7 +226,7 @@ export default async function SamplesPage({
             {list.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={(canWrite || canShip) ? 14 : 13}
+                  colSpan={(canWrite || canShip) ? 13 : 12}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   暂无数据

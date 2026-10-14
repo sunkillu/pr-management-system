@@ -28,6 +28,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (ticket.ticketKind !== "PROCUREMENT") {
     return NextResponse.json({ error: "仅采买工单可分配" }, { status: 400 });
   }
+  // 新流程（有 ProcurementItem）的采买单走逐条审批 + 分配建单，不再同单翻转分配
+  const itemCount = await prisma.procurementItem.count({ where: { ticketId: params.id } });
+  if (itemCount > 0) {
+    return NextResponse.json({ error: "该采买工单已使用逐条审批流程，请在详情页逐条审批并分配" }, { status: 400 });
+  }
   if (ticket.status !== "APPROVED") {
     return NextResponse.json({ error: "仅采买通过的工单可分配" }, { status: 400 });
   }

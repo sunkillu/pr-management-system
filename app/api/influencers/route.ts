@@ -64,11 +64,11 @@ if (Array.isArray(body.tags)) {
 }
 
 const homepageId = String(body.homepageId ?? "").trim() || null;
-const xhsUrl = String(body.xhsUrl ?? "").trim() || null;
 const douyinUrl = String(body.douyinUrl ?? "").trim() || null;
-const quoteMode = String(body.quoteMode ?? body.contactInfo ?? "").trim() || null;
-// 品牌字段保留兼容历史导入，但新提报流程不再要求或接收品牌选择。
-const brands: string[] = [];
+// 品牌：多选品牌名称数组
+const brands: string[] = Array.isArray(body.brands)
+  ? Array.from(new Set((body.brands as unknown[]).map((b: unknown) => String(b ?? "").trim()).filter(Boolean))).slice(0, 10)
+  : [];
 
 const influencer = await prisma.$transaction(async (tx) => {
 const created = await tx.influencer.create({
@@ -76,11 +76,9 @@ data: {
 name: body.name.trim(),
 influencerType,
 platforms,
-contactInfo: null,
-quoteMode,
+contactInfo: body.contactInfo || null,
 homepageId,
- xhsUrl,
- douyinUrl,
+douyinUrl,
 bio: body.bio || null,
 attachments: attachments ?? undefined,
 tags,
@@ -125,11 +123,10 @@ influencerType: created.influencerType,
 platforms: created.platforms,
 contactInfo: created.contactInfo,
 homepageId: created.homepageId,
+douyinUrl: created.douyinUrl,
 bio: created.bio,
 tags: created.tags,
 brands: created.brands,
- xhsUrl: created.xhsUrl,
- douyinUrl: created.douyinUrl,
 },
 result: "PENDING",
 },
