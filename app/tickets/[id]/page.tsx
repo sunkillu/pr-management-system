@@ -31,15 +31,16 @@ import TicketFollowUps from "@/components/TicketFollowUps";
 import TicketContents, { TicketContent } from "@/components/TicketContents";
 import TicketMaterials from "@/components/TicketMaterials";
 import TicketSampleLink from "@/components/TicketSampleLink";
+import TicketReviewFlow from "@/components/TicketReviewFlow";
+import { normalizeShipItem } from "@/lib/ship-items";
 import AutoRefresh from "@/components/AutoRefresh";
 import TaggingSection from "@/components/TaggingSection";
 import ProcurementAssignee from "@/components/ProcurementAssignee";
+import ProcurementItems from "@/components/ProcurementItems";
+import MaintenanceConvert from "@/components/MaintenanceConvert";
 import TicketForm from "@/components/TicketForm";
-import MaintenanceActions from "@/components/MaintenanceActions";
 import TicketChildren from "@/components/TicketChildren";
 import ScheduleChangeTimeline from "@/components/ScheduleChangeTimeline";
-import RecordTimestamps from "@/components/RecordTimestamps";
-import StateHistory from "@/components/StateHistory";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -55,6 +56,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       coopRequest: { select: { id: true, title: true } },
       assignee: { select: { id: true, name: true } },
       forceBy: { select: { id: true, name: true } },
+      procurementItems: { select: { id: true } },
       assigneeLogs: {
         include: {
           fromUser: { select: { name: true } },
@@ -76,11 +78,11 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       },
       reviews: { include: { reviewer: { select: { name: true } } } },
       samples: {
-        select: { id: true, sampleNo: true, productName: true, status: true, trackingNo: true, createdAt: true },
+        select: { id: true, productName: true, status: true, trackingNo: true, createdAt: true },
         orderBy: { createdAt: "desc" },
       },
       paymentRequests: {
-        select: { id: true, title: true, amount: true, status: true },
+        select: { id: true, title: true, amount: true, status: true, reason: true },
         orderBy: { createdAt: "desc" },
       },
       followUps: {
@@ -126,42 +128,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     include: { actor: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
-  const subtaskLogs = ticket.subtasks.length
-    ? await prisma.approvalLog.findMany({
-        where: {
-          docType: "SUBTASK",
-          docId: { in: ticket.subtasks.map((subtask) => subtask.id) },
-        },
-        include: { actor: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-      })
-    : [];
-  const subtaskHistory = new Map<string, typeof subtaskLogs>();
-  for (const log of subtaskLogs) {
-    const history = subtaskHistory.get(log.docId) ?? [];
-    history.push(log);
-    subtaskHistory.set(log.docId, history);
-  }
-  const reminderTasks = await prisma.reminderTask.findMany({
-    where: { ticketId: ticket.id },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-  });
-  const reminderLogs = reminderTasks.length
-    ? await prisma.approvalLog.findMany({
-        where: {
-          docType: "REMINDER_TASK",
-          docId: { in: reminderTasks.map((task) => task.id) },
-        },
-        include: { actor: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-      })
-    : [];
-  const reminderHistory = new Map<string, typeof reminderLogs>();
-  for (const log of reminderLogs) {
-    const history = reminderHistory.get(log.docId) ?? [];
-    history.push(log);
-    reminderHistory.set(log.docId, history);
-  }
   const notifications = await prisma.notificationLog.findMany({
     where: { relatedType: "TICKET", relatedId: params.id },
     include: { receiver: { select: { name: true } } },
@@ -224,7 +190,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
+    actorName: l.actor.name,
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? ticketStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -280,7 +246,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     canOperate &&
     !["VOIDED", "MATERIAL_REVIEW"].includes(ticket.status);
   const canManageMaterials =
-    canOperate && ["IN_PROGRESS", "AWAITING_DRAFT"].includes(ticket.status);
+    canOperate && ticket.status === "IN_PROGRESS";
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
@@ -300,7 +266,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   id: ticket.id,
                   title: ticket.title,
                   type: ticket.type,
-                  brandId: ticket.brandId ?? "",
+                  brandId: ticket.brandId,
                   platform: ticket.platform as string[],
                   style: ticket.style as string[],
                   budgetFee: String(ticket.budgetFee),
@@ -321,9 +287,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 }}
               />
             )}
-            {ticket.ticketKind === "MAINTENANCE" && ticket.status === "MAINTAINING" && (
-              <MaintenanceActions ticketId={ticket.id} />
-            )}
             <Link href="/tickets" className="text-sm text-primary hover:underline">
               ← 返回合作工单
             </Link>
@@ -336,13 +299,30 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
         </div>
       )}
 
+      {/* 返稿 / 发布 / 结算流转：寄品签收 → 待返稿 → 已返稿 → 已发布 → 发布后结算 */}
+      <TicketReviewFlow
+        ticketId={ticket.id}
+        ticketTitle={ticket.title}
+        status={ticket.status}
+        canOperate={canOperate}
+        canApproveSettle={["ADMIN", "PR_MANAGER"].includes(role)}
+        hasSignedSample={ticket.samples.some((s) => s.status === "SIGNED")}
+        materialsCount={ticket.materials.length}
+        publishLink={ticket.publishLink}
+        confirmedDate={ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : null}
+        settlement={
+          ticket.paymentRequests.find(
+            (p) =>
+              p.reason?.startsWith("【发布后结算】") &&
+              !["REJECTED", "VOIDED"].includes(p.status)
+          ) ?? null
+        }
+      />
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="bg-card rounded-lg lg:col-span-2 h-fit [&>section:first-child]:border-t-0">
           {/* 基本信息 */}
           <Section title="基本信息">
-            <div className="mb-4 border-b pb-3">
-              <RecordTimestamps createdAt={ticket.createdAt} updatedAt={ticket.updatedAt} />
-            </div>
             <dl>
               <InfoRow label="工单编号">
                 <span className="font-mono text-sm">{ticket.ticketNo}</span>
@@ -357,7 +337,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   </span>
                 )}
               </InfoRow>
-              {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && (
+              {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && ticket.procurementItems.length === 0 && (
                 <InfoRow label="接单归属">
                   {ticket.assignee ? (
                     <span className="text-sm font-medium">{ticket.assignee.name}</span>
@@ -425,9 +405,18 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   </span>
                 )}
               </InfoRow>
+              {/* v2: 预估发布年月 / 确定档期 / 报价（A级敏感，仅授权角色） */}
+              {ticket.estimatedPublishMonth && (
+                <InfoRow label="预估发布年月"><span>{ticket.estimatedPublishMonth}</span></InfoRow>
+              )}
               <InfoRow label="确定档期">
                 <span>{ticket.confirmedDate ? formatDate(ticket.confirmedDate) : "暂不确认"}</span>
               </InfoRow>
+              {(role === "ADMIN" || role === "PR_MANAGER" || ticket.creatorId === me.id || ticket.assigneeId === me.id) && ticket.quoteAmount != null && (
+                <InfoRow label="合作报价">
+                  <span>¥{Number(ticket.quoteAmount).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span>
+                </InfoRow>
+              )}
               {ticket.occupiesResource && (
                 <InfoRow label="资源占用">
                   <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 ring-1 ring-green-300">
@@ -457,28 +446,34 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-xs text-muted-foreground">
-                        <th className="py-1 pr-3 font-medium">款式名</th>
+                        <th className="py-1 pr-3 font-medium">款式</th>
                         <th className="py-1 pr-3 font-medium">度数</th>
+                        <th className="py-1 pr-3 font-medium">抛期</th>
+                        <th className="py-1 pr-3 font-medium">盒数</th>
                         <th className="py-1 font-medium">寄品备注</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(ticket.shipItems as { style: string; degree?: string; note?: string }[]).map((s, i) => (
-                        <tr key={i} className="border-t border-border">
-                          <td className="py-1.5 pr-3 font-medium">{s.style}</td>
-                          <td className="py-1.5 pr-3">{s.degree || "-"}</td>
-                          <td className="py-1.5 text-muted-foreground">{s.note || "-"}</td>
-                        </tr>
-                      ))}
+                      {(ticket.shipItems as unknown[]).map((raw, i) => {
+                        const s = normalizeShipItem(raw);
+                        return (
+                          <tr key={i} className="border-t border-border">
+                            <td className="py-1.5 pr-3 font-medium">{styleLabels[s.style] ?? s.style}</td>
+                            <td className="py-1.5 pr-3">{s.degree || "-"}</td>
+                            <td className="py-1.5 pr-3">{s.shelfLife || "-"}</td>
+                            <td className="py-1.5 pr-3">{s.boxCount || "-"}</td>
+                            <td className="py-1.5 text-muted-foreground">{s.note || "-"}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                   <TicketSampleLink
                     ticketId={ticket.id}
                     ticketTitle={ticket.title}
                     ticketStatus={ticket.status}
-                    shipItems={ticket.shipItems as { style: string; degree?: string; note?: string }[]}
+                    shipItems={(ticket.shipItems as unknown[]).map((raw) => normalizeShipItem(raw))}
                     samples={ticket.samples}
-                    influencerId={ticket.influencerId}
                     influencerName={ticket.influencer?.name ?? ticket.makeupArtist?.name ?? ""}
                     canCreate={["ADMIN", "PR", "PR_MANAGER"].includes(role)}
                   />
@@ -541,42 +536,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             />
           </Section>
 
-          <Section title={`自动提醒记录（${reminderTasks.length}）`}>
-            {reminderTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无提醒任务</p>
-            ) : (
-              <ul className="space-y-3">
-                {reminderTasks.map((task) => (
-                  <li key={task.id} className="rounded border border-border p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                      <span className="font-medium">{task.type}</span>
-                      <span className="text-muted-foreground">{task.status}</span>
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      计划：{formatDateTime(task.scheduledAt)}{task.sentAt ? ` · 执行：${formatDateTime(task.sentAt)}` : ""}
-                    </div>
-                    <div className="mt-1">
-                      <RecordTimestamps createdAt={task.createdAt} updatedAt={task.updatedAt} compact />
-                    </div>
-                    <div className="mt-2">
-                      <StateHistory
-                        items={(reminderHistory.get(task.id) ?? []).map((log) => ({
-                          id: log.id,
-                          action: log.action,
-                          actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
-                          createdAt: log.createdAt,
-                          note: log.note,
-                          fromStatusLabel: log.fromStatus,
-                          toStatusLabel: log.toStatus,
-                        }))}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
           {/* 节点时间线：计划 vs 实际 */}
           <Section title="节点时间线">
             <NodeTimeline
@@ -603,16 +562,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 sortOrder: s.sortOrder,
                 blockedReason: s.blockedReason,
                 blockedAt: s.blockedAt ? s.blockedAt.toISOString() : null,
-                createdAt: s.createdAt.toISOString(),
-                updatedAt: s.updatedAt?.toISOString() ?? null,
-                stateHistory: (subtaskHistory.get(s.id) ?? []).map((log) => ({
-                  id: log.id,
-                  actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
-                  createdAt: log.createdAt.toISOString(),
-                  fromStatus: log.fromStatus,
-                  toStatus: log.toStatus,
-                  note: log.note,
-                })),
               }))}
               users={users}
               canManage={canManageSubtasks}
@@ -703,14 +652,34 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             ) : (
               <p className="mb-3 text-sm text-muted-foreground">草稿状态，尚未提交审批</p>
             )}
-            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} confirmedDate={ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : null} userId={me.id} role={role} canOperate={canOperate} />
+            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
+            {/* 维护工单转为合作工单（DRAFT/APPROVED 可转，转化后回草稿补合作信息） */}
+            {ticket.ticketKind === "MAINTENANCE" && ["DRAFT", "APPROVED"].includes(ticket.status) && (
+              <MaintenanceConvert
+                ticketId={ticket.id}
+                ticketTitle={ticket.title}
+                role={role}
+                userId={me.id}
+                creatorId={ticket.creator.id}
+                assigneeId={ticket.assigneeId}
+              />
+            )}
             {/* 采买工单接单后同单转入合作工单流程（accept 接口直接翻转 ticketKind），无需转工单按钮 */}
             {/* 采买工单接单 / 人工分配 */}
-            {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && (
+            {ticket.ticketKind === "PROCUREMENT" && ticket.status === "APPROVED" && ticket.procurementItems.length === 0 && (
               <ProcurementAssignee
                 ticketId={ticket.id}
                 ticketTitle={ticket.title}
                 hasAssignee={!!ticket.assigneeId}
+                role={role}
+              />
+            )}
+            {/* 采买工单逐条审批 + 分配（有 ProcurementItem 的新单；老单返回 null） */}
+            {ticket.ticketKind === "PROCUREMENT" && (
+              <ProcurementItems
+                ticketId={ticket.id}
+                ticketTitle={ticket.title}
+                ticketStatus={ticket.status}
                 role={role}
               />
             )}
@@ -729,7 +698,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                         {l.fromUser ? `${l.fromUser.name} → ` : ""}{l.toUser.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {l.changedBy.name} · {formatDateTime(l.createdAt)}
+                        {l.changedBy.name} · {new Date(l.createdAt).toLocaleString("zh-CN")}
                       </span>
                       {l.reason && <span className="text-xs text-muted-foreground">（{l.reason}）</span>}
                     </div>
@@ -763,11 +732,8 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   followNo: f.followNo,
                   noteUrl: f.noteUrl,
                   views: f.views,
-                  impressions: f.impressions,
                   likes: f.likes,
-                  favorites: f.favorites,
                   comments: f.comments,
-                  shares: f.shares,
                   note: f.note,
                   createdAt: f.createdAt.toISOString(),
                   createdBy: f.createdBy,
