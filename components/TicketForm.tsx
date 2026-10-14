@@ -1,12 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { parsePositiveIntegerQuantity } from "@/lib/procurement-quantity";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
+import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
 import Modal from "./Modal";
-import SearchableMultiSelect from "./SearchableMultiSelect";
-import SearchableSelect from "./SearchableSelect";
 import ConfirmDialog from "./ConfirmDialog";
 import { OccupancyWarning } from "./OccupancyWarning";
 import { InfluencerHistory } from "./InfluencerHistory";
@@ -67,7 +64,7 @@ export default function TicketForm({
   const [approvers, setApprovers] = useState<Approver[]>([]);
   // 工单类型：运营只能发起采买工单；从采买工单转来时固定为合作工单
   const isOperator = userRole === "OPERATOR";
-  const [ticketKind, setTicketKind] = useState<"COOPERATION" | "PROCUREMENT" | "MAINTENANCE">(
+  const [ticketKind, setTicketKind] = useState<"COOPERATION" | "PROCUREMENT">(
     isOperator ? "PROCUREMENT" : "COOPERATION"
   );
   // 采买子类型
@@ -92,11 +89,6 @@ export default function TicketForm({
   // 品牌：单选必填
   const [brandId, setBrandId] = useState(editTicket?.brandId ?? "");
   const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
-  // 款式：平台配置中维护，下拉多选（支持搜索）
-  const [styleOptions, setStyleOptions] = useState<{ value: string; label: string }[]>([]);
-  const [periodOptions, setPeriodOptions] = useState<{ value: string; label: string }[]>([]);
-  const [degreeOptions, setDegreeOptions] = useState<{ value: string; label: string }[]>([]);
-  const boxOptions = Array.from({ length: 99 }, (_, index) => ({ value: String(index + 1), label: `${index + 1}盒` }));
   const [platforms, setPlatforms] = useState<string[]>(editTicket?.platform ?? []);
   const [homepageId, setHomepageId] = useState(editTicket?.homepageId ?? "");
   const [coopCategories, setCoopCategories] = useState<string[]>(editTicket?.coopCategory ?? []);
@@ -111,7 +103,7 @@ export default function TicketForm({
   const [selected, setSelected] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   // 寄品明细：可寄多个款式，每行 {款式名、度数、寄品备注}
-  const [shipItems, setShipItems] = useState<{ style: string; period: string; degree: string; boxes: string; note: string }[]>([]);
+  const [shipItems, setShipItems] = useState<{ style: string; degree: string; note: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -153,18 +145,6 @@ export default function TicketForm({
         .then((r) => r.json())
         .then((d) => setTagOptions(Array.isArray(d) ? d.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : []))
         .catch(() => setTagOptions([]));
-      fetch("/api/styles?active=1&kind=STYLE")
-        .then((r) => r.json())
-        .then((d) => setStyleOptions(Array.isArray(d) ? d.map((s: { name: string }) => ({ value: s.name, label: s.name })) : []))
-        .catch(() => setStyleOptions([]));
-      fetch("/api/styles?active=1&kind=PERIOD")
-        .then((r) => r.json())
-        .then((d) => setPeriodOptions(Array.isArray(d) ? d.map((s: { name: string }) => ({ value: s.name, label: s.name })) : []))
-        .catch(() => setPeriodOptions([]));
-      fetch("/api/styles?active=1&kind=DEGREE")
-        .then((r) => r.json())
-        .then((d) => setDegreeOptions(Array.isArray(d) ? d.map((s: { name: string }) => ({ value: s.name, label: s.name })) : []))
-        .catch(() => setDegreeOptions([]));
       fetch("/api/brands?active=1")
         .then((r) => r.json())
         .then((d) => setBrandOptions(Array.isArray(d) ? d : []))
@@ -193,14 +173,15 @@ export default function TicketForm({
   }
 
   async function validate(): Promise<string | null> {
+    if (!title.trim()) return "标题不能为空";
     if (!brandId) return "请选择所属品牌";
-    if (ticketKind !== "MAINTENANCE" && (!budgetFee || Number(budgetFee) <= 0)) return "预算费用必须大于 0";
+    if (!budgetFee || Number(budgetFee) <= 0) return "预算费用必须大于 0";
     // 采买工单：字段为合作工单子集，按子类型校验
     if (ticketKind === "PROCUREMENT" && !isEdit) {
       if (platforms.length === 0) return "请选择合作平台（可多选）";
       if (procurementType === "WEEKLY_STYLE") {
         if (styles.length === 0) return "请选择款式（可多选）";
-        if (parsePositiveIntegerQuantity(quantityRef.current?.value ?? quantity) === null) return "采买数量必须为正整数";
+        if (!/^[1-9]\d*$/.test((quantityRef.current?.value ?? quantity).trim())) return "采买数量必须为正整数";
       } else {
         if (!materialType.trim()) return "请填写素材类型";
         if (!reason.trim()) return "请填写需求理由";
@@ -209,20 +190,22 @@ export default function TicketForm({
       }
       return null;
     }
-    if (ticketKind === "MAINTENANCE") return null;
     // 合作工单：原有校验
     if (!partnerId) return "请选择合作对象";
     if (platforms.length === 0) return "请选择合作平台（可多选）";
     if (styles.length === 0) return "请选择款式（可多选）";
     if (coopCategories.length === 0) return "请选择合作类目（可多选）";
-    // 预估发布年月与预估报价已移出提报必填流程；确定档期仍可后补。
+    if (!estimatedSchedule.trim()) return "请填写预估档期";
+    // v2: 预估发布年月 / 预估报价必填；确定档期确认时必填
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(estimatedPublishMonth.trim())) return "请填写预估发布年月（如 2026-11）";
+    if (!quoteAmount || Number(quoteAmount) <= 0) return "预估报价必须大于 0";
     if (confirmSchedule && !/^\d{4}-\d{2}-\d{2}$/.test(confirmedDate)) return "请使用日期选择器填写确定档期";
     return null;
   }
 
   function cleanShipItems() {
     return shipItems
-      .map((s) => ({ style: s.style.trim(), period: s.period.trim(), degree: s.degree.trim(), boxes: s.boxes.trim(), note: s.note.trim() }))
+      .map((s) => ({ style: s.style.trim(), degree: s.degree.trim(), note: s.note.trim() }))
       .filter((s) => s.style || s.degree || s.note);
   }
 
@@ -243,15 +226,6 @@ export default function TicketForm({
   async function doSubmit(submitForApproval: boolean) {
     setSaving(true);
     const isProcurement = ticketKind === "PROCUREMENT" && !isEdit;
-    const procurementQuantity =
-      isProcurement && procurementType === "WEEKLY_STYLE"
-        ? parsePositiveIntegerQuantity(quantityRef.current?.value ?? quantity)
-        : null;
-    if (isProcurement && procurementType === "WEEKLY_STYLE" && procurementQuantity === null) {
-      setSaving(false);
-      setError("采买数量必须为正整数");
-      return;
-    }
 
     // 编辑模式：PATCH 更新
     if (isEdit && editTicket) {
@@ -272,8 +246,8 @@ export default function TicketForm({
           priceNote: priceNote.trim() || null,
           contentNote: contentNote.trim() || null,
           estimatedSchedule: estimatedSchedule.trim(),
-          estimatedPublishMonth: null,
-          quoteAmount: null,
+          estimatedPublishMonth: estimatedPublishMonth.trim() || null,
+          quoteAmount: quoteAmount || null,
           confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
           startDate: startDate || null,
           endDate: endDate || null,
@@ -301,66 +275,58 @@ export default function TicketForm({
       return;
     }
 
-    const finalContentDirection =
-      isProcurement && procurementType === "LINK_SPECIFIC"
-        ? materialType.trim()
-        : contentDirection.trim() || null;
+    // 采买工单：特有字段单独传给后端，由后端校验并组装【采买信息】结构化 note；
+    // 前端只传用户原始备注，避免 note 被前后端重复拼接
+    let finalContentDirection: string | null = contentDirection.trim() || null;
+    const procurementFields: Record<string, unknown> = {};
+    if (isProcurement) {
+      if (procurementType === "WEEKLY_STYLE") {
+        procurementFields.quantity = (quantityRef.current?.value ?? quantity).trim();
+      } else {
+        finalContentDirection = materialType.trim();
+        procurementFields.materialType = materialType.trim();
+        procurementFields.reason = reason.trim();
+        procurementFields.publishLinks = publishLinksText.split("\n").map((s) => s.trim()).filter(Boolean);
+      }
+    }
 
-    let res: Response;
-    try {
-      res = await fetch("/api/tickets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          ticketKind,
-          type,
-          brandId,
-          ...(isProcurement ? { procurementType } : {}),
-          influencerId: type === "MAKEUP" ? null : partnerId,
-          makeupArtistId: type === "MAKEUP" ? partnerId : null,
-          budgetFee,
-          platform: platforms,
-          homepageId: homepageId.trim() || null,
-          style: styles,
-          coopCategory: coopCategories,
-          contentDirection: finalContentDirection,
-          priceNote: priceNote.trim() || null,
-          contentNote: contentNote.trim() || null,
-          estimatedSchedule: estimatedSchedule.trim(),
-          estimatedPublishMonth: null,
-          quoteAmount: null,
-          confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
-          startDate: startDate || null,
-          endDate: endDate || null,
-          note: note.trim() || null,
-          ...(isProcurement && procurementType === "LINK_SPECIFIC"
-            ? {
-                materialType: materialType.trim(),
-                reason: reason.trim(),
-                publishLinks: publishLinksText.split("\n").map((link) => link.trim()).filter(Boolean),
-              }
-            : {}),
-          approverIds: selected,
-          submit: submitForApproval,
-          attachments,
-          shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
-          coopRequestId: initialCoopRequestId ?? null,
-          tagIds,
-          ...(isProcurement && procurementType === "WEEKLY_STYLE" ? { quantity: procurementQuantity } : {}),
-        }),
-      });
-    } catch {
-      setSaving(false);
-      setError("提交请求失败，请检查网络连接后重试");
-      return;
-    }
-    const data = await res.json().catch(() => null);
+    const res = await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: title.trim(),
+        ticketKind,
+        type,
+        brandId,
+        ...(isProcurement ? { procurementType, ...procurementFields } : {}),
+        influencerId: type === "MAKEUP" ? null : partnerId,
+        makeupArtistId: type === "MAKEUP" ? partnerId : null,
+        budgetFee,
+        platform: platforms,
+        homepageId: homepageId.trim() || null,
+        style: styles,
+        coopCategory: coopCategories,
+        contentDirection: finalContentDirection,
+        priceNote: priceNote.trim() || null,
+        contentNote: contentNote.trim() || null,
+        estimatedSchedule: estimatedSchedule.trim(),
+        estimatedPublishMonth: estimatedPublishMonth.trim() || null,
+        quoteAmount: quoteAmount || null,
+        confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
+        startDate: startDate || null,
+        endDate: endDate || null,
+        note: note.trim() || null,
+        approverIds: selected,
+        submit: submitForApproval,
+        attachments,
+        shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
+        coopRequestId: initialCoopRequestId ?? null,
+        tagIds,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
     setSaving(false);
-    if (!res.ok) {
-      const message = data?.error || `提交失败（HTTP ${res.status}）`;
-      return setError(data?.requestId ? `${message}（错误编号：${data.requestId}）` : message);
-    }
+    if (!res.ok) return setError(data.error || "提交失败");
     setOpen(false);
     router.refresh();
   }
@@ -371,7 +337,7 @@ export default function TicketForm({
         {isEdit ? "编辑工单" : isOperator ? "发起采买工单" : "发起工单"}
       </button>
       {open && (
-        <Modal title={isEdit ? "编辑工单" : ticketKind === "PROCUREMENT" ? "发起采买工单" : ticketKind === "MAINTENANCE" ? "发起维护工单" : "发起合作工单"} onClose={() => setOpen(false)}>
+        <Modal title={isEdit ? "编辑工单" : ticketKind === "PROCUREMENT" ? "发起采买工单" : "发起合作工单"} onClose={() => setOpen(false)}>
           {!isOperator && !isEdit && (
             <Field label="工单类型" required hint="采买工单是合作工单的前置环节，运营提交采买需求">
               <div className="flex gap-2">
@@ -379,7 +345,7 @@ export default function TicketForm({
                   <button
                     key={v}
                     type="button"
-                    onClick={() => setTicketKind(v as "COOPERATION" | "PROCUREMENT" | "MAINTENANCE")}
+                    onClick={() => setTicketKind(v as "COOPERATION" | "PROCUREMENT")}
                     className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
                       ticketKind === v
                         ? "bg-primary text-white"
@@ -447,14 +413,20 @@ export default function TicketForm({
               {procurementType === "WEEKLY_STYLE" ? (
                 <>
                   <Field label="款式（可多选）" required>
-                    <SearchableMultiSelect
-              options={styleOptions}
-              value={styles}
-              onChange={setStyles}
-              placeholder="请选择款式（可多选）"
-              searchPlaceholder="搜索款式…"
-              emptyText="没有匹配的款式，请联系管理员在「款式管理」中添加"
-            />
+                    <div className="flex flex-wrap gap-3">
+                      {STYLE_OPTIONS.map((s) => (
+                        <label key={s.value} className="flex items-center gap-1 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={styles.includes(s.value)}
+                            onChange={() =>
+                              setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
+                            }
+                          />
+                          {s.label}
+                        </label>
+                      ))}
+                    </div>
                   </Field>
                   <Field label="采买数量" required hint="无指定达人，按数量采买；将记入备注">
                     <input ref={quantityRef} inputMode="numeric" className={inputCls}
@@ -488,13 +460,7 @@ export default function TicketForm({
             </>
           ) : (
             <>
-              {ticketKind === "MAINTENANCE" ? (
-                <Field label="维护内容" required hint="填写需要维护的达人、素材、资料或跟进事项">
-                  <textarea className={inputCls} rows={5} value={note} onChange={(e) => setNote(e.target.value)} placeholder="请填写维护内容" />
-                </Field>
-              ) : (
-                <>
-          <Field label="标题" hint="不填写时系统自动生成">
+          <Field label="标题" required hint="如：双11美妆老王达播合作">
             <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
           <Field label="合作类型" required>
@@ -542,14 +508,20 @@ export default function TicketForm({
             </Field>
           </div>
           <Field label="款式（可多选）" required>
-            <SearchableMultiSelect
-              options={styleOptions}
-              value={styles}
-              onChange={setStyles}
-              placeholder="请选择款式（可多选）"
-              searchPlaceholder="搜索款式…"
-              emptyText="没有匹配的款式，请联系管理员在「款式管理」中添加"
-            />
+            <div className="flex flex-wrap gap-3">
+              {STYLE_OPTIONS.map((s) => (
+                <label key={s.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={styles.includes(s.value)}
+                    onChange={() =>
+                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
+                    }
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
           </Field>
           <Field label="合作类目（可多选）" required>
             <div className="flex flex-wrap gap-3">
@@ -567,12 +539,22 @@ export default function TicketForm({
               ))}
             </div>
           </Field>
-          <Field label="预估时间段" hint='选填，如 2026-10-20~2026-10-31'>
+          <Field label="预估档期" required hint='如"10月下旬"或"2026-10-20~2026-10-31"，仅作参考，不锁定工单'>
             <input className={inputCls} value={estimatedSchedule}
               onChange={(e) => setEstimatedSchedule(e.target.value)}
-              placeholder='如：2026-10-20~2026-10-31' />
+              placeholder='如：10月下旬 / 2026-10-20~2026-10-31' />
           </Field>
-          <Field label="确定档期" hint="可选，后续收到寄品后再补充">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="预估发布年月" required>
+              <input type="month" className={inputCls} value={estimatedPublishMonth}
+                onChange={(e) => setEstimatedPublishMonth(e.target.value)} />
+            </Field>
+            <Field label="预估报价（元）" required>
+              <input type="number" min={0.01} step="0.01" className={inputCls} autoComplete="off"
+                value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="确定档期" hint="暂不确认不能进入合作中；报价+确定档期齐全才能进合作中">
             <div className="flex gap-2 mb-2">
               <button type="button" onClick={() => setConfirmSchedule(true)}
                 className={`px-3 py-1.5 rounded-md text-sm border ${confirmSchedule ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
@@ -614,8 +596,6 @@ export default function TicketForm({
           <Field label="备注">
             <textarea className={inputCls} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
-                </>
-              )}
             </>
           )}
           {tagOptions.length > 0 && (
@@ -647,44 +627,15 @@ export default function TicketForm({
                 <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted p-2">
                   <div className="min-w-[120px] flex-1">
                     <label className="mb-1 block text-xs text-muted-foreground">款式名 *</label>
-                    <SearchableSelect
-                      options={styleOptions}
-                      value={s.style}
-                      onChange={(value) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, style: value } : x))}
-                      placeholder="选择款式"
-                      searchPlaceholder="搜索款式…"
-                      emptyText="暂无款式配置"
-                    />
+                    <input className={inputCls} value={s.style}
+                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, style: e.target.value } : x))}
+                      placeholder="如：A款-红色" />
                   </div>
                   <div className="w-24">
                     <label className="mb-1 block text-xs text-muted-foreground">度数</label>
-                    <SearchableSelect
-                      options={degreeOptions}
-                      value={s.degree}
-                      onChange={(value) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, degree: value } : x))}
-                      placeholder="选择度数"
-                      emptyText="暂无度数配置"
-                    />
-                  </div>
-                  <div className="w-24">
-                    <label className="mb-1 block text-xs text-muted-foreground">抛期 *</label>
-                    <SearchableSelect
-                      options={periodOptions}
-                      value={s.period}
-                      onChange={(value) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, period: value } : x))}
-                      placeholder="选择抛期"
-                      emptyText="暂无抛期配置"
-                    />
-                  </div>
-                  <div className="w-20">
-                    <label className="mb-1 block text-xs text-muted-foreground">盒数</label>
-                    <SearchableSelect
-                      options={boxOptions}
-                      value={s.boxes}
-                      onChange={(value) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, boxes: value } : x))}
-                      placeholder="选择盒数"
-                      searchPlaceholder="搜索盒数…"
-                    />
+                    <input className={inputCls} value={s.degree}
+                      onChange={(e) => setShipItems(shipItems.map((x, j) => j === i ? { ...x, degree: e.target.value } : x))}
+                      placeholder="选填" />
                   </div>
                   <div className="min-w-[140px] flex-1">
                     <label className="mb-1 block text-xs text-muted-foreground">寄品备注</label>
@@ -704,20 +655,11 @@ export default function TicketForm({
               <button
                 type="button"
                 className="rounded border border-dashed border-input px-3 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary"
-                onClick={() => setShipItems([...shipItems, { style: "", period: "", degree: "", boxes: "1", note: "" }])}
+                onClick={() => setShipItems([...shipItems, { style: "", degree: "", note: "" }])}
               >
                 + 增加一款
               </button>
             </div>
-            <datalist id="ticket-style-options">
-              {styleOptions.map((s) => <option key={s.value} value={s.value} />)}
-            </datalist>
-            <datalist id="ticket-degree-options">
-              {["平光", "50度", "75度", "100度", "125度", "150度", "200度", "250度", "300度", "其他"].map((d) => <option key={d} value={d} />)}
-            </datalist>
-            <datalist id="ticket-period-options">
-              {["日抛", "周抛", "双周抛", "月抛", "季抛", "半年抛", "年抛"].map((d) => <option key={d} value={d} />)}
-            </datalist>
           </Field>
           <Field label="插图 / 附件" hint="可上传产品图、参考图等，图片会显示缩略图">
             <input
