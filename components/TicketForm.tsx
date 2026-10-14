@@ -227,6 +227,15 @@ export default function TicketForm({
   async function doSubmit(submitForApproval: boolean) {
     setSaving(true);
     const isProcurement = ticketKind === "PROCUREMENT" && !isEdit;
+    const procurementQuantity =
+      isProcurement && procurementType === "WEEKLY_STYLE"
+        ? parsePositiveIntegerQuantity(quantityRef.current?.value ?? quantity)
+        : null;
+    if (isProcurement && procurementType === "WEEKLY_STYLE" && procurementQuantity === null) {
+      setSaving(false);
+      setError("采买数量必须为正整数");
+      return;
+    }
 
     // 编辑模式：PATCH 更新
     if (isEdit && editTicket) {
@@ -282,7 +291,7 @@ export default function TicketForm({
     if (isProcurement) {
       const lines = ["【采买信息】"];
       if (procurementType === "WEEKLY_STYLE") {
-        lines.push(`采买数量：${parseInt((quantityRef.current?.value ?? quantity).trim(), 10)}`);
+        lines.push(`采买数量：${procurementQuantity}`);
       } else {
         finalContentDirection = materialType.trim();
         lines.push(`需求理由：${reason.trim()}`);
@@ -293,44 +302,51 @@ export default function TicketForm({
       finalNote = lines.join("\n");
     }
 
-    const res = await fetch("/api/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: title.trim(),
-        ticketKind,
-        type,
-        brandId,
-        ...(isProcurement ? { procurementType } : {}),
-        influencerId: type === "MAKEUP" ? null : partnerId,
-        makeupArtistId: type === "MAKEUP" ? partnerId : null,
-        budgetFee,
-        platform: platforms,
-        homepageId: homepageId.trim() || null,
-        style: styles,
-        coopCategory: coopCategories,
-        contentDirection: finalContentDirection,
-        priceNote: priceNote.trim() || null,
-        contentNote: contentNote.trim() || null,
-        estimatedSchedule: estimatedSchedule.trim(),
-        estimatedPublishMonth: estimatedPublishMonth.trim() || null,
-        quoteAmount: quoteAmount || null,
-        confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
-        startDate: startDate || null,
-        endDate: endDate || null,
-        note: finalNote,
-        approverIds: selected,
-        submit: submitForApproval,
-        attachments,
-        shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
-        coopRequestId: initialCoopRequestId ?? null,
-        tagIds,
-        ...(isProcurement && procurementType === "WEEKLY_STYLE" ? { quantity: quantity.trim() } : {}),
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
+    let res: Response;
+    try {
+      res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          ticketKind,
+          type,
+          brandId,
+          ...(isProcurement ? { procurementType } : {}),
+          influencerId: type === "MAKEUP" ? null : partnerId,
+          makeupArtistId: type === "MAKEUP" ? partnerId : null,
+          budgetFee,
+          platform: platforms,
+          homepageId: homepageId.trim() || null,
+          style: styles,
+          coopCategory: coopCategories,
+          contentDirection: finalContentDirection,
+          priceNote: priceNote.trim() || null,
+          contentNote: contentNote.trim() || null,
+          estimatedSchedule: estimatedSchedule.trim(),
+          estimatedPublishMonth: estimatedPublishMonth.trim() || null,
+          quoteAmount: quoteAmount || null,
+          confirmedDate: confirmSchedule && confirmedDate ? confirmedDate : null,
+          startDate: startDate || null,
+          endDate: endDate || null,
+          note: finalNote,
+          approverIds: selected,
+          submit: submitForApproval,
+          attachments,
+          shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
+          coopRequestId: initialCoopRequestId ?? null,
+          tagIds,
+          ...(isProcurement && procurementType === "WEEKLY_STYLE" ? { quantity: procurementQuantity } : {}),
+        }),
+      });
+    } catch {
+      setSaving(false);
+      setError("提交请求失败，请检查网络连接后重试");
+      return;
+    }
+    const data = await res.json().catch(() => null);
     setSaving(false);
-    if (!res.ok) return setError(data.error || "提交失败");
+    if (!res.ok) return setError(data?.error || `提交失败（HTTP ${res.status}）`);
     setOpen(false);
     router.refresh();
   }
