@@ -74,9 +74,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         actualFee: finalFee,
       },
     });
-    await tx.cooperationReview.create({
-      data: {
+    await tx.cooperationReview.upsert({
+      where: { ticketId: params.id },
+      create: {
         ticketId: params.id,
+        influencerId: ticket.influencerId,
+        makeupArtistId: ticket.makeupArtistId,
+        rating,
+        comment: body.reviewComment?.trim() || null,
+        reviewerId: auth.userId,
+      },
+      update: {
         influencerId: ticket.influencerId,
         makeupArtistId: ticket.makeupArtistId,
         rating,
