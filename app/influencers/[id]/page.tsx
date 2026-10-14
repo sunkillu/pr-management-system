@@ -241,7 +241,7 @@ export default async function InfluencerDetailPage({ params }: { params: { id: s
                   <li key={r.id} className="rounded bg-muted p-2">
                     <div className="flex items-center justify-between">
                       <span className="text-yellow-500">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
-                      <span className="text-xs text-muted-foreground">{r.reviewer.name} · {r.createdAt.toISOString().slice(0, 10)}</span>
+                      <span className="text-xs text-muted-foreground">{r.reviewer.name} · {formatDateTime(r.createdAt)}</span>
                     </div>
                     {r.comment && <p className="mt-1 whitespace-pre-wrap">{r.comment}</p>}
                     <Link href={`/tickets/${r.ticket.id}`} className="text-xs text-primary hover:underline">

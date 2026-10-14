@@ -45,7 +45,7 @@ export default function ApprovalRecords({ records }: { records: ApproverRecord[]
                   <StatusBadge status={r.status} label={approverStatusLabels[r.status] ?? r.status} />
                 </TableCell>
                 <TableCell>
-                  {r.decidedAt ? new Date(r.decidedAt).toLocaleString("zh-CN") : "-"}
+                  {r.decidedAt ? formatDateTime(r.decidedAt) : "-"}
                 </TableCell>
                 <TableCell>{r.comment || "-"}</TableCell>
               </TableRow>

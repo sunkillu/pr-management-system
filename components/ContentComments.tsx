@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { formatDateTime } from "@/lib/labels";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimarySm, btnSecondary, Field } from "./ui";
 import type { ContentCommentItem } from "./TicketContents";
@@ -115,7 +116,7 @@ export default function ContentComments({
                 {x.author && <span>评论人：{x.author}</span>}
                 {x.createdBy && <span>记录：{x.createdBy.name}</span>}
                 {x.handled && x.handledBy && (
-                  <span>处理：{x.handledBy.name}{x.handledAt ? ` · ${x.handledAt.slice(0, 16).replace("T", " ")}` : ""}</span>
+                  <span>处理：{x.handledBy.name}{x.handledAt ? ` · ${formatDateTime(x.handledAt)}` : ""}</span>
                 )}
                 {canManage && (
                   <span className="flex gap-2">

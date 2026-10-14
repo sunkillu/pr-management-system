@@ -734,7 +734,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                         {l.fromUser ? `${l.fromUser.name} → ` : ""}{l.toUser.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {l.changedBy.name} · {new Date(l.createdAt).toLocaleString("zh-CN")}
+                        {l.changedBy.name} · {formatDateTime(l.createdAt)}
                       </span>
                       {l.reason && <span className="text-xs text-muted-foreground">（{l.reason}）</span>}
                     </div>

@@ -168,19 +168,20 @@ export function formatMoney(v: unknown): string {
   return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// 日期格式化
+// 日期格式化：统一按北京时间显示，避免服务端（UTC 容器）与浏览器结果不一致
+export const DISPLAY_TZ = "Asia/Shanghai";
 export function formatDate(v: unknown): string {
   if (!v) return "-";
   const d = new Date(v as string);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN");
+  return d.toLocaleDateString("zh-CN", { timeZone: DISPLAY_TZ });
 }
 
 export function formatDateTime(v: unknown): string {
   if (!v) return "-";
   const d = new Date(v as string);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("zh-CN", { hour12: false });
+  return d.toLocaleString("zh-CN", { hour12: false, timeZone: DISPLAY_TZ });
 }
 
 // ---------- 合作管理 ----------

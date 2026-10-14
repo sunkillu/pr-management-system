@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { formatDateTime } from "@/lib/labels";
 import { useRouter } from "next/navigation";
 
 type InfluencerData = {
@@ -83,7 +84,7 @@ export default function DedupClient({ initialLogs }: { initialLogs: DedupLog[] }
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm">
               <span className="font-medium">{log.submittedBy}</span>
-              <span className="text-muted-foreground"> 于 {log.submittedAt.slice(0, 16).replace("T", " ")} 提交</span>
+              <span className="text-muted-foreground"> 于 {formatDateTime(log.submittedAt)} 提交</span>
             </div>
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-700">待去重确认</span>
           </div>

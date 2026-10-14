@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parsePositiveIntegerQuantity } from "@/lib/procurement-quantity";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
+import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
 import Modal from "./Modal";
+import SearchableMultiSelect from "./SearchableMultiSelect";
 import ConfirmDialog from "./ConfirmDialog";
 import { OccupancyWarning } from "./OccupancyWarning";
 import { InfluencerHistory } from "./InfluencerHistory";
@@ -90,6 +91,8 @@ export default function TicketForm({
   // 品牌：单选必填
   const [brandId, setBrandId] = useState(editTicket?.brandId ?? "");
   const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
+  // 款式：平台配置中维护，下拉多选（支持搜索）
+  const [styleOptions, setStyleOptions] = useState<{ value: string; label: string }[]>([]);
   const [platforms, setPlatforms] = useState<string[]>(editTicket?.platform ?? []);
   const [homepageId, setHomepageId] = useState(editTicket?.homepageId ?? "");
   const [coopCategories, setCoopCategories] = useState<string[]>(editTicket?.coopCategory ?? []);
@@ -146,6 +149,10 @@ export default function TicketForm({
         .then((r) => r.json())
         .then((d) => setTagOptions(Array.isArray(d) ? d.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : []))
         .catch(() => setTagOptions([]));
+      fetch("/api/styles?active=1")
+        .then((r) => r.json())
+        .then((d) => setStyleOptions(Array.isArray(d) ? d.map((s: { name: string }) => ({ value: s.name, label: s.name })) : []))
+        .catch(() => setStyleOptions([]));
       fetch("/api/brands?active=1")
         .then((r) => r.json())
         .then((d) => setBrandOptions(Array.isArray(d) ? d : []))
@@ -431,20 +438,14 @@ export default function TicketForm({
               {procurementType === "WEEKLY_STYLE" ? (
                 <>
                   <Field label="款式（可多选）" required>
-                    <div className="flex flex-wrap gap-3">
-                      {STYLE_OPTIONS.map((s) => (
-                        <label key={s.value} className="flex items-center gap-1 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={styles.includes(s.value)}
-                            onChange={() =>
-                              setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
-                            }
-                          />
-                          {s.label}
-                        </label>
-                      ))}
-                    </div>
+                    <SearchableMultiSelect
+              options={styleOptions}
+              value={styles}
+              onChange={setStyles}
+              placeholder="请选择款式（可多选）"
+              searchPlaceholder="搜索款式…"
+              emptyText="没有匹配的款式，请联系管理员在「款式管理」中添加"
+            />
                   </Field>
                   <Field label="采买数量" required hint="无指定达人，按数量采买；将记入备注">
                     <input ref={quantityRef} inputMode="numeric" className={inputCls}
@@ -526,20 +527,14 @@ export default function TicketForm({
             </Field>
           </div>
           <Field label="款式（可多选）" required>
-            <div className="flex flex-wrap gap-3">
-              {STYLE_OPTIONS.map((s) => (
-                <label key={s.value} className="flex items-center gap-1 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={styles.includes(s.value)}
-                    onChange={() =>
-                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
-                    }
-                  />
-                  {s.label}
-                </label>
-              ))}
-            </div>
+            <SearchableMultiSelect
+              options={styleOptions}
+              value={styles}
+              onChange={setStyles}
+              placeholder="请选择款式（可多选）"
+              searchPlaceholder="搜索款式…"
+              emptyText="没有匹配的款式，请联系管理员在「款式管理」中添加"
+            />
           </Field>
           <Field label="合作类目（可多选）" required>
             <div className="flex flex-wrap gap-3">

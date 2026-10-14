@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { formatDateTime } from "@/lib/labels";
 import { btnSecondary } from "./ui";
 
 type Voucher = { id: string; fileUrl: string; fileName: string; createdAt: string; uploadedBy: { name: string } };
@@ -63,7 +64,7 @@ export function PaymentVoucherSection({ paymentId, canUpload }: { paymentId: str
                 {v.fileName}
               </a>
               <div className="text-xs text-muted-foreground">
-                {v.uploadedBy?.name} · {v.createdAt.slice(0, 16).replace("T", " ")}
+                {v.uploadedBy?.name} · {formatDateTime(v.createdAt)}
               </div>
             </li>
           ))}
