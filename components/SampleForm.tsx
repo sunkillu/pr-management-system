@@ -9,6 +9,9 @@ export type SampleInput = {
   influencerId: string;
   productName: string;
   quantity: number;
+  receiverName: string;
+  receiverPhone: string;
+  receiverAddress: string;
   courier: string;
   trackingNo: string;
   shippedDate: string;
@@ -36,6 +39,9 @@ export default function SampleForm({
       influencerId: "",
       productName: "",
       quantity: 1,
+      receiverName: "",
+      receiverPhone: "",
+      receiverAddress: "",
       courier: "",
       trackingNo: "",
       shippedDate: "",
@@ -101,6 +107,15 @@ export default function SampleForm({
       </Field>
       <Field label="产品名称" required>
         <input className={inputCls} value={form.productName} onChange={(e) => setForm({ ...form, productName: e.target.value })} />
+      </Field>
+      <Field label="收件人">
+        <input className={inputCls} value={form.receiverName} onChange={(e) => setForm({ ...form, receiverName: e.target.value })} />
+      </Field>
+      <Field label="收件电话">
+        <input className={inputCls} value={form.receiverPhone} onChange={(e) => setForm({ ...form, receiverPhone: e.target.value })} />
+      </Field>
+      <Field label="收件地址">
+        <textarea className={inputCls} rows={2} value={form.receiverAddress} onChange={(e) => setForm({ ...form, receiverAddress: e.target.value })} />
       </Field>
       <Field label="所属品牌">
         <select

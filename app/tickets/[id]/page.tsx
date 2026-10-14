@@ -73,7 +73,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       },
       reviews: { include: { reviewer: { select: { name: true } } } },
       samples: {
-        select: { id: true, productName: true, status: true, trackingNo: true, createdAt: true },
+        select: { id: true, sampleNo: true, productName: true, status: true, trackingNo: true, createdAt: true },
         orderBy: { createdAt: "desc" },
       },
       paymentRequests: {
@@ -442,6 +442,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                     ticketStatus={ticket.status}
                     shipItems={ticket.shipItems as { style: string; degree?: string; note?: string }[]}
                     samples={ticket.samples}
+                    influencerId={ticket.influencerId}
                     influencerName={ticket.influencer?.name ?? ticket.makeupArtist?.name ?? ""}
                     canCreate={["ADMIN", "PR", "PR_MANAGER"].includes(role)}
                   />

@@ -63,6 +63,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         influencerId: body.influencerId !== undefined ? body.influencerId || null : undefined,
         productName: body.productName?.trim() || undefined,
         quantity: body.quantity !== undefined ? Number(body.quantity) || 1 : undefined,
+        receiverName: body.receiverName !== undefined ? body.receiverName?.trim() || null : undefined,
+        receiverPhone: body.receiverPhone !== undefined ? body.receiverPhone?.trim() || null : undefined,
+        receiverAddress: body.receiverAddress !== undefined ? body.receiverAddress?.trim() || null : undefined,
         courier: body.courier !== undefined ? body.courier?.trim() || null : undefined,
         trackingNo: body.trackingNo !== undefined ? body.trackingNo || null : undefined,
         shippedDate:

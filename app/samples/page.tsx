@@ -44,6 +44,7 @@ export default async function SamplesPage({
       ...(searchParams.q
         ? {
             OR: [
+              { sampleNo: { contains: searchParams.q, mode: "insensitive" } },
               { productName: { contains: searchParams.q, mode: "insensitive" } },
               { trackingNo: { contains: searchParams.q, mode: "insensitive" } },
             ],
@@ -87,7 +88,7 @@ export default async function SamplesPage({
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
         <Input
           name="q"
-          placeholder="按产品/快递单号搜索"
+          placeholder="按寄品单号/产品/快递单号搜索"
           defaultValue={searchParams.q ?? ""}
           className="w-56"
         />
@@ -110,6 +111,7 @@ export default async function SamplesPage({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>寄品单号</TableHead>
               <TableHead>产品名称</TableHead>
               <TableHead>达人</TableHead>
               <TableHead>收件人</TableHead>
@@ -127,6 +129,7 @@ export default async function SamplesPage({
           <TableBody>
             {list.map((r) => (
               <TableRow key={r.id}>
+                <TableCell className="font-mono text-xs">{r.sampleNo}</TableCell>
                 <TableCell className="font-medium">{r.productName}</TableCell>
                 <TableCell>{r.influencer?.name ?? "-"}</TableCell>
                 <TableCell>{r.receiverName ?? "-"}</TableCell>
@@ -175,6 +178,9 @@ export default async function SamplesPage({
                             influencerId: r.influencerId ?? "",
                             productName: r.productName,
                             quantity: r.quantity,
+                            receiverName: r.receiverName ?? "",
+                            receiverPhone: r.receiverPhone ?? "",
+                            receiverAddress: r.receiverAddress ?? "",
                             courier: r.courier ?? "",
                             trackingNo: r.trackingNo ?? "",
                             shippedDate: r.shippedDate ? r.shippedDate.toISOString().slice(0, 10) : "",
@@ -212,7 +218,7 @@ export default async function SamplesPage({
             {list.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={(canWrite || canShip) ? 12 : 11}
+                  colSpan={(canWrite || canShip) ? 13 : 12}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   暂无数据

@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { btnPrimary, btnSecondary, inputCls } from "@/components/ui";
+import { btnPrimary } from "@/components/ui";
 import { sampleStatusLabels, badgeClass } from "@/lib/labels";
 
 type ShipItem = { style: string; degree?: string; note?: string };
-type Sample = { id: string; productName: string; status: string; trackingNo: string | null };
+type Sample = { id: string; sampleNo: string; productName: string; status: string; trackingNo: string | null };
 
 type Props = {
   ticketId: string;
@@ -15,6 +15,7 @@ type Props = {
   ticketStatus: string;
   shipItems: ShipItem[];
   samples: Sample[];
+  influencerId: string | null;
   influencerName: string;
   canCreate: boolean;
 };
@@ -22,20 +23,12 @@ type Props = {
 // 工单寄品：从寄品明细一键生成寄件请求；已生成的显示状态
 // 仅工单审批通过后（IN_PROGRESS 及之后）可发起寄件
 const SAMPLE_CREATABLE = ["IN_PROGRESS", "MATERIAL_REVIEW", "COMPLETED", "SETTLING", "FOLLOW_UP", "SETTLED"];
-export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, shipItems, samples, influencerName, canCreate }: Props) {
+export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, shipItems, samples, influencerId, influencerName, canCreate }: Props) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [receiverName, setReceiverName] = useState(influencerName);
-  const [receiverPhone, setReceiverPhone] = useState("");
-  const [receiverAddress, setReceiverAddress] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const create = async () => {
-    if (!receiverName.trim() || !receiverAddress.trim()) {
-      setError("收件人姓名和地址必填");
-      return;
-    }
     setBusy(true);
     setError("");
     try {
@@ -47,14 +40,12 @@ export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, 
           productName: `工单「${ticketTitle}」寄品`,
           quantity: shipItems.length,
           items: shipItems,
-          receiverName: receiverName.trim(),
-          receiverPhone: receiverPhone.trim() || null,
-          receiverAddress: receiverAddress.trim(),
+          influencerId,
+          receiverName: influencerName || null,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "创建失败");
-      setOpen(false);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "创建失败");
@@ -69,6 +60,7 @@ export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, 
         <div className="space-y-1.5">
           {samples.map((s) => (
             <div key={s.id} className="flex items-center gap-2 text-sm">
+              <span className="font-mono text-xs text-muted-foreground">{s.sampleNo}</span>
               <Link href={`/samples?highlight=${s.id}`} className="text-primary hover:underline">
                 {s.productName}
               </Link>
@@ -80,33 +72,17 @@ export default function TicketSampleLink({ ticketId, ticketTitle, ticketStatus, 
           ))}
         </div>
       ) : canCreate && shipItems.length > 0 && SAMPLE_CREATABLE.includes(ticketStatus) ? (
-        <button className={btnPrimary} onClick={() => setOpen(true)}>
-          生成寄件请求
+        <button className={btnPrimary} onClick={create} disabled={busy}>
+          {busy ? "创建中…" : "一键创建寄品单"}
         </button>
       ) : null}
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-md rounded-lg bg-card p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-3 text-base font-semibold">生成寄件请求</h3>
-            <p className="mb-3 text-sm text-muted-foreground">
-              将带入 {shipItems.length} 款寄品明细：{shipItems.map((s) => s.style).join("、")}
-            </p>
-            <div className="space-y-3">
-              <input className={inputCls} placeholder="收件人姓名（必填）" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} />
-              <input className={inputCls} placeholder="收件电话" value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} />
-              <textarea className={inputCls} rows={2} placeholder="收件地址（必填）" value={receiverAddress} onChange={(e) => setReceiverAddress(e.target.value)} />
-            </div>
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-            <div className="mt-4 flex justify-end gap-2">
-              <button className={btnSecondary} onClick={() => setOpen(false)} disabled={busy}>关闭</button>
-              <button className={btnPrimary} onClick={create} disabled={busy}>
-                {busy ? "提交中…" : "提交给仓库"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {canCreate && shipItems.length > 0 && SAMPLE_CREATABLE.includes(ticketStatus) && samples.length === 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          创建后可在寄品管理补充收件电话和地址，再确认并推送仓库。
+        </p>
       )}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
 }

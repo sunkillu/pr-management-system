@@ -661,6 +661,7 @@ enum SampleStatus {
 
 model SampleShipment {
   id           String       @id @default(cuid())
+  sampleNo     String       @unique // 寄品单号：YP-YYYYMMDD-XXXX
   influencerId String?
   influencer   Influencer?  @relation(fields: [influencerId], references: [id], onDelete: SetNull)
   ticketId     String? // 关联工单（从工单寄品明细一键生成）
