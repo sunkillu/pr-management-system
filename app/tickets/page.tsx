@@ -257,7 +257,7 @@ export default async function TicketsPage({
         <Button type="submit">筛选</Button>
       </form>
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="table-shell">
         <Table>
           <TableHeader>
             <TableRow>
@@ -287,42 +287,44 @@ export default async function TicketsPage({
                       {t.ticketNo}
                     </Link>
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {t.title}
+                  <TableCell className="max-w-[280px] font-medium">
+                    <div className="truncate whitespace-nowrap" title={t.title}>
+                      {t.title}
+                    </div>
                     {overdue && (
-                      <Badge variant="destructive" className="ml-2">已超时</Badge>
+                      <Badge variant="destructive" className="mt-1">已超时</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{t.brand?.name ?? "-"}</Badge>
+                  <TableCell className="whitespace-nowrap">
+                    <Badge variant="outline" className="max-w-[140px] truncate">{t.brand?.name ?? "-"}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant={t.ticketKind === "PROCUREMENT" ? "secondary" : "outline"}>
                       {ticketKindLabels[t.ticketKind] ?? t.ticketKind}
                     </Badge>
                     {t.ticketKind === "PROCUREMENT" && t.procurementType && (
-                      <div className="mt-1 text-xs text-muted-foreground">
+                      <div className="mt-1 max-w-[120px] truncate text-xs text-muted-foreground" title={procurementSubTypeLabels[t.procurementType] ?? t.procurementType}>
                         {procurementSubTypeLabels[t.procurementType] ?? t.procurementType}
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{t.ticketKind === "PROCUREMENT" ? "-" : coopTypeLabels[t.type]}</TableCell>
-                  <TableCell>{(t.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</TableCell>
-                  <TableCell>{t.influencer?.name ?? t.makeupArtist?.name ?? "-"}</TableCell>
+                  <TableCell className="whitespace-nowrap">{t.ticketKind === "PROCUREMENT" ? "-" : coopTypeLabels[t.type]}</TableCell>
+                  <TableCell className="max-w-[160px] truncate whitespace-nowrap" title={(t.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}>{(t.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</TableCell>
+                  <TableCell className="max-w-[140px] truncate whitespace-nowrap" title={t.influencer?.name ?? t.makeupArtist?.name ?? "-"}>{t.influencer?.name ?? t.makeupArtist?.name ?? "-"}</TableCell>
                   <TableCell className="tabular-nums">{formatMoney(t.budgetFee)}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {t.startDate ? formatDate(t.startDate) : "-"} ~ {t.endDate ? formatDate(t.endDate) : "-"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <StatusBadge status={t.status} label={ticketStatusLabels[t.status]} />
                     {acceptOverdue && (
                       <Badge variant="destructive" className="ml-2">接单超时</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {t.ticketKind === "PROCUREMENT" ? (t.assignee?.name ?? <span className="text-muted-foreground">待接单</span>) : "-"}
                   </TableCell>
-                  <TableCell>{t.creator?.name ?? "-"}</TableCell>
+                  <TableCell className="max-w-[110px] truncate whitespace-nowrap" title={t.creator?.name ?? "-"}>{t.creator?.name ?? "-"}</TableCell>
                 </TableRow>
               );
             })}

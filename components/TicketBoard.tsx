@@ -154,11 +154,11 @@ export default function TicketBoard({
                     <Card
                       key={t.id}
                       className={cn(
-                        "p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                        "min-w-0 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                       )}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 text-sm font-medium">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-medium" title={t.title}>
                           {t.title}
                         </div>
                         {t.overdue && (
@@ -172,8 +172,8 @@ export default function TicketBoard({
                         >
                           {t.ticketNo}
                         </Link>
-                        <div>{partner} · {coopTypeLabels[t.type] ?? t.type}</div>
-                        <div className="tabular-nums">¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
+                        <div className="truncate whitespace-nowrap" title={`${partner} · ${coopTypeLabels[t.type] ?? t.type}`}>{partner} · {coopTypeLabels[t.type] ?? t.type}</div>
+                        <div className="truncate whitespace-nowrap tabular-nums" title={`¥${formatMoney(t.budgetFee)} · ${t.creator?.name ?? "-"}`}>¥{formatMoney(t.budgetFee)} · {t.creator?.name ?? "-"}</div>
                       </div>
                       <div className="mt-2">
                         <RecordTimestamps createdAt={t.createdAt} updatedAt={t.updatedAt} compact />
