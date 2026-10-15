@@ -27,11 +27,11 @@ export default async function BrandsPage() {
     name: brand.name,
     isActive: brand.isActive,
     createdAt: brand.createdAt.toISOString(),
-    updatedAt: brand.updatedAt?.toISOString() ?? null,
+    updatedAt: null,
     history: (historyByBrand.get(brand.id) ?? []).map((log) => ({
       id: log.id,
       action: log.action,
-      actorName: log.actor?.name ?? log.actorLabel ?? "系统任务",
+      actorName: log.actor?.name ?? "系统任务",
       createdAt: log.createdAt.toISOString(),
       note: log.note,
       fromStatusLabel: log.fromStatus,

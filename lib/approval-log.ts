@@ -25,7 +25,7 @@ export function writeLog(db: Db, input: WriteLogInput) {
       docType: input.docType,
       docId: input.docId,
       action: input.action,
-      actorId: input.actorId ?? null,
+      ...(input.actorId ? { actorId: input.actorId } : {}),
       actorLabel: input.actorLabel ?? null,
       fromStatus: input.fromStatus ?? null,
       toStatus: input.toStatus ?? null,

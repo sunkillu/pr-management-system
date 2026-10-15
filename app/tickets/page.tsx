@@ -77,6 +77,8 @@ export default async function TicketsPage({
       type: t.type,
       status: t.status,
       budgetFee: String(t.budgetFee),
+      createdAt: t.createdAt.toISOString(),
+      updatedAt: t.updatedAt.toISOString(),
       influencer: t.influencer,
       makeupArtist: t.makeupArtist,
       creator: t.creator,

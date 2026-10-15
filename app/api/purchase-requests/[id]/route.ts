@@ -78,7 +78,6 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       note: log.note,
       createdAt: log.createdAt,
       actor: log.actor ? { id: log.actor.id, name: log.actor.name } : null,
-      actorLabel: log.actorLabel,
     })),
   });
 }

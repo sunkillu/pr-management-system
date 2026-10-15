@@ -69,6 +69,9 @@ model User {
   scheduleChangeLogs ScheduleChangeLog[] @relation("ScheduleChangeLogger")
   brandChangeLogs    BrandChangeLog[] @relation("BrandChangeLogger")
   sensitiveAccessLogs SensitiveAccessLog[] @relation("SensitiveAccessViewer")
+  purchaseRequestsCreated PurchaseRequest[] @relation("PurchaseRequestCreator")
+  purchaseLinesReviewed PurchaseLine[] @relation("PurchaseLineReviewer")
+  purchaseLinesAssigned PurchaseLine[] @relation("PurchaseLineAssignee")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -340,8 +343,9 @@ model ApprovalLog {
   fromStatus String? // 变更前状态
   toStatus   String? // 变更后状态
   note       String?   @db.Text // 理由 / 修改说明 / 备注
-  actorId    String
-  actor      User      @relation("LogActor", fields: [actorId], references: [id], onDelete: Restrict)
+  actorId    String?
+  actorLabel String?   // 系统任务或历史操作者名称
+  actor      User?     @relation("LogActor", fields: [actorId], references: [id], onDelete: Restrict)
   createdAt  DateTime  @default(now())
 
   @@index([docType, docId, createdAt])
@@ -464,7 +468,9 @@ model Influencer {
   id           String           @id @default(cuid())
   name         String // 达人姓名/昵称
   homepageId   String? // 达人主页ID（小红书号/抖音号等）
+  xhsUrl       String? // 小红书主页链接
   douyinUrl    String? // 抖音主页链接（与小红书链接分开存，避免合并丢失）
+  quoteMode    String? // 报价模式（选填）
   influencerType InfluencerType? // 达人类型（KOL/KOC/素人/化妆师）
   platforms    String[] // 平台标签多选，如 ["XIAOHONGSHU","DOUYIN"]
   contactInfo  String?
@@ -672,6 +678,7 @@ enum SampleStatus {
 
 model SampleShipment {
   id           String       @id @default(cuid())
+  sampleNo     String       @unique // 寄品单号
   influencerId String?
   influencer   Influencer?  @relation(fields: [influencerId], references: [id], onDelete: SetNull)
   ticketId     String? // 关联工单（从工单寄品明细一键生成）
@@ -692,6 +699,8 @@ model SampleShipment {
   signedNote   String? // 签收备注
   cancelReason String? // 取消理由
   infoConfirmed Boolean @default(false) // 寄件信息已确认（提交人维护完收件信息后推送仓库）
+  pushedAt DateTime? // 最近一次推送仓库时间
+  pushCount Int @default(0) // 推送仓库次数
   // ---------- v2: 寄品增强 ----------
   logisticsStatus String? // 物流状态（T+1自动检测）
   shippedAt DateTime? // 发货时间
@@ -770,6 +779,9 @@ enum TicketStatus {
   IN_PROGRESS      // 执行中
   MATERIAL_REVIEW  // 待素材审批（标记完成后，PR负责人审批回收素材）
   COMPLETED        // 已完成
+  MAINTAINING      // 维护中
+  AWAITING_DRAFT   // 待返稿
+  DRAFT_RETURNED   // 已返稿
   PENDING_REVIEW   // 待返稿（寄品签收 → 填写确定档期后）
   REVIEWED         // 已返稿（PR 上传返稿素材并标记）
   PUBLISHED        // 已发布（填写发布链接后）
@@ -839,8 +851,8 @@ model CooperationTicket {
   ticketNo    String       @unique // 工单编号 PR-YYYYMMDD-XXX
   title       String
   type        CoopType
-  brandId     String // 所属品牌（必填）
-  brand       Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  brandId     String? // 所属品牌（合作工单可填；采买/维护流程可暂不指定）
+  brand       Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
   ticketKind  TicketKind   @default(COOPERATION) // 工单类型：合作工单 / 采买工单 / 维护工单
   procurementType ProcurementSubType? // 采买子类型（仅 ticketKind=PROCUREMENT 时有效）
   // 采买特有信息（数量/素材类型/需求理由/发布链接）统一写入 note 结构化文本 / contentDirection，与合作工单字段保持子集关系
@@ -926,6 +938,7 @@ model CooperationTicket {
 
   // ---------- 采买逐条审批：采买工单的每行款式请求 ----------
   procurementItems ProcurementItem[]
+  purchaseLine PurchaseLine?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -955,6 +968,77 @@ model ProcurementItem {
   updatedAt DateTime @updatedAt
 
   @@index([ticketId])
+}
+
+enum PurchaseRequestStatus {
+  PENDING_REVIEW
+  REVIEWED
+  ASSIGNED
+  REJECTED
+  VOIDED
+}
+
+enum PurchaseLineStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ASSIGNED
+}
+
+model PurchaseRequest {
+  id         String                @id @default(cuid())
+  requestNo  String                @unique
+  status     PurchaseRequestStatus @default(PENDING_REVIEW)
+  note       String?               @db.Text
+  creatorId  String
+  creator    User                  @relation("PurchaseRequestCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  reviewedAt DateTime?
+  assignedAt DateTime?
+  lines      PurchaseLine[]
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model PurchaseLine {
+  id           String             @id @default(cuid())
+  requestId    String
+  request      PurchaseRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  sort         Int                @default(0)
+  platform     String
+  link         String             @db.Text
+  style        String
+  quantity     Int
+  status       PurchaseLineStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   User?              @relation("PurchaseLineReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?            @db.Text
+  influencerId String?
+  assigneeId   String?
+  assignee     User?              @relation("PurchaseLineAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignedAt   DateTime?
+  ticketId     String?            @unique
+  ticket       CooperationTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([requestId])
+  @@index([status])
+}
+
+model StyleOption {
+  id        String   @id @default(cuid())
+  kind      String   @default("STYLE")
+  name      String
+  isActive  Boolean  @default(true)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([kind, name])
+  @@index([kind, isActive, sort])
 }
 
 // 工单归属人变更记录：采买工单接单/人工分配留痕
@@ -1037,6 +1121,7 @@ model ReminderTask {
   sentAt         DateTime?
   note           String?        @db.Text
   createdAt      DateTime       @default(now())
+  updatedAt      DateTime?
 
   @@index([status, scheduledAt])
   @@index([ticketId, type])
@@ -1056,6 +1141,7 @@ model DataCollectionTask {
   status      DataTaskStatus @default(PENDING)
   dueAt       DateTime?      // 发布后7天
   createdAt   DateTime       @default(now())
+  updatedAt   DateTime?      // 记录最近一次数据回收状态/指标更新
 
   @@index([ticketId])
   @@index([status, dueAt])
@@ -1077,8 +1163,11 @@ model FollowUpRecord {
   followNo    Int      // 第几次跟进
   noteUrl     String?  // 笔记链接
   views       Int?     // 播放量/阅读量
+  impressions Int?     // 曝光量
   likes       Int?     // 点赞数
+  favorites   Int?     // 收藏数
   comments    Int?     // 评论数
+  shares      Int?     // 转发数
   note        String?  @db.Text // 备注
   createdById String
   createdBy   User     @relation("FollowUpCreator", fields: [createdById], references: [id], onDelete: Restrict)
@@ -1130,6 +1219,7 @@ model TicketSubtask {
   blockedAt   DateTime?    // 阻塞开始时间
   blockedNotifiedAt DateTime? // 阻塞超24h提醒标记（防重复）
   createdAt   DateTime      @default(now())
+  updatedAt   DateTime?
 
   @@index([ticketId, sortOrder])
 }
@@ -1212,6 +1302,8 @@ model TagCategory {
   key   String @unique // 如：MATERIAL、INFLUENCER
   sort  Int    @default(0)
   tags  Tag[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime?
 
   @@index([sort])
 }
@@ -1223,6 +1315,8 @@ model Tag {
   category   TagCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   sort       Int         @default(0)
   taggings   Tagging[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime?
 
   @@unique([categoryId, name])
   @@index([categoryId, sort])

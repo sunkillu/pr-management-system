@@ -190,7 +190,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor.name,
+    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? ticketStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -266,7 +266,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   id: ticket.id,
                   title: ticket.title,
                   type: ticket.type,
-                  brandId: ticket.brandId,
+                  brandId: ticket.brandId ?? "",
                   platform: ticket.platform as string[],
                   style: ticket.style as string[],
                   budgetFee: String(ticket.budgetFee),
@@ -562,6 +562,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 sortOrder: s.sortOrder,
                 blockedReason: s.blockedReason,
                 blockedAt: s.blockedAt ? s.blockedAt.toISOString() : null,
+                createdAt: s.createdAt.toISOString(),
+                updatedAt: s.updatedAt ? s.updatedAt.toISOString() : null,
+                stateHistory: [],
               }))}
               users={users}
               canManage={canManageSubtasks}
@@ -732,8 +735,11 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   followNo: f.followNo,
                   noteUrl: f.noteUrl,
                   views: f.views,
+                  impressions: f.impressions,
                   likes: f.likes,
+                  favorites: f.favorites,
                   comments: f.comments,
+                  shares: f.shares,
                   note: f.note,
                   createdAt: f.createdAt.toISOString(),
                   createdBy: f.createdBy,

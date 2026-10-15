@@ -51,7 +51,7 @@ export default async function ContentDetailPage({ params }: { params: { id: stri
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
+    actorName: l.actor?.name ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? contentStatusLabels[l.fromStatus] ?? l.fromStatus : null,
