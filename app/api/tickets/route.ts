@@ -19,6 +19,15 @@ const makeupArtistId = (body.makeupArtistId as string) || null;
 return { influencerId, makeupArtistId};
 }
 
+async function validateActiveBrandStyles(brandId: string, styles: string[]) {
+  const available = await prisma.styleOption.findMany({
+    where: { kind: "STYLE", brandId, isActive: true, name: { in: styles } },
+    select: { name: true },
+  });
+  const availableNames = new Set(available.map((style) => style.name));
+  return styles.filter((style) => !availableNames.has(style));
+}
+
 // 列表：所有登录用户可查；附带触发一次超时检查（fire-and-forget）
 export async function GET(req: NextRequest) {
 const auth = await requireRoles([...ALL_ROLES]);
@@ -104,6 +113,10 @@ async function createProcurementTicket(
       return NextResponse.json({ error: `第 ${i + 1} 行数量必须为正整数` }, { status: 400 });
     }
     items.push({ style, quantity });
+  }
+  const invalidStyles = await validateActiveBrandStyles(brandId, Array.from(new Set(items.map((item) => item.style))));
+  if (invalidStyles.length > 0) {
+    return NextResponse.json({ error: `存在不属于该品牌或已停用的款式：${invalidStyles.join("、")}` }, { status: 400 });
   }
   const link = String(body.link ?? "").trim() || null;
 
@@ -235,6 +248,10 @@ async function createMaintenanceTicket(
     : [];
   if (styles.length === 0) {
     return NextResponse.json({ error: "请选择款式（可多选）" }, { status: 400 });
+  }
+  const invalidStyles = await validateActiveBrandStyles(brandId, Array.from(new Set(styles)));
+  if (invalidStyles.length > 0) {
+    return NextResponse.json({ error: `存在不属于该品牌或已停用的款式：${invalidStyles.join("、")}` }, { status: 400 });
   }
   const { influencerId, makeupArtistId } = pickPartner(body);
   if (type === "MAKEUP" && !makeupArtistId) {
@@ -411,6 +428,10 @@ return NextResponse.json({ error: "请选择合作平台（可多选）"}, { sta
 const styles: string[] = Array.isArray(body.style) ? body.style.map((s: unknown) => String(s)).filter(Boolean) : [];
 if (styles.length === 0) {
 return NextResponse.json({ error: "请选择款式（可多选）" }, { status: 400});
+}
+const invalidStyles = await validateActiveBrandStyles(brandId, Array.from(new Set(styles)));
+if (invalidStyles.length > 0) {
+return NextResponse.json({ error: `存在不属于该品牌或已停用的款式：${invalidStyles.join("、")}` }, { status: 400 });
 }
 // 合作类目多选必填
 const coopCategories: string[] = Array.isArray(body.coopCategory) ? body.coopCategory.map((s: unknown) => String(s)).filter(Boolean) : [];
