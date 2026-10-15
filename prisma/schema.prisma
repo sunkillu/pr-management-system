@@ -300,6 +300,16 @@ enum DocType {
   COOP_REQUEST // 合作需求单
   TICKET       // 合作工单
   SAMPLE       // 寄件请求单
+  INVOICE
+  OUTLET
+  BRAND
+  CAMPAIGN
+  DATA_TASK
+  REMINDER_TASK
+  SUBTASK
+  STYLE
+  PURCHASE
+  PURCHASE_LINE
 }
 
 enum LogAction {
