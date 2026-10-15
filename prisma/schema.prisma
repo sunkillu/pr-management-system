@@ -776,6 +776,10 @@ enum TicketStatus {
   DRAFT            // 草稿
   PENDING_APPROVAL // 待审批
   PENDING_PROCUREMENT // 待采买审批（采买工单专用）
+  PENDING_SAMPLE
+  SAMPLED
+  PENDING_MANUSCRIPT
+  PENDING_PUBLISH
   APPROVED         // 已通过（待执行）
   IN_PROGRESS      // 执行中
   MATERIAL_REVIEW  // 待素材审批（标记完成后，PR负责人审批回收素材）
@@ -783,6 +787,9 @@ enum TicketStatus {
   PENDING_REVIEW   // 待返稿（寄品签收 → 填写确定档期后）
   REVIEWED         // 已返稿（PR 上传返稿素材并标记）
   PUBLISHED        // 已发布（填写发布链接后）
+  MAINTAINING
+  AWAITING_DRAFT
+  DRAFT_RETURNED
   SETTLING         // 结算中
   FOLLOW_UP        // 跟进中（打款后15天数据跟进）
   SETTLED          // 已结算
@@ -1157,7 +1164,7 @@ model ReminderTask {
   sentAt         DateTime?
   note           String?        @db.Text
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  updatedAt      DateTime?
 
   @@index([status, scheduledAt])
   @@index([ticketId, type])
@@ -1177,7 +1184,7 @@ model DataCollectionTask {
   status      DataTaskStatus @default(PENDING)
   dueAt       DateTime?      // 发布后7天
   createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  updatedAt   DateTime?
 
   @@index([ticketId])
   @@index([status, dueAt])
@@ -1338,8 +1345,8 @@ model TagCategory {
   key   String @unique // 如：MATERIAL、INFLUENCER
   sort  Int    @default(0)
   tags  Tag[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime?
+  updatedAt DateTime?
 
   @@index([sort])
 }
@@ -1351,8 +1358,8 @@ model Tag {
   category   TagCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   sort       Int         @default(0)
   taggings   Tagging[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt  DateTime?
+  updatedAt  DateTime?
 
   @@unique([categoryId, name])
   @@index([categoryId, sort])
