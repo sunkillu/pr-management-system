@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import RecordTimestamps from "@/components/RecordTimestamps";
 import StateHistory from "@/components/StateHistory";
 import type { TimelineItem } from "@/components/ApprovalTimeline";
@@ -84,17 +85,30 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
     if (await request(`/api/styles/${s.id}`, "PATCH", { name: editName.trim(), shelfLifeOptions })) setEditingId("");
   }
 
-  function handleImportFile(file: File | undefined) {
+  async function handleImportFile(file: File | undefined) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImportCsv(String(reader.result ?? ""));
+    try {
+      const isXlsx = /\.xlsx?$/i.test(file.name);
+      let csv = "";
+      if (isXlsx) {
+        const workbook = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: "array" });
+        const firstSheet = workbook.SheetNames[0];
+        if (!firstSheet) throw new Error("Excel 文件没有工作表");
+        csv = XLSX.utils.sheet_to_csv(workbook.Sheets[firstSheet], { blankrows: false });
+      } else {
+        csv = await file.text();
+      }
+      if (!csv.trim()) throw new Error("文件内容为空");
+      setImportCsv(csv);
       setImportFile(file.name);
       setImportPreview(null);
       setImportResult("");
       setError("");
-    };
-    reader.readAsText(file, "utf-8");
+    } catch (e) {
+      setImportCsv("");
+      setImportFile("");
+      setError(e instanceof Error ? e.message : "文件解析失败");
+    }
   }
 
   async function previewImport() {
@@ -160,10 +174,13 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
             <h2 className="text-sm font-semibold">文件导入 / 批量维护</h2>
             <p className="mt-1 text-xs text-muted-foreground">支持新增款式，也可以通过同名款式更新启用状态和排序。</p>
           </div>
-          <a href="/api/styles/import" className="text-xs text-primary underline-offset-4 hover:underline">下载导入模板</a>
+          <div className="flex gap-3 text-xs">
+            <a href="/api/styles/import?format=xlsx" className="text-primary underline-offset-4 hover:underline">下载 Excel 模板</a>
+            <a href="/api/styles/import" className="text-muted-foreground underline-offset-4 hover:underline">下载 CSV 模板</a>
+          </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <input type="file" accept=".csv,text/csv" onChange={(e) => handleImportFile(e.target.files?.[0])} className="max-w-full text-sm" />
+          <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(e) => void handleImportFile(e.target.files?.[0])} className="max-w-full text-sm" />
           <button onClick={previewImport} disabled={!importCsv || importBusy} className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50">
             {importBusy ? "处理中…" : "解析预览"}
           </button>

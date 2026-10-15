@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { parseCSV, rowsToObjects, toCSV, csvResponse } from "@/lib/csv";
 import { writeLog } from "@/lib/approval-log";
+import * as XLSX from "xlsx";
 
 const MANAGE = ["ADMIN", "PR_MANAGER"] as const;
 
@@ -14,12 +15,25 @@ function parseActive(value: string): boolean | null {
   return null;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireRoles([...MANAGE]);
   if (!auth.ok) return auth.res;
+  const templateRows = [["坚果力", "春季新品", "日抛、月抛、半年抛", "启用", 1], ["坚果力", "清仓款", "日抛", "停用", 2]];
+  if (new URL(req.url).searchParams.get("format") === "xlsx") {
+    const sheet = XLSX.utils.aoa_to_sheet([["品牌", "款式名称", "抛期", "状态", "排序"], ...templateRows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "合作款式");
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": "attachment; filename*=UTF-8''%E5%90%88%E4%BD%9C%E6%AC%BE%E5%BC%8F%E5%AF%BC%E5%85%A5%E6%A8%A1%E6%9D%BF.xlsx",
+      },
+    });
+  }
   return csvResponse(
     "合作款式导入模板.csv",
-    toCSV(["品牌", "款式名称", "抛期", "状态", "排序"], [["坚果力", "春季新品", "日抛、月抛、半年抛", "启用", 1], ["坚果力", "清仓款", "日抛", "停用", 2]])
+    toCSV(["品牌", "款式名称", "抛期", "状态", "排序"], templateRows)
   );
 }
 
