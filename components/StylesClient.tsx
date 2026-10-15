@@ -10,6 +10,7 @@ type StyleRow = {
   brandId: string;
   brandName: string;
   name: string;
+  shelfLifeOptions: string[];
   isActive: boolean;
   usedCount: number;
   createdAt: string;
@@ -23,7 +24,7 @@ type ImportPreview = {
   createCount: number;
   updateCount: number;
   errorCount: number;
-  preview: { row: number; brandName?: string; name: string; action: string; errors: string[] }[];
+  preview: { row: number; brandName?: string; name: string; shelfLifeOptions?: string[]; action: string; errors: string[] }[];
   errors: string[];
 };
 
@@ -36,6 +37,7 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState("");
   const [editName, setEditName] = useState("");
+  const [editShelfLife, setEditShelfLife] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [importCsv, setImportCsv] = useState("");
@@ -75,9 +77,11 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
 
   async function saveEdit(s: StyleRow) {
     if (!editName.trim()) return setError("款式名称不能为空");
-    if (editName.trim() === s.name) return setEditingId("");
+    const shelfLifeOptions = Array.from(new Set(editShelfLife.split(/[、,，\n]/).map((item) => item.trim()).filter(Boolean)));
+    if (shelfLifeOptions.length === 0) return setError("至少配置一个抛期");
+    if (editName.trim() === s.name && shelfLifeOptions.join("、") === s.shelfLifeOptions.join("、")) return setEditingId("");
     if (s.usedCount > 0 && !confirm(`「${s.name}」已被 ${s.usedCount} 张工单使用，改名后这些工单会同步显示为「${editName.trim()}」，确定吗？`)) return;
-    if (await request(`/api/styles/${s.id}`, "PATCH", { name: editName.trim() })) setEditingId("");
+    if (await request(`/api/styles/${s.id}`, "PATCH", { name: editName.trim(), shelfLifeOptions })) setEditingId("");
   }
 
   function handleImportFile(file: File | undefined) {
@@ -179,8 +183,8 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
             {importPreview.errors.length > 0 && <div className="mt-3 max-h-32 overflow-auto rounded-md bg-red-50 p-3 text-xs text-red-700">{importPreview.errors.map((item) => <p key={item}>{item}</p>)}</div>}
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[520px] text-sm">
-                <thead><tr className="border-b text-left text-xs text-muted-foreground"><th className="py-2">行号</th><th>品牌</th><th>款式</th><th>动作</th><th>校验</th></tr></thead>
-                <tbody>{importPreview.preview.map((row) => <tr key={row.row} className="border-b last:border-0"><td className="py-2">{row.row}</td><td>{row.brandName || "-"}</td><td>{row.name || "-"}</td><td>{row.action}</td><td className={row.errors.length ? "text-red-600" : "text-green-700"}>{row.errors.length ? row.errors.join("；") : "可导入"}</td></tr>)}</tbody>
+                <thead><tr className="border-b text-left text-xs text-muted-foreground"><th className="py-2">行号</th><th>品牌</th><th>款式</th><th>抛期</th><th>动作</th><th>校验</th></tr></thead>
+                <tbody>{importPreview.preview.map((row) => <tr key={row.row} className="border-b last:border-0"><td className="py-2">{row.row}</td><td>{row.brandName || "-"}</td><td>{row.name || "-"}</td><td>{row.shelfLifeOptions?.join("、") || "-"}</td><td>{row.action}</td><td className={row.errors.length ? "text-red-600" : "text-green-700"}>{row.errors.length ? row.errors.join("；") : "可导入"}</td></tr>)}</tbody>
               </table>
             </div>
           </div>
@@ -225,6 +229,7 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
             <tr className="border-b border-border text-left text-muted-foreground">
               <th className="px-4 py-3 font-medium">品牌</th>
               <th className="px-4 py-3 font-medium">款式名称</th>
+              <th className="px-4 py-3 font-medium">抛期</th>
               <th className="px-4 py-3 font-medium">状态</th>
               <th className="px-4 py-3 font-medium">工单使用</th>
               <th className="px-4 py-3 font-medium">时间</th>
@@ -238,20 +243,29 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
                 <td className="px-4 py-3">{s.brandName}</td>
                 <td className="px-4 py-3 font-medium">
                   {editingId === s.id ? (
-                    <input
-                      autoFocus
-                      className="w-44 rounded-md border border-border bg-background px-2 py-1 text-sm"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit(s);
-                        if (e.key === "Escape") setEditingId("");
-                      }}
-                    />
+                    <div className="flex flex-col gap-1">
+                      <input
+                        autoFocus
+                        className="w-44 rounded-md border border-border bg-background px-2 py-1 text-sm"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(s);
+                          if (e.key === "Escape") setEditingId("");
+                        }}
+                      />
+                      <input
+                        className="w-44 rounded-md border border-border bg-background px-2 py-1 text-xs"
+                        value={editShelfLife}
+                        onChange={(e) => setEditShelfLife(e.target.value)}
+                        placeholder="抛期：日抛、月抛"
+                      />
+                    </div>
                   ) : (
                     s.name
                   )}
                 </td>
+                <td className="px-4 py-3 text-xs">{s.shelfLifeOptions.join("、")}</td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-2 py-0.5 text-xs ${s.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                     {s.isActive ? "启用" : "停用"}
@@ -269,7 +283,7 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
                       </>
                     ) : (
                       <>
-                        <button onClick={() => { setEditingId(s.id); setEditName(s.name); setError(""); }} className="text-xs text-primary hover:underline">改名</button>
+                        <button onClick={() => { setEditingId(s.id); setEditName(s.name); setEditShelfLife(s.shelfLifeOptions.join("、")); setError(""); }} className="text-xs text-primary hover:underline">编辑</button>
                         <button onClick={() => request(`/api/styles/${s.id}`, "PATCH", { isActive: !s.isActive })} className="text-xs text-primary hover:underline">
                           {s.isActive ? "停用" : "启用"}
                         </button>
@@ -286,7 +300,7 @@ export default function StylesClient({ initialStyles, brands }: { initialStyles:
               </tr>
             ))}
             {visible.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">暂无款式</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">暂无款式</td></tr>
             )}
           </tbody>
         </table>

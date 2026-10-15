@@ -46,6 +46,7 @@ export default async function StylesPage() {
         brandId: s.brandId ?? "",
         brandName: s.brand?.name ?? "未分配",
         name: s.name,
+        shelfLifeOptions: s.shelfLifeOptions,
         isActive: s.isActive,
         usedCount: usageByName.get(s.name) ?? 0,
         createdAt: s.createdAt.toISOString(),

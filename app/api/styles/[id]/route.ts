@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const auth = await requireRoles([...MANAGE]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
-  const data: { name?: string; isActive?: boolean } = {};
+  const data: { name?: string; isActive?: boolean; shelfLifeOptions?: string[] } = {};
   if (body.name !== undefined) {
     const name = String(body.name).trim();
     if (!name) return NextResponse.json({ error: "款式名称不能为空" }, { status: 400 });
@@ -18,6 +18,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data.name = name;
   }
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
+  if (body.shelfLifeOptions !== undefined) {
+    const values: unknown[] = Array.isArray(body.shelfLifeOptions) ? body.shelfLifeOptions : String(body.shelfLifeOptions ?? "").split(/[、,，\n]/);
+    const shelfLifeOptions = Array.from(new Set(values.map((item: unknown) => String(item).trim()).filter((item): item is string => Boolean(item)))).slice(0, 20);
+    if (shelfLifeOptions.length === 0) return NextResponse.json({ error: "至少配置一个抛期" }, { status: 400 });
+    data.shelfLifeOptions = shelfLifeOptions;
+  }
 
   try {
     const style = await prisma.$transaction(async (tx) => {

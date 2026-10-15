@@ -4,6 +4,12 @@ import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 
 const MANAGE = ["ADMIN", "PR_MANAGER"] as const;
+const DEFAULT_SHELF_LIFE_OPTIONS = ["日抛", "月抛", "半年抛"];
+
+function parseShelfLifeOptions(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : String(value ?? "").split(/[、,，\n]/);
+  return Array.from(new Set(values.map((item) => String(item).trim()).filter(Boolean))).slice(0, 20);
+}
 
 // 款式列表：所有登录用户可读（工单表单下拉使用）；active=1 只返回启用项
 export async function GET(req: NextRequest) {
@@ -27,6 +33,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const name = String(body.name ?? "").trim();
   const brandId = String(body.brandId ?? "").trim();
+  const shelfLifeOptions = parseShelfLifeOptions(body.shelfLifeOptions);
   if (!name) return NextResponse.json({ error: "款式名称不能为空" }, { status: 400 });
   if (!brandId) return NextResponse.json({ error: "请选择所属品牌" }, { status: 400 });
   if (name.length > 50) return NextResponse.json({ error: "款式名称不能超过 50 个字" }, { status: 400 });
@@ -34,7 +41,7 @@ export async function POST(req: NextRequest) {
     const style = await prisma.$transaction(async (tx) => {
       const last = await tx.styleOption.aggregate({ where: { kind: "STYLE", brandId }, _max: { sort: true } });
       const created = await tx.styleOption.create({
-        data: { kind: "STYLE", brandId, name, sort: (last._max.sort ?? 0) + 1 },
+        data: { kind: "STYLE", brandId, name, shelfLifeOptions: shelfLifeOptions.length ? shelfLifeOptions : DEFAULT_SHELF_LIFE_OPTIONS, sort: (last._max.sort ?? 0) + 1 },
       });
       await writeLog(tx, {
         docType: "STYLE",

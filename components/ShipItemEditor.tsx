@@ -22,7 +22,7 @@ export default function ShipItemEditor({
   onChange: (next: ShipItem[]) => void;
   brandId?: string;
 }) {
-  const [styleOptions, setStyleOptions] = useState<{ id: string; name: string }[]>([]);
+  const [styleOptions, setStyleOptions] = useState<{ id: string; name: string; shelfLifeOptions: string[] }[]>([]);
   useEffect(() => {
     if (!brandId) {
       setStyleOptions([]);
@@ -155,18 +155,17 @@ export default function ShipItemEditor({
             </div>
             <div className="w-28">
               <label className="mb-1 block text-xs text-muted-foreground">抛期</label>
-              <input
-                className={inputCls}
-                list={`shelfLife-${i}`}
+              <SearchableSelect
+                options={(styleOptions.find((o) => o.name === s.style)?.shelfLifeOptions?.length
+                  ? styleOptions.find((o) => o.name === s.style)?.shelfLifeOptions
+                  : SHELF_LIFE_OPTIONS
+                )!.map((option) => ({ value: option, label: option }))}
                 value={s.shelfLife}
-                onChange={(e) => update(i, { shelfLife: e.target.value })}
+                onChange={(next) => update(i, { shelfLife: next })}
                 placeholder="选填"
+                searchPlaceholder="搜索抛期"
+                clearable
               />
-              <datalist id={`shelfLife-${i}`}>
-                {SHELF_LIFE_OPTIONS.map((o) => (
-                  <option key={o} value={o} />
-                ))}
-              </datalist>
             </div>
             <div className="w-24">
               <label className="mb-1 block text-xs text-muted-foreground">盒数</label>

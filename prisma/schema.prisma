@@ -1035,6 +1035,7 @@ model StyleOption {
   brandId   String?
   brand     Brand?   @relation(fields: [brandId], references: [id], onDelete: Cascade)
   name      String
+  shelfLifeOptions String[] @default(["日抛", "月抛", "半年抛"])
   isActive  Boolean  @default(true)
   sort      Int      @default(0)
   createdAt DateTime @default(now())

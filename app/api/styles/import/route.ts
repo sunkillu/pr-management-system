@@ -19,7 +19,7 @@ export async function GET() {
   if (!auth.ok) return auth.res;
   return csvResponse(
     "合作款式导入模板.csv",
-    toCSV(["品牌", "款式名称", "状态", "排序"], [["坚果力", "春季新品", "启用", 1], ["坚果力", "清仓款", "停用", 2]])
+    toCSV(["品牌", "款式名称", "抛期", "状态", "排序"], [["坚果力", "春季新品", "日抛、月抛、半年抛", "启用", 1], ["坚果力", "清仓款", "日抛", "停用", 2]])
   );
 }
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const existing = await prisma.styleOption.findMany({
     where: { kind: "STYLE" },
-    select: { id: true, brandId: true, name: true, isActive: true, sort: true },
+    select: { id: true, brandId: true, name: true, shelfLifeOptions: true, isActive: true, sort: true },
   });
   const brands = await prisma.brand.findMany({ select: { id: true, name: true } });
   const brandByName = new Map(brands.map((brand) => [brand.name.toLowerCase(), brand]));
@@ -48,10 +48,12 @@ export async function POST(req: NextRequest) {
     const brandName = (row["品牌"] ?? "").trim();
     const brand = brandByName.get(brandName.toLowerCase());
     const name = (row["款式名称"] ?? row["款式"] ?? row["名称"] ?? "").trim();
+    const shelfLifeOptions = Array.from(new Set((row["抛期"] ?? row["抛期选项"] ?? "日抛、月抛、半年抛").split(/[、,，\n]/).map((item) => item.trim()).filter(Boolean))).slice(0, 20);
     const key = `${brand?.id ?? ""}:${name.toLowerCase()}`;
     if (!brand) errors.push("品牌必须填写且必须是启用品牌");
     if (!name) errors.push("款式名称必填");
     if (name.length > 50) errors.push("款式名称不能超过 50 个字");
+    if (shelfLifeOptions.length === 0) errors.push("抛期至少填写一个");
     if (name && seen.has(key)) errors.push("文件内重复");
     if (name) seen.add(key);
     const active = parseActive(row["状态"] ?? "");
@@ -64,6 +66,7 @@ export async function POST(req: NextRequest) {
       brandId: brand?.id ?? "",
       brandName,
       name,
+      shelfLifeOptions,
       active: active ?? true,
       sort,
       action: existingByKey.has(key) ? "更新" : "新增",
@@ -94,7 +97,7 @@ export async function POST(req: NextRequest) {
       if (current) {
         const style = await tx.styleOption.update({
           where: { id: current.id },
-          data: { isActive: row.active, ...(row.sort === null ? {} : { sort: row.sort }) },
+          data: { isActive: row.active, shelfLifeOptions: row.shelfLifeOptions, ...(row.sort === null ? {} : { sort: row.sort }) },
         });
         await writeLog(tx, {
           docType: "STYLE",
@@ -108,7 +111,7 @@ export async function POST(req: NextRequest) {
         updated++;
       } else {
         const style = await tx.styleOption.create({
-          data: { kind: "STYLE", brandId: row.brandId, name: row.name, isActive: row.active, sort: row.sort ?? ((nextSortByBrand.get(row.brandId) ?? 0) + 1) },
+          data: { kind: "STYLE", brandId: row.brandId, name: row.name, shelfLifeOptions: row.shelfLifeOptions, isActive: row.active, sort: row.sort ?? ((nextSortByBrand.get(row.brandId) ?? 0) + 1) },
         });
         await writeLog(tx, {
           docType: "STYLE",
