@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Sidebar role={user.role ?? "VIEWER"} />
             <div className="flex min-w-0 flex-1 flex-col">
               <Topbar userName={user.name ?? ""} role={user.role ?? "VIEWER"} />
-              <main className="min-w-0 flex-1 p-6">{children}</main>
+              <main className="min-w-0 flex-1 p-4 sm:p-5 lg:p-7">{children}</main>
             </div>
             <NotificationToast />
             <ScrollToAnchor />

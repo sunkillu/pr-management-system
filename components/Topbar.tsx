@@ -8,11 +8,11 @@ type Role = "ADMIN" | "OPERATOR" | "FINANCE" | "VIEWER" | "PR_MANAGER" | "PR" | 
 
 export default function Topbar({ userName, role }: { userName: string; role: Role }) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background px-6">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b bg-background/90 px-4 backdrop-blur sm:px-6 lg:px-7">
       <TopbarTitle />
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 sm:gap-3">
         <NotificationBell />
-        <span className="text-sm text-muted-foreground">{userName}</span>
+        <span className="hidden text-sm text-muted-foreground sm:inline">{userName}</span>
         <Badge variant="secondary">{roleLabels[role]}</Badge>
         <SignOutButton />
       </div>

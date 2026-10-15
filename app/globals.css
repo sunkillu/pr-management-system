@@ -5,13 +5,13 @@
 /* shadcn/ui CSS 变量体系 */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 20% 97%;
+    --foreground: 222 32% 15%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 222 55% 28%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -21,8 +21,8 @@
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214 22% 88%;
+    --input: 214 22% 84%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
   }
@@ -59,6 +59,37 @@
     font-family: -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC",
       "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+    min-width: 320px;
+  }
+}
+
+@layer components {
+  .page-card {
+    @apply rounded-xl border bg-card shadow-sm;
+  }
+
+  .page-toolbar {
+    @apply mb-5 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3 shadow-sm;
+  }
+
+  .table-shell {
+    @apply overflow-hidden rounded-xl border bg-card shadow-sm;
+  }
+
+  .table-shell table {
+    @apply min-w-[760px];
+  }
+
+  .table-shell thead {
+    @apply bg-slate-50/90;
+  }
+
+  .table-shell th {
+    @apply h-11 text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .table-shell td {
+    @apply py-3 text-[13px];
   }
 }
 

@@ -126,10 +126,15 @@ export default function Sidebar({ role }: { role: Role }) {
   const toggle = (key: string) => setOpen((o) => ({ ...o, [key]: !o[key] }));
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r bg-background">
-      <div className="border-b px-5 py-4">
-        <div className="text-base font-semibold">PR媒体管理系统</div>
-        <div className="mt-0.5 text-xs text-muted-foreground">电商公司 · v1</div>
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r bg-white/90 backdrop-blur">
+      <div className="border-b px-5 py-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">PR</div>
+          <div>
+            <div className="text-sm font-semibold tracking-tight">PR媒体管理系统</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">合作与履约工作台</div>
+          </div>
+        </div>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {entries.map((e) => {
@@ -148,7 +153,7 @@ export default function Sidebar({ role }: { role: Role }) {
               <button
                 onClick={() => toggle(g.key)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-md px-3 py-2 text-left transition-colors",
+                  "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors",
                   hasActive
                     ? "text-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"

@@ -65,12 +65,12 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex items-start justify-between">
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
         {desc && <p className="mt-1 text-sm text-muted-foreground">{desc}</p>}
       </div>
-      {action}
+      {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}
     </div>
   );
 }
@@ -96,7 +96,7 @@ export function Section({
 }) {
   return (
     <section id={id} className={first ? "" : "border-t border-border"}>
-      <div className="px-6 py-5">
+      <div className="px-4 py-5 sm:px-6">
         {title && (
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-[15px] font-semibold tracking-tight">{title}</h3>
