@@ -501,7 +501,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                     ticketTitle={ticket.title}
                     ticketStatus={ticket.status}
                     shipItems={(Array.isArray(ticket.shipItems) ? ticket.shipItems : []).map((raw) => normalizeShipItem(raw))}
-                    samples={ticket.samples}
+                    samples={ticket.samples.map((sample) => ({ ...sample, sampleNo: sample.sampleNo ?? sample.id }))}
                     influencerName={ticket.influencer?.name ?? ticket.makeupArtist?.name ?? ""}
                     canCreate={["ADMIN", "PR", "PR_MANAGER"].includes(role)}
                   />

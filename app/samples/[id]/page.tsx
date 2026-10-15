@@ -45,7 +45,7 @@ export default async function SampleDetailPage({ params }: { params: { id: strin
   return (
     <div>
       <PageHeader
-        title={sample.sampleNo}
+        title={sample.sampleNo ?? sample.id}
         desc={`${sample.productName} · ${sampleStatusLabels[sample.status] ?? sample.status}`}
         action={<Link href="/samples" className="text-sm text-primary hover:underline">← 返回寄品管理</Link>}
       />
