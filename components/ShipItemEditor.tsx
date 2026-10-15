@@ -72,6 +72,8 @@ export default function ShipItemEditor({
       {value.map((s, i) => {
         const styleIsCustom = customStyleRows.has(i);
         const degreeIsCustom = customDegreeRows.has(i);
+        const selectedStyle = styleOptions.find((option) => option.name === s.style);
+        const shelfLifeOptions = selectedStyle?.shelfLifeOptions?.length ? selectedStyle.shelfLifeOptions : (s.style ? SHELF_LIFE_OPTIONS : []);
         return (
           <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted p-2">
             <div className="min-w-[130px] flex-1">
@@ -156,15 +158,13 @@ export default function ShipItemEditor({
             <div className="w-28">
               <label className="mb-1 block text-xs text-muted-foreground">抛期</label>
               <SearchableSelect
-                options={(styleOptions.find((o) => o.name === s.style)?.shelfLifeOptions?.length
-                  ? styleOptions.find((o) => o.name === s.style)?.shelfLifeOptions
-                  : SHELF_LIFE_OPTIONS
-                )!.map((option) => ({ value: option, label: option }))}
+                options={shelfLifeOptions.map((option) => ({ value: option, label: option }))}
                 value={s.shelfLife}
                 onChange={(next) => update(i, { shelfLife: next })}
                 placeholder="选填"
                 searchPlaceholder="搜索抛期"
                 clearable
+                disabled={!s.style}
               />
             </div>
             <div className="w-24">
