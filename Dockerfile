@@ -33,6 +33,9 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# 保留 Prisma CLI 与 seed 所需的开发依赖，便于容器内执行首次迁移和初始化
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 # 保留 prisma 目录（含 schema），以便容器内执行 migrate deploy
 COPY --from=builder /app/prisma ./prisma
 

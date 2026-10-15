@@ -22,12 +22,12 @@ DECLARE r RECORD;
 BEGIN
   FOR r IN
     SELECT id,
-           ROW_NUMBER() OVER (PARTITION BY createdAt::date ORDER BY createdAt, id) AS rn,
-           createdAt
+           ROW_NUMBER() OVER (PARTITION BY "createdAt"::date ORDER BY "createdAt", id) AS rn,
+           "createdAt" AS created_at
     FROM "CooperationTicket"
   LOOP
     UPDATE "CooperationTicket"
-    SET "ticketNo" = to_char(r.createdAt, 'YYYYMMDD') || lpad(r.rn::text, 4, '0')
+    SET "ticketNo" = to_char(r.created_at, 'YYYYMMDD') || lpad(r.rn::text, 4, '0')
     WHERE id = r.id;
   END LOOP;
 END $$;

@@ -11,13 +11,13 @@ CREATE TYPE "ReminderStatus" AS ENUM ('PENDING', 'SENT', 'DONE', 'CANCELLED', 'C
 CREATE TYPE "DataTaskStatus" AS ENUM ('PENDING', 'COLLECTED', 'MISSING');
 
 -- DropIndex
-DROP INDEX "Content_ticketId_idx";
+DROP INDEX IF EXISTS "Content_ticketId_idx";
 
 -- DropIndex
-DROP INDEX "CooperationTicket_assigneeId_idx";
+DROP INDEX IF EXISTS "CooperationTicket_assigneeId_idx";
 
 -- DropIndex
-DROP INDEX "CooperationTicket_ticketKind_idx";
+DROP INDEX IF EXISTS "CooperationTicket_ticketKind_idx";
 
 -- AlterTable
 ALTER TABLE "CooperationTicket" ADD COLUMN     "confirmedDate" DATE,
@@ -29,7 +29,7 @@ ADD COLUMN     "forceReason" TEXT,
 ADD COLUMN     "occupiesResource" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "parentId" TEXT,
 ADD COLUMN     "publishDate" DATE,
-ADD COLUMN     "publishLink" TEXT,
+ADD COLUMN IF NOT EXISTS "publishLink" TEXT,
 ADD COLUMN     "quoteAmount" DECIMAL(12,2),
 ADD COLUMN     "resourceOccupiedAt" TIMESTAMP(3),
 ADD COLUMN     "subType" "TicketSubType",
@@ -157,10 +157,18 @@ CREATE INDEX "DataCollectionTask_status_dueAt_idx" ON "DataCollectionTask"("stat
 CREATE UNIQUE INDEX "DataCollectionMonthly_yearMonth_key" ON "DataCollectionMonthly"("yearMonth");
 
 -- AddForeignKey
-ALTER TABLE "CooperationRequest" ADD CONSTRAINT "CooperationRequest_influencerId_fkey" FOREIGN KEY ("influencerId") REFERENCES "Influencer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CooperationRequest_influencerId_fkey') THEN
+    ALTER TABLE "CooperationRequest" ADD CONSTRAINT "CooperationRequest_influencerId_fkey" FOREIGN KEY ("influencerId") REFERENCES "Influencer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CooperationTicket" ADD CONSTRAINT "CooperationTicket_coopRequestId_fkey" FOREIGN KEY ("coopRequestId") REFERENCES "CooperationRequest"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CooperationTicket_coopRequestId_fkey') THEN
+    ALTER TABLE "CooperationTicket" ADD CONSTRAINT "CooperationTicket_coopRequestId_fkey" FOREIGN KEY ("coopRequestId") REFERENCES "CooperationRequest"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
 ALTER TABLE "CooperationTicket" ADD CONSTRAINT "CooperationTicket_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "CooperationTicket"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -182,4 +190,3 @@ ALTER TABLE "ReminderTask" ADD CONSTRAINT "ReminderTask_ticketId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "DataCollectionTask" ADD CONSTRAINT "DataCollectionTask_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "CooperationTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
