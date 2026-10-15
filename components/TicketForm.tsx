@@ -428,6 +428,7 @@ export default function TicketForm({
                 <input className={inputCls} value={procurementLink}
                   onChange={(e) => setProcurementLink(e.target.value)} placeholder="https://..." />
               </Field>
+              {brandId ? (
               <Field label="采买请求" required hint="每行一款式 + 数量，至少 1 行">
                 <div className="space-y-2">
                   {procurementItems.map((row, i) => (
@@ -471,6 +472,9 @@ export default function TicketForm({
                   </button>
                 </div>
               </Field>
+              ) : (
+                <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">请先选择品牌，再选择该品牌的款式。</p>
+              )}
             </>
 
           ) : ticketKind === "MAINTENANCE" && !isEdit ? (
@@ -508,7 +512,7 @@ export default function TicketForm({
               ))}
             </div>
           </Field>
-          <Field label="款式（可多选）" required>
+          {brandId ? <Field label="款式（可多选）" required>
             <SearchableMultiSelect
               options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
               value={styles}
@@ -516,7 +520,7 @@ export default function TicketForm({
               placeholder="请选择合作款式（可多选）"
               searchPlaceholder="搜索合作款式"
             />
-          </Field>
+          </Field> : <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">请先选择品牌，再选择该品牌的款式。</p>}
           <Field label="内容方向">
             <textarea className={inputCls} rows={2} value={contentDirection} onChange={(e) => setContentDirection(e.target.value)} />
           </Field>
@@ -570,7 +574,7 @@ export default function TicketForm({
                 placeholder="如小红书号/抖音号" />
             </Field>
           </div>
-          <Field label="款式（可多选）" required>
+          {brandId ? <Field label="款式（可多选）" required>
             <SearchableMultiSelect
               options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
               value={styles}
@@ -578,7 +582,7 @@ export default function TicketForm({
               placeholder="请选择合作款式（可多选）"
               searchPlaceholder="搜索合作款式"
             />
-          </Field>
+          </Field> : <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">请先选择品牌，再选择该品牌的款式。</p>}
           <Field label="合作类目（可多选）" required>
             <div className="flex flex-wrap gap-3">
               {COOP_CATEGORY_OPTIONS.map((c) => (
@@ -668,7 +672,7 @@ export default function TicketForm({
               </div>
             </Field>
           )}
-          {ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (
+          {brandId && ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (
           <Field label="寄品明细" hint="需要寄样时填写，可寄多个款式；与合作款式独立">
             <ShipItemEditor value={shipItems} onChange={setShipItems} brandId={brandId} />
           </Field>
