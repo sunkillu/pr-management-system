@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { notifyApprovers, notifyUser } from "@/lib/feishu-notify";
-import { buildNodesForTicket } from "@/lib/ticket-nodes";
+import { buildNodesForTicket, wireTicketNodeDependencies } from "@/lib/ticket-nodes";
 
 // POST /api/tickets/force-create — 管理员强制创建合作工单入口
 // 场景：达人正被其他工单占用（或30天保护期内），普通创建会返回 409，
@@ -105,7 +105,8 @@ export async function POST(req: NextRequest) {
   }
 
   const baseDate = body.startDate ? new Date(body.startDate) : new Date();
-  const nodes = buildNodesForTicket(type, baseDate);
+  const scriptRequired = body.scriptRequired === true;
+  const nodes = buildNodesForTicket(type, baseDate, { scriptRequired });
   const attachments = Array.isArray(body.attachments)
     ? body.attachments.filter((a: unknown) => a && typeof (a as { fileUrl?: unknown }).fileUrl === "string").slice(0, 20)
     : undefined;
@@ -159,6 +160,7 @@ export async function POST(req: NextRequest) {
         makeupArtistId,
         creatorId: auth.userId,
         attachments: attachments ?? undefined,
+        scriptRequired,
         shipItems: shipItems && shipItems.length > 0 ? shipItems : undefined,
         nodes: { create: nodes },
         // 管理员强制创建留痕
@@ -176,6 +178,7 @@ export async function POST(req: NextRequest) {
           : {}),
       },
     });
+    await wireTicketNodeDependencies(tx, created.id);
 
     if (submit) {
       await tx.requestApprover.createMany({

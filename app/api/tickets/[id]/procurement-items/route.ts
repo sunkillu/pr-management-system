@@ -46,6 +46,7 @@ return NextResponse.json({ error: "仅采买工单有逐条请求"}, { status: 4
 }
 const items = await prisma.procurementItem.findMany({
 where: { ticketId: params.id},
+include: { allocations: { include: { pr: { select: { id: true, name: true } }, ticket: { select: { id: true, ticketNo: true, status: true } } } } },
 orderBy: { createdAt: "asc"},
 });
 return NextResponse.json(items);

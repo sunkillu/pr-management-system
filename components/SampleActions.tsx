@@ -48,7 +48,7 @@ export default function SampleActions({ sample, role, userId }: Props) {
   };
 
   const canWarehouse = ["ADMIN", "WAREHOUSE"].includes(role);
-  const canSign = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
+  const canSign = ["ADMIN", "WAREHOUSE"].includes(role);
   const canFinance = ["ADMIN", "FINANCE"].includes(role);
   const canCancel = ["ADMIN", "PR", "PR_MANAGER", "WAREHOUSE"].includes(role);
   const terminal = ["SIGNED", "WRITTEN_OFF", "CANCELLED", "RETURNED"].includes(sample.status);
@@ -81,11 +81,6 @@ export default function SampleActions({ sample, role, userId }: Props) {
         </span>
       )}
       {sample.status === "PENDING" && canWarehouse && sample.infoConfirmed && (
-        <button className={btnPrimary} onClick={() => setConfirmAct("accept")} disabled={busy}>
-          接单备货
-        </button>
-      )}
-      {sample.status === "PREPARING" && canWarehouse && (
         <button className={btnPrimary} onClick={() => setModal("ship")}>
           标记寄出
         </button>

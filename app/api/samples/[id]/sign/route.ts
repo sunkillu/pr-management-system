@@ -6,7 +6,7 @@ import { notifyUser} from "@/lib/feishu-notify";
 
 // 确认签收：SHIPPED → SIGNED
 export async function POST(req: NextRequest, { params}: { params: { id: string}}) {
-const auth = await requireRoles(["ADMIN", "PR", "PR_MANAGER"]);
+const auth = await requireRoles(["ADMIN", "WAREHOUSE"]);
 if (!auth.ok) return auth.res;
 const sample = await prisma.sampleShipment.findUnique({ where: { id: params.id}});
 if (!sample) return NextResponse.json({ error: "寄件请求不存在"}, { status: 404});

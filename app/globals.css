@@ -5,23 +5,23 @@
 /* shadcn/ui CSS 变量体系 */
 @layer base {
   :root {
-    --background: 220 20% 97%;
+    --background: 220 24% 96%;
     --foreground: 222 32% 15%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222 55% 28%;
+    --primary: 224 68% 39%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --accent: 215 35% 93%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214 22% 88%;
+    --border: 214 24% 87%;
     --input: 214 22% 84%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
@@ -63,17 +63,52 @@
   }
 }
 
+.sidebar-shell {
+  background: linear-gradient(180deg, #111c35 0%, #0c1428 100%);
+}
+
+.login-shell {
+  background: radial-gradient(circle at 15% 15%, hsl(214 90% 93%), transparent 34%),
+    radial-gradient(circle at 85% 85%, hsl(186 70% 92%), transparent 32%),
+    hsl(var(--background));
+}
+
+.login-hero {
+  background: linear-gradient(145deg, #15284f 0%, #1c3b72 48%, #0e7490 140%);
+}
+
+.login-orb {
+  position: absolute;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.06);
+}
+
+.login-orb-one {
+  width: 360px;
+  height: 360px;
+  right: -150px;
+  top: 100px;
+}
+
+.login-orb-two {
+  width: 240px;
+  height: 240px;
+  left: -130px;
+  bottom: -100px;
+}
+
 @layer components {
   .page-card {
-    @apply rounded-xl border bg-card shadow-sm;
+    @apply rounded-2xl border bg-card shadow-sm;
   }
 
   .page-toolbar {
-    @apply mb-5 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3 shadow-sm;
+    @apply mb-5 flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3 shadow-sm;
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-xl border bg-card shadow-sm;
+    @apply overflow-hidden rounded-2xl border bg-card shadow-sm;
   }
 
   .table-shell table {

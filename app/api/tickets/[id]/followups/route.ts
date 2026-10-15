@@ -17,8 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     include: { _count: { select: { followUps: true } } },
   });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
-  if (ticket.status !== "FOLLOW_UP") {
-    return NextResponse.json({ error: "仅跟进中的工单可新增跟进记录" }, { status: 400 });
+  if (!["PUBLISHED", "FOLLOW_UP"].includes(ticket.status)) {
+    return NextResponse.json({ error: "仅已发布或跟进中的工单可新增跟进记录" }, { status: 400 });
   }
   if (ticket._count.followUps >= 3) {
     return NextResponse.json({ error: "跟进已满3次" }, { status: 400 });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
     const done = ticket._count.followUps + 1;
     let settled = false;
-    if (done >= 3) {
+    if (done >= 3 && ticket.status === "FOLLOW_UP") {
       await tx.cooperationTicket.update({
         where: { id: params.id },
         data: { status: "SETTLED" },
@@ -65,5 +65,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
     return { record, done, settled };
   });
+  if (result.settled && ticket.parentId) {
+    const siblings = await prisma.cooperationTicket.findMany({ where: { parentId: ticket.parentId }, select: { status: true } });
+    const terminal = new Set(["SETTLED", "VOIDED"]);
+    if (siblings.length > 0 && siblings.every((child) => terminal.has(child.status))) {
+      await prisma.cooperationTicket.updateMany({ where: { id: ticket.parentId, status: "PROCUREMENT_GENERATED" }, data: { status: "PROCUREMENT_CLOSED" } });
+    }
+  }
   return NextResponse.json(result, { status: 201 });
 }

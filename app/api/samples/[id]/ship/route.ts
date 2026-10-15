@@ -4,14 +4,17 @@ import { requireRoles} from "@/lib/api-auth";
 import { writeLog} from "@/lib/approval-log";
 import { notifyUser} from "@/lib/feishu-notify";
 
-// 仓库寄出：PREPARING → SHIPPED，快递公司+单号必填
+// 仓库寄出：PENDING → SHIPPED，快递公司+单号必填
 export async function POST(req: NextRequest, { params}: { params: { id: string}}) {
 const auth = await requireRoles(["ADMIN", "WAREHOUSE"]);
 if (!auth.ok) return auth.res;
 const sample = await prisma.sampleShipment.findUnique({ where: { id: params.id}});
 if (!sample) return NextResponse.json({ error: "寄件请求不存在"}, { status: 404});
-if (sample.status!== "PREPARING") {
-return NextResponse.json({ error: "仅备货中的请求可寄出"}, { status: 400});
+if (sample.status!== "PENDING") {
+return NextResponse.json({ error: "仅待寄出的请求可寄出"}, { status: 400});
+}
+if (!sample.infoConfirmed) {
+return NextResponse.json({ error: "寄件信息尚未确认，不能寄出"}, { status: 400});
 }
 const body = await req.json().catch(() => ({}));
 const courier = String(body.courier?? "").trim();
@@ -36,7 +39,7 @@ docType: "SAMPLE",
 docId: params.id,
 action: "APPROVE",
 actorId: auth.userId,
-fromStatus: "PREPARING",
+fromStatus: "PENDING",
 toStatus: "SHIPPED",
 note: `已寄出：${courier} ${trackingNo}`,
 });

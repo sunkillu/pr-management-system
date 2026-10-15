@@ -7,7 +7,7 @@ import { notifyUser} from "./feishu-notify";
 * 1. checkLogisticsT1：发货后 T+1 检测物流状态。无真实物流接口时，
 * 仅将 logisticsStatus 标记为「待手动确认」并打 logisticsCheckedAt 标记，
 * 不编造物流数据；同时通知仓库人工确认。
-* 2. checkSampleOverdue：寄品停留在非终态（待处理/备货中/已寄出）超过 7 天
+ * 2. checkSampleOverdue：寄品停留在非终态（待寄出/待签收）超过 7 天
 * 预警，打 overdueWarnedAt 标记防重复。
 * 3. remindScheduleAfterSign：已签收且尚未提醒过补档期时，提醒相关人员
 * 确定档期，打 scheduleRemindedAt 标记防重复。
@@ -129,7 +129,7 @@ return checked;
  * PENDING / PREPARING 按创建时间（无独立的状态停留时间字段，createdAt 为最接近的口径）。
  */
 export async function checkSampleOverdue(): Promise<number> {
-const ACTIVE: Array<"PENDING" | "PREPARING" | "SHIPPED"> = ["PENDING", "PREPARING", "SHIPPED"];
+const ACTIVE: Array<"PENDING" | "SHIPPED"> = ["PENDING", "SHIPPED"];
 const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 let warned = 0;
 try {
@@ -143,9 +143,8 @@ return base.getTime() < cutoff.getTime();
 });
 const ownerIds = await getOwnerIds();
 const statusNames: Record<string, string> = {
-PENDING: "待处理",
-PREPARING: "备货中",
-SHIPPED: "已寄出",
+  PENDING: "待寄出",
+  SHIPPED: "待签收",
 };
 for (const s of overdue) {
 try {

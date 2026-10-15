@@ -20,12 +20,16 @@ export async function ensureTicketSample(
       brandId: true,
       creatorId: true,
       influencerId: true,
+      ticketKind: true,
+      sampleRequired: true,
       shipItems: true,
       influencer: { select: { name: true } },
     },
   });
   const items = (Array.isArray(ticket?.shipItems) ? ticket.shipItems : []) as ShipItem[];
-  if (!ticket || items.length === 0) return null;
+  // 维护工单只要勾选“需要寄品”即可先生成空寄品单，寄品明细和收件信息在工单内补齐；
+  // 普通合作工单仍要求创建时已有寄品明细。
+  if (!ticket || (items.length === 0 && !(ticket.ticketKind === "MAINTENANCE" && ticket.sampleRequired))) return null;
   const existing = await tx.sampleShipment.findFirst({ where: { ticketId } });
   if (existing) return null;
 
@@ -36,8 +40,8 @@ export async function ensureTicketSample(
       ticketId,
       brandId: ticket.brandId,
       productName: `工单「${ticket.title}」寄品`,
-      quantity: items.length,
-      items: items as unknown as Prisma.InputJsonValue,
+      quantity: items.length || 1,
+      items: items.length > 0 ? items as unknown as Prisma.InputJsonValue : undefined,
       receiverName: ticket.influencer?.name ?? null,
       status: "PENDING",
       // 归属工单创建人：由其维护并确认收件信息；实际操作人记在日志里

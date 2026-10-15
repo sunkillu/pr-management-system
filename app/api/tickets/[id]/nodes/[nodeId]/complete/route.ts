@@ -15,8 +15,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
   if (!auth.ok) return auth.res;
   const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
-  if (!["APPROVED", "IN_PROGRESS"].includes(ticket.status)) {
-    return NextResponse.json({ error: "仅待执行/执行中的工单可更新节点" }, { status: 400 });
+  if (!["APPROVED", "IN_PROGRESS", "AWAITING_DRAFT", "PENDING_REVIEW", "DRAFT_RETURNED", "REVIEWED", "PUBLISHED"].includes(ticket.status)) {
+    return NextResponse.json({ error: "当前工单状态不可更新节点" }, { status: 400 });
   }
   if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
     return NextResponse.json({ error: "仅创建人、审批链成员或管理员可推进节点" }, { status: 403 });
@@ -48,8 +48,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
   if (kind === "EXEC" && !note) {
     return NextResponse.json({ error: "请填写执行信息（推进说明）" }, { status: 400 });
   }
-  if (kind === "CONTENT" && !note) {
-    return NextResponse.json({ error: "请填写内容信息（如发布链接/平台）" }, { status: 400 });
+  if (kind === "CONTENT" && !/^https?:\/\/\S+$/i.test(note ?? "")) {
+    return NextResponse.json({ error: "内容发布必须填写有效的发布链接（以 http:// 或 https:// 开头）" }, { status: 400 });
   }
   // 数据回收节点：必须先上传回收素材
   if (kind === "DATA") {

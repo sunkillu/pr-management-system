@@ -10,9 +10,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const body = await req.json().catch(() => ({}));
   const publishLink = String(body.publishLink ?? "").trim();
   if (!/^https?:\/\//i.test(publishLink)) return NextResponse.json({ error: "请填写有效的发布链接" }, { status: 400 });
-  const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id }, select: { status: true, creatorId: true, title: true } });
+  const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id }, select: { status: true, creatorId: true, title: true, materialApprovedAt: true } });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
   if (ticket.status !== "DRAFT_RETURNED") return NextResponse.json({ error: "仅已返稿工单可标记发布" }, { status: 400 });
+  if (!ticket.materialApprovedAt) return NextResponse.json({ error: "合作素材尚未审批通过，不能发布" }, { status: 400 });
   const published = await prisma.$transaction(async (tx) => {
     const result = await tx.cooperationTicket.updateMany({ where: { id: params.id, status: ticket.status }, data: { status: "PUBLISHED", publishLink, publishDate: new Date() } });
     if (result.count !== 1) return null;

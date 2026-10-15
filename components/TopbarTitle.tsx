@@ -15,6 +15,8 @@ const titles: Array<[string, string]> = [
   ["/reports", "效果报表"],
   ["/users", "用户管理"],
   ["/tags", "标签管理"],
+  ["/brands", "品牌管理"],
+  ["/styles", "合作款式"],
 ];
 
 export default function TopbarTitle() {

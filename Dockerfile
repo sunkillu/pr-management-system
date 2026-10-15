@@ -35,6 +35,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # 保留 prisma 目录（含 schema），以便容器内执行 migrate deploy
 COPY --from=builder /app/prisma ./prisma
+# Prisma CLI 在 devDependencies 中，运行镜像也需要它来执行 migrate deploy
+COPY --from=builder /app/node_modules ./node_modules
 
 USER nextjs
 EXPOSE 3000

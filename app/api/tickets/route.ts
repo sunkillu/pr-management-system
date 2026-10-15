@@ -3,7 +3,7 @@ import { prisma} from "@/lib/prisma";
 import { requireRoles} from "@/lib/api-auth";
 import { writeLog} from "@/lib/approval-log";
 import { notifyApprovers, notifyUser} from "@/lib/feishu-notify";
-import { buildNodesForTicket} from "@/lib/ticket-nodes";
+import { buildNodesForTicket, wireTicketNodeDependencies} from "@/lib/ticket-nodes";
 import { checkApprovalTimeouts} from "@/lib/timeout-check";
 import { canOccupy, OccupancyConflictError} from "@/lib/occupancy";
 import { platformTagLabels } from "@/lib/labels";
@@ -78,6 +78,7 @@ async function createProcurementTicket(
   body: Record<string, unknown>,
   auth: { ok: true; userId: string; userName: string; role: string },
 ) {
+  const defaultAssigneeId = ["PR", "PR_MANAGER"].includes(auth.role) ? auth.userId : null;
   // 品牌必填：校验 brandId 存在且启用
   const brandId = String(body.brandId ?? "").trim();
   if (!brandId) {
@@ -162,12 +163,24 @@ async function createProcurementTicket(
         estimatedSchedule: "-",
         note: noteLines.join("\n"),
         status: submit ? "PENDING_PROCUREMENT" : "DRAFT",
+        assigneeId: defaultAssigneeId,
         creatorId: auth.userId,
         procurementItems: {
           create: items.map((it) => ({ style: it.style, quantity: it.quantity, link })),
         },
       },
     });
+    if (defaultAssigneeId) {
+      await tx.ticketAssigneeLog.create({
+        data: {
+          ticketId: created.id,
+          toUserId: defaultAssigneeId,
+          changedById: auth.userId,
+          action: "ASSIGN",
+          reason: "创建人是 PR，默认归属创建人",
+        },
+      });
+    }
     if (submit) {
       await tx.requestApprover.createMany({
         data: approverIds.map((approverId: string) => ({
@@ -225,6 +238,7 @@ async function createMaintenanceTicket(
   body: Record<string, unknown>,
   auth: { ok: true; userId: string; userName: string; role: string },
 ) {
+  const defaultAssigneeId = ["PR", "PR_MANAGER"].includes(auth.role) ? auth.userId : null;
   const type = body.type as "INFLUENCER_POST" | "INFLUENCER_LIVE" | "MAKEUP" | undefined;
   if (!type || !["INFLUENCER_POST", "INFLUENCER_LIVE", "MAKEUP"].includes(type)) {
     return NextResponse.json({ error: "合作类型非法" }, { status: 400 });
@@ -238,10 +252,10 @@ async function createMaintenanceTicket(
     return NextResponse.json({ error: "品牌不存在或已停用" }, { status: 400 });
   }
   const platform: string[] = Array.isArray(body.platform)
-    ? (body.platform as unknown[]).map(String).filter((s) => ["XIAOHONGSHU", "DOUYIN"].includes(s))
+    ? Array.from(new Set((body.platform as unknown[]).map(String).filter((s) => ["XIAOHONGSHU", "DOUYIN"].includes(s))))
     : [];
   if (platform.length === 0) {
-    return NextResponse.json({ error: "请选择合作平台（可多选）" }, { status: 400 });
+    return NextResponse.json({ error: "维护工单至少选择一个合作平台" }, { status: 400 });
   }
   const styles: string[] = Array.isArray(body.style)
     ? (body.style as unknown[]).map(String).filter(Boolean)
@@ -254,6 +268,18 @@ async function createMaintenanceTicket(
     return NextResponse.json({ error: `存在不属于该品牌或已停用的款式：${invalidStyles.join("、")}` }, { status: 400 });
   }
   const { influencerId, makeupArtistId } = pickPartner(body);
+  const homepageLinks = body.homepageLinks && typeof body.homepageLinks === "object" ? body.homepageLinks : null;
+  const missingPlatform = platform.find((platformKey) => {
+    const value = homepageLinks && typeof homepageLinks === "object"
+      ? (homepageLinks as Record<string, unknown>)[platformKey]
+      : null;
+    return !String(value ?? "").trim();
+  });
+  if (missingPlatform) {
+    const label = platformTagLabels[missingPlatform] ?? missingPlatform;
+    return NextResponse.json({ error: `请填写${label}达人主页链接` }, { status: 400 });
+  }
+  const sampleRequired = body.sampleRequired === true;
   if (type === "MAKEUP" && !makeupArtistId) {
     return NextResponse.json({ error: "化妆师合作必须选择化妆师" }, { status: 400 });
   }
@@ -323,17 +349,31 @@ async function createMaintenanceTicket(
         budgetFee: 0,
         platform,
         homepageId,
+        homepageLinks: homepageLinks ?? undefined,
         style: styles,
         contentDirection: String(body.contentDirection ?? "").trim() || null,
         coopCategory: [],
         estimatedSchedule: "-",
         note: String(body.note ?? "").trim() || null,
+        sampleRequired,
         status: submit ? "PENDING_APPROVAL" : "DRAFT",
+        assigneeId: defaultAssigneeId,
         influencerId,
         makeupArtistId,
         creatorId: auth.userId,
       },
     });
+    if (defaultAssigneeId) {
+      await tx.ticketAssigneeLog.create({
+        data: {
+          ticketId: created.id,
+          toUserId: defaultAssigneeId,
+          changedById: auth.userId,
+          action: "ASSIGN",
+          reason: "创建人是 PR，默认归属创建人",
+        },
+      });
+    }
     if (submit) {
       await tx.requestApprover.createMany({
         data: approverIds.map((approverId: string) => ({
@@ -421,8 +461,8 @@ return NextResponse.json({ error: "品牌不存在或已停用"}, { status: 400}
 }
 // 合作平台多选必填
 const platforms: string[] = Array.isArray(body.platform) ? body.platform.map((s: unknown) => String(s)).filter((s: string) => ["XIAOHONGSHU", "DOUYIN"].includes(s)) : [];
-if (platforms.length === 0) {
-return NextResponse.json({ error: "请选择合作平台（可多选）"}, { status: 400});
+if (platforms.length !== 1) {
+return NextResponse.json({ error: "合作工单只能选择一个合作平台；不同平台请分别创建工单"}, { status: 400});
 }
 // 款式多选必填
 const styles: string[] = Array.isArray(body.style) ? body.style.map((s: unknown) => String(s)).filter(Boolean) : [];
@@ -472,12 +512,14 @@ if (!cr) return NextResponse.json({ error: "来源合作需求不存在" }, { st
 }
 // 达人主页ID：未手动填写时从达人库自动带入
 let homepageId = String(body.homepageId ?? "").trim() || null;
+const homepageLinks = body.homepageLinks && typeof body.homepageLinks === "object" ? body.homepageLinks : null;
 if (!homepageId && influencerId) {
 const inf = await prisma.influencer.findUnique({ where: { id: influencerId }, select: { homepageId: true } });
 if (inf?.homepageId) homepageId = inf.homepageId;
 }
 
 const submit = body.submit === true;
+const defaultAssigneeId = ["PR", "PR_MANAGER"].includes(auth.role) ? auth.userId : null;
 const approverIds: string[] = Array.isArray(body.approverIds)? body.approverIds: [];
 if (submit) {
 if (approverIds.length === 0) {
@@ -492,12 +534,16 @@ return NextResponse.json({ error: "审批人必须为 PR负责人 或 管理员"
 }
 }
 
-const baseDate = body.startDate? new Date(body.startDate): new Date();
-const nodes = buildNodesForTicket(type, baseDate);
 // 附件/插图：[{fileUrl, fileName}]，简单校验结构
 const attachments = Array.isArray(body.attachments)
   ? body.attachments.filter((a: unknown) => a && typeof (a as { fileUrl?: unknown }).fileUrl === "string").slice(0, 20)
   : undefined;
+const scriptRequired = body.scriptRequired === true;
+if (scriptRequired && (!attachments || attachments.length === 0)) {
+return NextResponse.json({ error: "需要脚本时请至少上传一个脚本附件" }, { status: 400 });
+}
+const baseDate = body.startDate? new Date(body.startDate): new Date();
+const nodes = buildNodesForTicket(type, baseDate, { scriptRequired });
 // 寄品明细：[{style, degree?, shelfLife?, boxCount?, note?}]，款式名必填
 const shipItems = Array.isArray(body.shipItems)
   ? body.shipItems
@@ -548,6 +594,7 @@ budgetFee: body.budgetFee,
 actualFee: body.actualFee? body.actualFee: null,
 platform: platforms,
 homepageId,
+homepageLinks: homepageLinks ?? undefined,
 style: styles,
 contentDirection: String(body.contentDirection ?? "").trim() || null,
 coopCategory: coopCategories,
@@ -564,11 +611,26 @@ makeupArtistId,
 // 来源合作需求（从需求详情页"发起工单"跳转时带入，已在上方校验）
 coopRequestId,
 creatorId: auth.userId,
+assigneeId: defaultAssigneeId,
 attachments: attachments ?? undefined,
+scriptRequired,
 shipItems: shipItems && shipItems.length > 0 ? shipItems : undefined,
+sampleRequired: body.sampleRequired === true,
 nodes: { create: nodes},
 },
 });
+await wireTicketNodeDependencies(tx, created.id);
+if (defaultAssigneeId) {
+await tx.ticketAssigneeLog.create({
+data: {
+ticketId: created.id,
+toUserId: defaultAssigneeId,
+changedById: auth.userId,
+action: "ASSIGN",
+reason: "创建人是 PR，默认归属创建人",
+},
+});
+}
 if (submit) {
 await tx.requestApprover.createMany({
 data: approverIds.map((approverId: string) => ({

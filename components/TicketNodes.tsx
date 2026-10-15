@@ -44,6 +44,10 @@ export default function TicketNodes({
   const now = new Date();
 
   async function doComplete(node: Node, note: string) {
+    if (classifyNode(node.name) === "CONTENT" && !/^https?:\/\/\S+$/i.test(note.trim())) {
+      setError("内容发布必须填写有效的发布链接（以 http:// 或 https:// 开头）");
+      return;
+    }
     setBusy(true);
     setError("");
     const res = await fetch(`/api/tickets/${ticketId}/nodes/${node.id}/complete`, {
@@ -179,7 +183,7 @@ export default function TicketNodes({
       {confirmNode && (() => {
         const kind = classifyNode(confirmNode.name);
         const needNote = kind === "EXEC" || kind === "CONTENT";
-        const noteLabel = kind === "EXEC" ? "执行信息" : kind === "CONTENT" ? "内容信息" : "推进说明";
+        const noteLabel = kind === "EXEC" ? "执行信息" : kind === "CONTENT" ? "发布链接" : "推进说明";
         return (
           <ConfirmDialog
             title={`完成节点「${confirmNode.name}」`}
@@ -187,7 +191,7 @@ export default function TicketNodes({
             needReason
             reasonLabel={noteLabel}
             reasonOptional={!needNote}
-            reasonPlaceholder={kind === "EXEC" ? "如：已完成拍摄，成片X条" : kind === "CONTENT" ? "如：笔记已发布，链接…" : "选填"}
+            reasonPlaceholder={kind === "EXEC" ? "如：已完成拍摄，成片X条" : kind === "CONTENT" ? "https://平台.example.com/作品链接" : "选填"}
             confirmText="确认完成"
             busy={busy}
             onClose={() => { setConfirmNode(null); setError(""); }}

@@ -21,7 +21,7 @@ export default async function NewTicketPage({
   const influencers = await prisma.influencer.findMany({
     // 工单只能选择库中（已通过）的达人；PR 只能选自己登记的
     where: { status: "APPROVED", ...(role === "PR" ? { registeredById: userId } : {}) },
-    select: { id: true, name: true, homepageId: true },
+    select: { id: true, name: true, homepageId: true, xhsUrl: true, douyinUrl: true, platforms: true },
     orderBy: { name: "asc" },
   });
   const makeupArtists = await prisma.makeupArtist.findMany({

@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { sampleStatusLabels } from "@/lib/labels";
 import Modal from "./Modal";
 
 export type SampleInput = {
@@ -46,7 +45,7 @@ export default function SampleForm({
       trackingNo: "",
       shippedDate: "",
       shippedBy: "",
-      status: "SHIPPED",
+      status: "PENDING",
       brandId: "",
     }
   );
@@ -71,7 +70,15 @@ export default function SampleForm({
     const res = await fetch(url, {
       method: editTarget ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, productName: form.productName.trim() }),
+        body: JSON.stringify({
+          influencerId: form.influencerId || null,
+          productName: form.productName.trim(),
+          quantity: form.quantity,
+          receiverName: form.receiverName,
+          receiverPhone: form.receiverPhone,
+          receiverAddress: form.receiverAddress,
+          brandId: form.brandId || null,
+        }),
     });
     const data = await res.json().catch(() => ({}));
     setSaving(false);
@@ -129,41 +136,10 @@ export default function SampleForm({
           ))}
         </select>
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="数量">
-          <input
-            type="number"
-            min="1"
-            className={inputCls}
-            value={form.quantity}
-            onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="状态">
-          <select className={inputCls} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            {Object.entries(sampleStatusLabels).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      <Field label="快递公司">
-        <input className={inputCls} value={form.courier} onChange={(e) => setForm({ ...form, courier: e.target.value })} placeholder="如：顺丰" />
+      <Field label="数量">
+        <input type="number" min="1" className={inputCls} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
       </Field>
-      <Field label="快递单号">
-        <input className={inputCls} value={form.trackingNo} onChange={(e) => setForm({ ...form, trackingNo: e.target.value })} />
-      </Field>
-      <Field label="寄出日期">
-        <input
-          type="date"
-          className={inputCls}
-          value={form.shippedDate}
-          onChange={(e) => setForm({ ...form, shippedDate: e.target.value })}
-        />
-      </Field>
-      <Field label="寄件人">
-        <input className={inputCls} value={form.shippedBy} onChange={(e) => setForm({ ...form, shippedBy: e.target.value })} placeholder="寄件人姓名" />
-      </Field>
+      <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">寄品状态、快递和单号由仓库维护；确认寄件信息后系统会自动推送给仓库。</p>
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2">
         <button className={btnSecondary} onClick={() => setOpen(false)}>取消</button>

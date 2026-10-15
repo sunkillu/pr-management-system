@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "./Modal";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { sampleStatusLabels } from "@/lib/labels";
 import { LOGISTICS_STATUSES, ABNORMAL_FLAGS } from "@/lib/logistics";
 
 // 仓库维护寄件信息：快递公司 / 快递单号 / 寄出日期 / 发货时间 / 物流状态 / 异常标记 / 寄件人 / 状态
@@ -31,7 +30,6 @@ export default function SampleShipForm({
   const [logisticsStatus, setLogisticsStatus] = useState(sample.logisticsStatus ?? "");
   const [abnormalFlag, setAbnormalFlag] = useState(sample.abnormalFlag ?? "");
   const [shippedBy, setShippedBy] = useState(sample.shippedBy ?? "");
-  const [status, setStatus] = useState(sample.status);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -49,7 +47,6 @@ export default function SampleShipForm({
         logisticsStatus: logisticsStatus || null,
         abnormalFlag: abnormalFlag || null,
         shippedBy,
-        status,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -107,13 +104,7 @@ export default function SampleShipForm({
             <Field label="寄件人">
               <input className={inputCls} value={shippedBy} onChange={(e) => setShippedBy(e.target.value)} placeholder="寄件人姓名" />
             </Field>
-            <Field label="状态">
-              <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>
-                {Object.entries(sampleStatusLabels).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-            </Field>
+            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">状态只能由仓库操作或系统自动推进：待寄出 → 待签收 → 已签收。</p>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-2">
               <button className={btnPrimary} disabled={busy} onClick={save}>保存</button>

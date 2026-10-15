@@ -38,16 +38,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   const existing = await prisma.sampleShipment.findUnique({ where: { id: params.id } });
   if (!existing) return NextResponse.json({ error: "寄品记录不存在" }, { status: 404 });
-  // 物流字段（发货时间 / 物流状态 / 异常标记）：仓库与业务方均可维护，白名单校验
+  // PR 只维护寄品和收件信息；状态、快递、物流由仓库或系统推进
+  const canMaintainLogistics = auth.role === "WAREHOUSE" || auth.role === "ADMIN";
+  if (!canMaintainLogistics && ["status", "courier", "trackingNo", "shippedDate", "shippedBy", "shippedAt", "logisticsStatus", "abnormalFlag"].some((key) => body[key] !== undefined)) {
+    return NextResponse.json({ error: "PR只能维护寄品和收件信息，状态及物流信息由仓库或系统推进" }, { status: 403 });
+  }
+  // 物流字段（发货时间 / 物流状态 / 异常标记）：仅仓库维护，白名单校验
   const logistics = parseLogisticsFields(body as Record<string, unknown>);
   if ("error" in logistics) {
     return NextResponse.json({ error: logistics.error }, { status: 400 });
   }
   const logisticsData = logistics.data as Record<string, unknown>;
-  const isWarehouseOnly = auth.role === "WAREHOUSE";
+  const isWarehouseOnly = canMaintainLogistics;
   const data: Record<string, unknown> = isWarehouseOnly
     ? {
-        // 仓库仅允许维护寄件信息
+        // 仓库/管理员维护快递、物流和状态
         courier: body.courier !== undefined ? body.courier?.trim() || null : undefined,
         trackingNo: body.trackingNo !== undefined ? body.trackingNo || null : undefined,
         shippedDate:
@@ -64,17 +69,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         influencerId: body.influencerId !== undefined ? body.influencerId || null : undefined,
         productName: body.productName?.trim() || undefined,
         quantity: body.quantity !== undefined ? Number(body.quantity) || 1 : undefined,
-        courier: body.courier !== undefined ? body.courier?.trim() || null : undefined,
-        trackingNo: body.trackingNo !== undefined ? body.trackingNo || null : undefined,
-        shippedDate:
-          body.shippedDate !== undefined
-            ? body.shippedDate
-              ? new Date(body.shippedDate)
-              : null
-            : undefined,
-        shippedBy: body.shippedBy !== undefined ? body.shippedBy?.trim() || null : undefined,
-        status: body.status ?? undefined,
-        ...logisticsData,
+        receiverName: body.receiverName !== undefined ? body.receiverName?.trim() || null : undefined,
+        receiverPhone: body.receiverPhone !== undefined ? body.receiverPhone?.trim() || null : undefined,
+        receiverAddress: body.receiverAddress !== undefined ? body.receiverAddress?.trim() || null : undefined,
+        brandId: body.brandId !== undefined ? body.brandId || null : undefined,
       };
   const updated = await prisma.sampleShipment.update({
     where: { id: params.id },

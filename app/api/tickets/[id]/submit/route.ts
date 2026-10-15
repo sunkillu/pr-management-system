@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { notifyApprovers } from "@/lib/feishu-notify";
-import { buildNodesForTicket } from "@/lib/ticket-nodes";
+import { buildNodesForTicket, wireTicketNodeDependencies } from "@/lib/ticket-nodes";
 
 // 草稿提交审批：DRAFT → PENDING_APPROVAL
 // 用于采买转入的合作工单：接单PR补充合作信息（合作对象/类目/档期）后提交，走完整合作审批流
@@ -64,14 +64,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // 采买转入的工单在创建时未生成进度节点，提交时补建（维护工单不建节点，转化后提交时再补建）
     const nodeCount = await tx.ticketNode.count({ where: { ticketId: params.id } });
     if (nodeCount === 0 && ticket.ticketKind === "COOPERATION") {
-      const nodes = buildNodesForTicket(ticket.type, ticket.startDate ?? new Date());
+      const nodes = buildNodesForTicket(ticket.type, ticket.startDate ?? new Date(), { scriptRequired: ticket.scriptRequired });
       await tx.ticketNode.createMany({
         data: nodes.map((n) => ({ ticketId: params.id, ...n })),
       });
+      await wireTicketNodeDependencies(tx, params.id);
     }
     await tx.cooperationTicket.update({
       where: { id: params.id },
       data: { status: "PENDING_APPROVAL", escalatedAt: null },
+    });
+    // 维护工单转为合作工单后会重新走一轮合作审批。
+    // 旧维护审批记录属于上一轮审批，不能与新一轮审批人复用同一唯一键；
+    // 审批历史由 ApprovalLog 留存，这里只重建当前轮次的待审批列表。
+    await tx.requestApprover.deleteMany({
+      where: { requestType: "TICKET", requestId: params.id },
     });
     await tx.requestApprover.createMany({
       data: approverIds.map((approverId: string) => ({

@@ -72,6 +72,7 @@ model User {
   purchaseRequestsCreated PurchaseRequest[] @relation("PurchaseRequestCreator")
   purchaseLinesReviewed PurchaseLine[] @relation("PurchaseLineReviewer")
   purchaseLinesAssigned PurchaseLine[] @relation("PurchaseLineAssignee")
+  procurementAllocations ProcurementAllocation[] @relation("ProcurementAllocationPR")
 }
 
 // ---------- 1. 媒体资源库 ----------
@@ -775,6 +776,11 @@ enum TicketStatus {
   DRAFT            // 草稿
   PENDING_APPROVAL // 待审批
   PENDING_PROCUREMENT // 待采买审批（采买工单专用）
+  // 兼容历史版本已经写入数据库的状态，避免读取旧工单时 Prisma 无法反序列化
+  PENDING_SAMPLE
+  SAMPLED
+  PENDING_MANUSCRIPT
+  PENDING_PUBLISH
   APPROVED         // 已通过（待执行）
   IN_PROGRESS      // 执行中
   MATERIAL_REVIEW  // 待素材审批（标记完成后，PR负责人审批回收素材）
@@ -785,6 +791,8 @@ enum TicketStatus {
   PENDING_REVIEW   // 待返稿（寄品签收 → 填写确定档期后）
   REVIEWED         // 已返稿（PR 上传返稿素材并标记）
   PUBLISHED        // 已发布（填写发布链接后）
+  PROCUREMENT_GENERATED
+  PROCUREMENT_CLOSED
   SETTLING         // 结算中
   FOLLOW_UP        // 跟进中（打款后15天数据跟进）
   SETTLED          // 已结算
@@ -862,6 +870,7 @@ model CooperationTicket {
   budgetOverridden Boolean @default(false) // 超预算已特批
   platform    String[]     // 合作平台（多选，必填）：XIAOHONGSHU / DOUYIN
   homepageId  String?      // 达人主页ID（从达人库带入，可手动改）
+  homepageLinks Json?      // 按平台保存的达人主页链接：{ XIAOHONGSHU: string, DOUYIN: string }
   style       String[]     // 款式（多选，必填）
   contentDirection String? @db.Text // 内容方向
   coopCategory String[]    // 合作类目（多选，必填）
@@ -869,6 +878,7 @@ model CooperationTicket {
   contentNote String?      @db.Text // 内容备注
   estimatedSchedule String // 预估档期（必填），如"10月下旬"或"2026-10-20~2026-10-31"
   shipItems   Json? // 寄品明细 [{style, degree?, note?}]，与合作款式(style)独立
+  sampleRequired Boolean @default(false) // 维护工单是否需要寄品
   startDate   DateTime?    @db.Date // 档期开始
   endDate     DateTime?    @db.Date // 档期结束
   note        String?      @db.Text
@@ -878,6 +888,9 @@ model CooperationTicket {
   escalatedAt DateTime? // 超时升级标记（防重复升级）
   followUpDueDate DateTime? // 跟进到期日（打款后15天）
   attachments Json? // 附件/插图 [{fileUrl, fileName}]
+  scriptRequired Boolean @default(false) // 是否需要脚本；否时跳过脚本设计节点
+  materialApprovedAt DateTime? // 合作素材审批通过时间，发布前必须存在
+  materialApprovedById String? // 合作素材审批人
 
   influencerId String?
   influencer   Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
@@ -939,6 +952,7 @@ model CooperationTicket {
 
   // ---------- 采买逐条审批：采买工单的每行款式请求 ----------
   procurementItems ProcurementItem[]
+  procurementAllocations ProcurementAllocation[] @relation("ProcurementAllocationTicket")
   purchaseLine PurchaseLine?
 
   createdAt DateTime @default(now())
@@ -965,10 +979,27 @@ model ProcurementItem {
   rejectReason String? @db.Text // 驳回理由（驳回时必填）
   // 分配后生成的合作工单 id（防重复分配；为空 = 未分配）
   allocatedTicketId String?
+  allocations ProcurementAllocation[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([ticketId])
+}
+
+// 采买通过数量的分配明细：同一款式可以拆给多个 PR，例如 30 条分给 2 人各 15 条。
+model ProcurementAllocation {
+  id        String @id @default(cuid())
+  itemId    String
+  item      ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  prId      String
+  pr        User @relation("ProcurementAllocationPR", fields: [prId], references: [id], onDelete: Restrict)
+  quantity  Int
+  ticketId  String @unique
+  ticket    CooperationTicket @relation("ProcurementAllocationTicket", fields: [ticketId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
+  @@index([prId])
 }
 
 enum PurchaseRequestStatus {

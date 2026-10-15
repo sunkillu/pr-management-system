@@ -5,7 +5,7 @@ import { writeLog } from "@/lib/approval-log";
 import { notifyUser } from "@/lib/feishu-notify";
 
 // 异常重寄：已寄出（SHIPPED）且被标记异常（abnormalFlag = 拒收 / 退回 / 异常）的寄品，
-// 退回备货中（PREPARING）等待仓库用新快递单号重新寄出。
+// 退回待寄出，等待仓库用新快递单号重新寄出。
 // 重寄时清空旧物流信息（快递公司 / 单号 / 发货时间 / 物流状态 / 检测与预警标记），
 // 避免旧单号、旧预警标记污染新一次寄送；重寄原因写入 ApprovalLog 留痕。
 // 仅提交人或管理员可操作；理由必填。
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const u = await tx.sampleShipment.update({
       where: { id: params.id },
       data: {
-        status: "PREPARING",
+        status: "PENDING",
         abnormalFlag: null,
         courier: null,
         trackingNo: null,
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       action: "EDIT",
       actorId: auth.userId,
       fromStatus: "SHIPPED",
-      toStatus: "PREPARING",
+      toStatus: "PENDING",
       note: `异常重寄（原异常：${sample.abnormalFlag}，原单号：${sample.trackingNo ?? "-"}）：${reason}`,
     });
     return u;

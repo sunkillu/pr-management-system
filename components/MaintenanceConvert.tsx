@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { btnPrimary } from "./ui";
 import ConfirmDialog from "./ConfirmDialog";
 
-// 维护工单转为合作工单按钮：仅 ADMIN / PR_MANAGER / 归属 PR 可见（后端同样校验）
+// 维护工单转为合作工单按钮：审批通过或寄品签收后均可转化
 export default function MaintenanceConvert({
   ticketId,
   ticketTitle,

@@ -118,7 +118,7 @@ export default function TicketReviewFlow({
       {showReviewed &&
         (materialsCount > 0 ? (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
-            <p className="text-sm text-amber-900">已回收 {materialsCount} 条返稿素材，可标记已返稿。</p>
+            <p className="text-sm text-amber-900">已回收 {materialsCount} 条返稿素材，请审批通过后再推送已返稿。</p>
             <button
               className={btnPrimary}
               disabled={busy}
@@ -133,7 +133,7 @@ export default function TicketReviewFlow({
                 })
               }
             >
-              标记已返稿
+              审批通过并推送已返稿
             </button>
           </div>
         ) : (

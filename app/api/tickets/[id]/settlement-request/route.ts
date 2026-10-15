@@ -21,6 +21,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
   if (ticket.status !== "PUBLISHED") return NextResponse.json({ error: "仅已发布工单可提交结算审批" }, { status: 400 });
+  const followUpCount = await prisma.followUpRecord.count({ where: { ticketId: params.id } });
+  if (followUpCount < 1) return NextResponse.json({ error: "申请结算前至少需要完成一次跟进" }, { status: 400 });
   const existing = await prisma.paymentRequest.findFirst({ where: { ticketId: params.id, status: { notIn: ["REJECTED", "VOIDED", "PAID"] } }, select: { id: true } });
   if (existing) return NextResponse.json({ error: "该工单已有进行中的结算申请" }, { status: 409 });
   const payment = await prisma.$transaction(async (tx) => {

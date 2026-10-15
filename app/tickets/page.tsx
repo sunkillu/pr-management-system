@@ -45,7 +45,7 @@ export default async function TicketsPage({
   const influencers = await prisma.influencer.findMany({
     // PR 只能选择自己登记的达人发起工单
     where: { status: "APPROVED", ...(role === "PR" ? { registeredById: (session?.user as unknown as { id: string }).id } : {}) },
-    select: { id: true, name: true, homepageId: true },
+    select: { id: true, name: true, homepageId: true, xhsUrl: true, douyinUrl: true, platforms: true },
     orderBy: { name: "asc" },
   });
   const makeupArtists = await prisma.makeupArtist.findMany({
@@ -175,6 +175,7 @@ export default async function TicketsPage({
         creator: { select: { name: true } },
         assignee: { select: { name: true } },
         brand: { select: { name: true } },
+        parent: { select: { ticketNo: true } },
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       skip: pagination.skip,
@@ -267,6 +268,7 @@ export default async function TicketsPage({
           <TableHeader>
             <TableRow>
               <TableHead>工单编号</TableHead>
+              <TableHead>关系</TableHead>
               <TableHead>标题</TableHead>
               <TableHead>品牌</TableHead>
               <TableHead>工单类型</TableHead>
@@ -291,6 +293,9 @@ export default async function TicketsPage({
                     <Link href={`/tickets/${t.id}`} className="text-primary hover:underline">
                       {t.ticketNo}
                     </Link>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {t.parent ? <Link href={`/tickets/${t.id}`} className="text-xs text-primary hover:underline">子工单 · {t.parent.ticketNo}</Link> : <span className="text-xs text-muted-foreground">父工单</span>}
                   </TableCell>
                   <TableCell className="max-w-[280px] font-medium">
                     <div className="truncate whitespace-nowrap" title={t.title}>
@@ -334,7 +339,7 @@ export default async function TicketsPage({
               );
             })}
             {list.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">暂无数据</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

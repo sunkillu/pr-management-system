@@ -105,6 +105,10 @@ if (!ticket) return NextResponse.json({ error: "工单不存在"}, { status: 404
 if (ticket.status!== "PUBLISHED") {
 return NextResponse.json({ error: "仅已发布的工单可发送结算请求"}, { status: 400});
 }
+const followUpCount = await prisma.followUpRecord.count({ where: { ticketId: params.id } });
+if (followUpCount < 1) {
+return NextResponse.json({ error: "申请结算前至少需要完成一次跟进" }, { status: 400 });
+}
 if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
 return NextResponse.json({ error: "仅创建人、审批链成员或管理员可发送结算请求"}, { status: 403});
 }

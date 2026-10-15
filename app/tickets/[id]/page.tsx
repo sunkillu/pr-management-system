@@ -23,6 +23,7 @@ import ApprovalTimeline, { TimelineItem } from "@/components/ApprovalTimeline";
 import ApprovalRecords from "@/components/ApprovalRecords";
 import InfluencerHoverCard from "@/components/InfluencerHoverCard";
 import TicketActions from "@/components/TicketActions";
+import TicketAssigneeEditor from "@/components/TicketAssigneeEditor";
 import TicketNodes from "@/components/TicketNodes";
 import NodeTimeline from "@/components/NodeTimeline";
 import TicketSubtasks from "@/components/TicketSubtasks";
@@ -39,7 +40,6 @@ import ProcurementAssignee from "@/components/ProcurementAssignee";
 import ProcurementItems from "@/components/ProcurementItems";
 import MaintenanceConvert from "@/components/MaintenanceConvert";
 import TicketForm from "@/components/TicketForm";
-import TicketChildren from "@/components/TicketChildren";
 import ScheduleChangeTimeline from "@/components/ScheduleChangeTimeline";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
@@ -78,7 +78,21 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
       },
       reviews: { include: { reviewer: { select: { name: true } } } },
       samples: {
-        select: { id: true, productName: true, status: true, trackingNo: true, createdAt: true },
+        select: {
+          id: true,
+          sampleNo: true,
+          productName: true,
+          quantity: true,
+          status: true,
+          trackingNo: true,
+          receiverName: true,
+          receiverPhone: true,
+          receiverAddress: true,
+          infoConfirmed: true,
+          createdAt: true,
+          shippedAt: true,
+          signedAt: true,
+        },
         orderBy: { createdAt: "desc" },
       },
       paymentRequests: {
@@ -140,37 +154,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     orderBy: { createdAt: "desc" },
   });
   const users = await prisma.user.findMany({
-    select: { id: true, name: true },
+    select: { id: true, name: true, role: true },
     orderBy: { name: "asc" },
   });
-
-  // 子工单（v2 父子工单模型）：仅父工单拉取其子工单；子工单则拉取父工单入口
-  const childTicketsRaw = ticket.parentId
-    ? []
-    : await prisma.cooperationTicket.findMany({
-        where: { parentId: ticket.id },
-        include: {
-          influencer: { select: { name: true } },
-          assignee: { select: { id: true, name: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      });
-  const childTickets = childTicketsRaw.map((c) => ({
-    id: c.id,
-    ticketNo: c.ticketNo,
-    title: c.title,
-    subType: c.subType,
-    status: c.status,
-    influencer: c.influencer,
-    assignee: c.assignee,
-    createdAt: c.createdAt.toISOString(),
-  }));
-  const parentTicket = ticket.parentId
-    ? await prisma.cooperationTicket.findUnique({
-        where: { id: ticket.parentId },
-        select: { id: true, ticketNo: true, title: true },
-      })
-    : null;
 
   // v2: 档期修改审计
   const scheduleLogsRaw = await prisma.scheduleChangeLog.findMany({
@@ -235,18 +221,26 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     : null;
   const canUpdateNodes =
     canOperate &&
-    ["APPROVED", "IN_PROGRESS"].includes(ticket.status);
+    [
+      "APPROVED",
+      "IN_PROGRESS",
+      "AWAITING_DRAFT",
+      "PENDING_REVIEW",
+      "DRAFT_RETURNED",
+      "REVIEWED",
+      "PUBLISHED",
+    ].includes(ticket.status);
   const canWriteComment = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canManageSubtasks =
     canOperate &&
     !["VOIDED", "SETTLED", "FOLLOW_UP", "MATERIAL_REVIEW"].includes(ticket.status);
   const canManageFollowUps =
-    canOperate && ticket.status === "FOLLOW_UP";
+    canOperate && ["PUBLISHED", "FOLLOW_UP", "SETTLED"].includes(ticket.status);
   const canManageContents =
     canOperate &&
     !["VOIDED", "MATERIAL_REVIEW"].includes(ticket.status);
   const canManageMaterials =
-    canOperate && ticket.status === "IN_PROGRESS";
+    canOperate && ["IN_PROGRESS", "AWAITING_DRAFT"].includes(ticket.status);
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
@@ -264,6 +258,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 userRole={role}
                 editTicket={{
                   id: ticket.id,
+                  ticketKind: ticket.ticketKind as "COOPERATION" | "MAINTENANCE" | "PROCUREMENT",
                   title: ticket.title,
                   type: ticket.type,
                   brandId: ticket.brandId ?? "",
@@ -280,10 +275,15 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   confirmedDate: ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : "",
                   coopCategory: ticket.coopCategory as string[],
                   homepageId: ticket.homepageId ?? "",
+                  homepageLinks: (ticket.homepageLinks as Record<string, string> | null) ?? {},
+                  attachments: Array.isArray(ticket.attachments) ? ticket.attachments as { fileUrl: string; fileName: string }[] : [],
+                  scriptRequired: ticket.scriptRequired,
+                  sampleRequired: ticket.sampleRequired,
                   startDate: ticket.startDate ? new Date(ticket.startDate).toISOString().slice(0, 10) : "",
                   endDate: ticket.endDate ? new Date(ticket.endDate).toISOString().slice(0, 10) : "",
                   influencerId: ticket.influencerId,
                   makeupArtistId: ticket.makeupArtistId,
+                  shipItems: Array.isArray(ticket.shipItems) ? ticket.shipItems.map((raw) => normalizeShipItem(raw)) : [],
                 }}
               />
             )}
@@ -376,9 +376,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               )}
               <InfoRow label="合作类型">{coopTypeLabels[ticket.type]}</InfoRow>
               <InfoRow label="合作平台">{(ticket.platform as string[]).map((p) => platformTagLabels[p] ?? p).join("、") || "-"}</InfoRow>
-              {ticket.homepageId && (
-                <InfoRow label="达人主页ID"><span className="font-mono text-sm">{ticket.homepageId}</span></InfoRow>
-              )}
               {ticket.style.length > 0 && (
                 <InfoRow label="款式">{ticket.style.map((s) => styleLabels[s] ?? s).join("、")}</InfoRow>
               )}
@@ -441,38 +438,40 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               {ticket.note && (
                 <InfoRow label="备注" wide><span className="whitespace-pre-wrap">{ticket.note}</span></InfoRow>
               )}
-              {Array.isArray(ticket.shipItems) && ticket.shipItems.length > 0 && (
+              {((Array.isArray(ticket.shipItems) && ticket.shipItems.length > 0) || ticket.samples.length > 0) && (
                 <InfoRow label="寄品明细" wide>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs text-muted-foreground">
-                        <th className="py-1 pr-3 font-medium">款式</th>
-                        <th className="py-1 pr-3 font-medium">度数</th>
-                        <th className="py-1 pr-3 font-medium">抛期</th>
-                        <th className="py-1 pr-3 font-medium">盒数</th>
-                        <th className="py-1 font-medium">寄品备注</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(ticket.shipItems as unknown[]).map((raw, i) => {
-                        const s = normalizeShipItem(raw);
-                        return (
-                          <tr key={i} className="border-t border-border">
-                            <td className="py-1.5 pr-3 font-medium">{styleLabels[s.style] ?? s.style}</td>
-                            <td className="py-1.5 pr-3">{s.degree || "-"}</td>
-                            <td className="py-1.5 pr-3">{s.shelfLife || "-"}</td>
-                            <td className="py-1.5 pr-3">{s.boxCount || "-"}</td>
-                            <td className="py-1.5 text-muted-foreground">{s.note || "-"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  {Array.isArray(ticket.shipItems) && ticket.shipItems.length > 0 && (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-muted-foreground">
+                          <th className="py-1 pr-3 font-medium">款式</th>
+                          <th className="py-1 pr-3 font-medium">度数</th>
+                          <th className="py-1 pr-3 font-medium">抛期</th>
+                          <th className="py-1 pr-3 font-medium">盒数</th>
+                          <th className="py-1 font-medium">寄品备注</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(ticket.shipItems as unknown[]).map((raw, i) => {
+                          const s = normalizeShipItem(raw);
+                          return (
+                            <tr key={i} className="border-t border-border">
+                              <td className="py-1.5 pr-3 font-medium">{styleLabels[s.style] ?? s.style}</td>
+                              <td className="py-1.5 pr-3">{s.degree || "-"}</td>
+                              <td className="py-1.5 pr-3">{s.shelfLife || "-"}</td>
+                              <td className="py-1.5 pr-3">{s.boxCount || "-"}</td>
+                              <td className="py-1.5 text-muted-foreground">{s.note || "-"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
                   <TicketSampleLink
                     ticketId={ticket.id}
                     ticketTitle={ticket.title}
                     ticketStatus={ticket.status}
-                    shipItems={(ticket.shipItems as unknown[]).map((raw) => normalizeShipItem(raw))}
+                    shipItems={(Array.isArray(ticket.shipItems) ? ticket.shipItems : []).map((raw) => normalizeShipItem(raw))}
                     samples={ticket.samples}
                     influencerName={ticket.influencer?.name ?? ticket.makeupArtist?.name ?? ""}
                     canCreate={["ADMIN", "PR", "PR_MANAGER"].includes(role)}
@@ -480,7 +479,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 </InfoRow>
               )}
               {Array.isArray(ticket.attachments) && ticket.attachments.length > 0 && (
-                <InfoRow label="插图 / 附件" wide>
+                <InfoRow label={ticket.scriptRequired ? "脚本附件" : "插图 / 附件"} wide>
                   <span className="flex flex-wrap gap-2">
                     {(ticket.attachments as { fileUrl: string; fileName: string }[]).map((a, i) =>
                       /\.(jpe?g|png|webp|gif)$/i.test(a.fileName) ? (
@@ -655,9 +654,12 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             ) : (
               <p className="mb-3 text-sm text-muted-foreground">草稿状态，尚未提交审批</p>
             )}
-            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks }} userId={me.id} role={role} canOperate={canOperate} />
-            {/* 维护工单转为合作工单（DRAFT/APPROVED 可转，转化后回草稿补合作信息） */}
-            {ticket.ticketKind === "MAINTENANCE" && ["DRAFT", "APPROVED"].includes(ticket.status) && (
+            <TicketActions ticket={{ id: ticket.id, title: ticket.title, status: ticket.status, creatorId: ticket.creator.id, actualFee: ticket.actualFee, incompleteSubtasks, shipItems: Array.isArray(ticket.shipItems) ? ticket.shipItems as Array<{ style?: string; degree?: string; shelfLife?: string; boxCount?: string; note?: string }> : null }} confirmedDate={ticket.confirmedDate?.toISOString().slice(0, 10)} userId={me.id} role={role} canOperate={canOperate} />
+            {["ADMIN", "PR_MANAGER"].includes(role) && !["SETTLED", "VOIDED", "PROCUREMENT_CLOSED"].includes(ticket.status) && (
+              <TicketAssigneeEditor ticketId={ticket.id} currentId={ticket.assigneeId} users={users} />
+            )}
+            {/* 维护工单转为合作工单（审批通过或寄品签收后可转，转化后回草稿补合作信息） */}
+            {ticket.ticketKind === "MAINTENANCE" && ["DRAFT", "APPROVED", "AWAITING_DRAFT"].includes(ticket.status) && (
               <MaintenanceConvert
                 ticketId={ticket.id}
                 ticketTitle={ticket.title}
@@ -688,9 +690,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             )}
             <ApprovalRecords records={approvers} />
             {/* 归属变更记录 */}
-            {ticket.ticketKind === "PROCUREMENT" && ticket.assigneeLogs.length > 0 && (
+            {ticket.assigneeLogs.length > 0 && (
               <div className="mt-4">
-                <h4 className="mb-2 text-sm font-medium">接单 / 分配记录</h4>
+                <h4 className="mb-2 text-sm font-medium">归属变更记录</h4>
                 <div className="space-y-1.5">
                   {ticket.assigneeLogs.map((l) => (
                     <div key={l.id} className="flex flex-wrap items-center gap-2 text-sm">
@@ -726,7 +728,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
           )}
 
           {/* 跟进记录（打款后15天） */}
-          {["FOLLOW_UP", "SETTLED"].includes(ticket.status) && ticket.followUpDueDate && (
+          {["PUBLISHED", "FOLLOW_UP", "SETTLED"].includes(ticket.status) && (
             <Section title="跟进记录">
               <TicketFollowUps
                 ticketId={ticket.id}
@@ -744,7 +746,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                   createdAt: f.createdAt.toISOString(),
                   createdBy: f.createdBy,
                 }))}
-                dueDate={ticket.followUpDueDate.toISOString()}
+                dueDate={ticket.followUpDueDate ? ticket.followUpDueDate.toISOString() : null}
                 canManage={canManageFollowUps}
               />
             </Section>
@@ -782,25 +784,6 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             />
           </Section>
 
-          {/* 子工单（v2 父子工单模型） */}
-          <Section title={ticket.parentId ? "父工单" : `子工单（${childTickets.length}）`}>
-            <TicketChildren
-              ticketId={ticket.id}
-              isParent={!ticket.parentId}
-              parentTicket={parentTicket}
-              initial={childTickets}
-              users={users}
-              canCreate={canOperate}
-              context={{
-                influencerId: ticket.influencerId,
-                influencerName: partnerName,
-                styles: ticket.style,
-                platforms: ticket.platform as string[],
-                confirmedDate: ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : null,
-                publishDate: ticket.publishDate ? new Date(ticket.publishDate).toISOString().slice(0, 10) : null,
-              }}
-            />
-          </Section>
           {/* v2: 档期修改记录 */}
           {scheduleLogs.length > 0 && (
             <Section title={`档期修改记录（${scheduleLogs.length}）`}>

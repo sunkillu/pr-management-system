@@ -12,6 +12,7 @@ type Ticket = {
   creatorId: string;
   actualFee?: unknown;
   incompleteSubtasks?: number;
+  shipItems?: Array<{ style?: string; degree?: string; shelfLife?: string; boxCount?: string; note?: string }> | null;
 };
 
 export default function TicketActions({
@@ -43,6 +44,12 @@ export default function TicketActions({
   const [overrideReason, setOverrideReason] = useState("");
   const [showMaterialApproveBox, setShowMaterialApproveBox] = useState(false);
   const [showMaterialRejectBox, setShowMaterialRejectBox] = useState(false);
+  const [showScheduleBox, setShowScheduleBox] = useState(false);
+  const [showPublishBox, setShowPublishBox] = useState(false);
+  const [publishLink, setPublishLink] = useState("");
+  const [showSettlementBox, setShowSettlementBox] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState(confirmedDate ?? "");
+  const [scheduleReason, setScheduleReason] = useState(confirmedDate ? "修改确定档期" : "寄品完成后确认档期");
   const [materialComment, setMaterialComment] = useState("");
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -50,12 +57,12 @@ export default function TicketActions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function call(url: string, body: Record<string, unknown>) {
+  async function call(url: string, body: Record<string, unknown>, method = "POST") {
     setBusy(true);
     setError("");
     try {
       const res = await fetch(url, {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -111,41 +118,19 @@ export default function TicketActions({
   // 素材审批：待素材审批状态，仅 PR负责人 / ADMIN
   if (ticket.status === "AWAITING_DRAFT" && canOperate) {
     btns.push(
-      <button key="schedule" className={btnSecondary} onClick={() => {
-        const date = window.prompt("请输入确定档期（YYYY-MM-DD）", confirmedDate ?? "");
-        if (!date) return;
-        const reason = window.prompt("请输入确定档期说明", confirmedDate ? "修改确定档期" : "寄品完成后确认档期");
-        if (!reason) return;
-        void (async () => {
-          if (await call(`/api/tickets/${ticket.id}/schedule`, { confirmedDate: date.trim(), reason: reason.trim() })) refresh();
-        })();
-      }}>{confirmedDate ? "修改确定档期" : "填写确定档期"}</button>
+      <button key="schedule" className={btnSecondary} onClick={() => { setScheduleDate(confirmedDate ?? ""); setScheduleReason(confirmedDate ? "修改确定档期" : "寄品完成后确认档期"); setShowScheduleBox(true); }}>{confirmedDate ? "修改确定档期" : "填写确定档期"}</button>
     );
     btns.push(
       <button key="return-draft" className={btnPrimary} onClick={() => ask("确认已返稿", "确认素材已上传并将工单推送到已返稿状态？", async () => {
         if (await call(`/api/tickets/${ticket.id}/return-draft`, {})) refresh();
-      })}>推送已返稿</button>
+      })}>审批通过并推送已返稿</button>
     );
   }
   if (ticket.status === "DRAFT_RETURNED" && canOperate) {
-    btns.push(
-      <button key="publish" className={btnPrimary} onClick={() => {
-        const link = window.prompt("请输入发布链接");
-        if (!link) return;
-        void (async () => { if (await call(`/api/tickets/${ticket.id}/publish`, { publishLink: link.trim() })) refresh(); })();
-      }}>填写发布链接并标记已发布</button>
-    );
+    btns.push(<button key="publish" className={btnPrimary} onClick={() => { setPublishLink(""); setShowPublishBox(true); }}>填写发布链接并标记已发布</button>);
   }
   if (ticket.status === "PUBLISHED" && canOperate) {
-    btns.push(
-      <button key="settlement" className={btnPrimary} onClick={() => {
-        const raw = window.prompt("请输入实际结算金额");
-        if (!raw) return;
-        const actualFee = Number(raw);
-        if (!Number.isFinite(actualFee) || actualFee <= 0) return setError("实际费用必须大于 0");
-        void (async () => { if (await call(`/api/tickets/${ticket.id}/settlement-request`, { actualFee })) refresh(); })();
-      }}>提交结算审批</button>
-    );
+    btns.push(<button key="settlement" className={btnPrimary} onClick={() => { setActualFee(""); setShowSettlementBox(true); }}>提交结算审批</button>);
   }
   if (ticket.status === "MATERIAL_REVIEW" && canApprove) {
     btns.push(
@@ -189,6 +174,42 @@ export default function TicketActions({
       <div className="flex flex-wrap gap-2">{btns}</div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
+      {showScheduleBox && (
+        <Modal title="确认档期" onClose={() => setShowScheduleBox(false)}>
+          <Field label="确定档期" required>
+            <input type="text" inputMode="numeric" className={inputCls} value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value.replace(/[^\d-]/g, "").slice(0, 10))} placeholder="YYYY-MM-DD" />
+          </Field>
+          <Field label="档期说明" required>
+            <textarea className={inputCls} rows={3} value={scheduleReason} onChange={(e) => setScheduleReason(e.target.value)} placeholder="请填写档期确认依据" />
+          </Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setShowScheduleBox(false)}>取消</button>
+            <button className={btnPrimary} disabled={busy} onClick={async () => {
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduleDate)) { setError("请填写正确的确定档期（YYYY-MM-DD）"); return; }
+              if (!scheduleReason.trim()) { setError("请填写档期说明"); return; }
+              if (await call(`/api/tickets/${ticket.id}/schedule`, { confirmedDate: scheduleDate, reason: scheduleReason.trim() }, "PATCH")) { setShowScheduleBox(false); refresh(); }
+            }}>确认档期</button>
+          </div>
+        </Modal>
+      )}
+
+      {showPublishBox && (
+        <Modal title="填写发布链接" onClose={() => setShowPublishBox(false)}>
+          <Field label="发布链接" required><input className={inputCls} value={publishLink} onChange={(e) => setPublishLink(e.target.value)} placeholder="https://..." /></Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2"><button className={btnSecondary} onClick={() => setShowPublishBox(false)}>取消</button><button className={btnPrimary} disabled={busy} onClick={async () => { if (!publishLink.trim()) { setError("请填写发布链接"); return; } if (await call(`/api/tickets/${ticket.id}/publish`, { publishLink: publishLink.trim() })) { setShowPublishBox(false); refresh(); } }}>确认发布</button></div>
+        </Modal>
+      )}
+
+      {showSettlementBox && (
+        <Modal title="提交结算审批" onClose={() => setShowSettlementBox(false)}>
+          <Field label="实际结算金额" required><input type="number" min="0.01" step="0.01" className={inputCls} value={actualFee} onChange={(e) => setActualFee(e.target.value)} placeholder="请输入金额" /></Field>
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2"><button className={btnSecondary} onClick={() => setShowSettlementBox(false)}>取消</button><button className={btnPrimary} disabled={busy} onClick={async () => { const amount = Number(actualFee); if (!Number.isFinite(amount) || amount <= 0) { setError("实际费用必须大于 0"); return; } if (await call(`/api/tickets/${ticket.id}/settlement-request`, { actualFee: amount })) { setShowSettlementBox(false); refresh(); } }}>提交审批</button></div>
+        </Modal>
+      )}
+
       {confirm && (
         <ConfirmDialog
           title={confirm.title}
@@ -200,6 +221,12 @@ export default function TicketActions({
 
       {showApproveBox && (
         <Modal title="通过审批" onClose={() => setShowApproveBox(false)}>
+          {Array.isArray(ticket.shipItems) && ticket.shipItems.length > 0 && (
+            <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-medium">该工单包含 {ticket.shipItems.length} 条寄品明细</p>
+              <p className="mt-1 text-xs">确认通过后会自动创建寄品单。寄品单仍需先维护收件人、电话和地址并确认，之后才会推送给仓库接单。</p>
+            </div>
+          )}
           <Field label="审批意见（选填）">
             <textarea className={inputCls} rows={3} value={comment} onChange={(e) => setComment(e.target.value)} />
           </Field>

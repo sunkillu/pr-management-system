@@ -14,7 +14,10 @@ type Item = {
   approvedQty: number | null;
   rejectReason: string | null;
   allocatedTicketId: string | null;
+  allocations?: { id: string; prId: string; quantity: number; ticket?: { id: string; ticketNo: string; status: string }; pr?: { id: string; name: string } }[];
 };
+
+type AllocationDraft = { prId: string; quantity: string };
 
 type RecommendItem = {
   itemId: string;
@@ -39,7 +42,7 @@ export default function ProcurementItems({
   const router = useRouter();
   const [items, setItems] = useState<Item[] | null>(null);
   const [recommend, setRecommend] = useState<RecommendItem[]>([]);
-  const [selections, setSelections] = useState<Record<string, string>>({});
+  const [allocationDrafts, setAllocationDrafts] = useState<Record<string, AllocationDraft[]>>({});
   const [qtyEdits, setQtyEdits] = useState<Record<string, string>>({});
   const [rejectReasons, setRejectReasons] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
@@ -81,14 +84,15 @@ export default function ProcurementItems({
 
   useEffect(() => { load(); }, [load]);
 
-  // 推荐加载后，默认选中每条 item 的第一个推荐 PR（无推荐则选第一个未合作 PR）
+  // 推荐加载后，为每条请求准备一行分配草稿。
   useEffect(() => {
     if (recommend.length === 0) return;
-    setSelections((prev) => {
+    setAllocationDrafts((prev) => {
       const next = { ...prev };
       for (const r of recommend) {
         if (!next[r.itemId]) {
-          next[r.itemId] = r.recommended[0]?.prId ?? r.uncooperated[0]?.prId ?? "";
+          const prId = r.recommended[0]?.prId ?? r.uncooperated[0]?.prId ?? "";
+          next[r.itemId] = [{ prId, quantity: "" }];
         }
       }
       return next;
@@ -119,18 +123,30 @@ export default function ProcurementItems({
     }
   }
 
-  // 随机分配未合作：把未分配的已通过 item 按顺序轮流分给各条 item 自己的未合作 PR（数量均分）
+  function addAllocation(itemId: string) {
+    setAllocationDrafts((prev) => ({ ...prev, [itemId]: [...(prev[itemId] ?? []), { prId: "", quantity: "" }] }));
+  }
+  function updateAllocation(itemId: string, index: number, patch: Partial<AllocationDraft>) {
+    setAllocationDrafts((prev) => ({ ...prev, [itemId]: (prev[itemId] ?? []).map((row, i) => i === index ? { ...row, ...patch } : row) }));
+  }
+  function removeAllocation(itemId: string, index: number) {
+    setAllocationDrafts((prev) => ({ ...prev, [itemId]: (prev[itemId] ?? []).filter((_, i) => i !== index) }));
+  }
+
+  // 随机分配未合作：把通过数量均分给未合作 PR，数量可再手工调整。
   function randomAssignUncooperated() {
     const unallocated = (items ?? []).filter((it) => it.status === "APPROVED" && !it.allocatedTicketId);
     if (unallocated.length === 0) return;
-    setSelections((prev) => {
+    setAllocationDrafts((prev) => {
       const next = { ...prev };
       let pointer = 0;
       for (const it of unallocated) {
         const rec = recommend.find((r) => r.itemId === it.id);
         const pool = rec?.uncooperated ?? [];
         if (pool.length === 0) continue;
-        next[it.id] = pool[pointer % pool.length].prId;
+        const prId = pool[pointer % pool.length].prId;
+        const remaining = Math.max(0, (it.approvedQty ?? it.quantity) - (it.allocations ?? []).reduce((sum, a) => sum + a.quantity, 0));
+        next[it.id] = [{ prId, quantity: String(remaining) }];
         pointer++;
       }
       return next;
@@ -141,17 +157,17 @@ export default function ProcurementItems({
     setError("");
     setBusy(true);
     try {
-      const allocations = (items ?? [])
-        .filter((it) => it.status === "APPROVED" && !it.allocatedTicketId && selections[it.id])
-        .map((it) => ({ itemId: it.id, prId: selections[it.id] }));
-      if (allocations.length === 0) {
+      const payloadAllocations = (items ?? []).flatMap((it) => (allocationDrafts[it.id] ?? [])
+        .filter((row) => row.prId && Number(row.quantity) > 0)
+        .map((row) => ({ itemId: it.id, prId: row.prId, quantity: Number(row.quantity) })));
+      if (payloadAllocations.length === 0) {
         setError("没有可分配的已通过请求");
         return;
       }
       const res = await fetch(`/api/tickets/${ticketId}/procurement-allocate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allocations }),
+        body: JSON.stringify({ allocations: payloadAllocations }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -228,36 +244,24 @@ export default function ProcurementItems({
                   </button>
                 </div>
               )}
-              {showAllocate && it.status === "APPROVED" && !it.allocatedTicketId && (
-                <div className="mt-2">
-                  <Field label="分配 PR">
-                    <select
-                      className={inputCls}
-                      value={selections[it.id] ?? ""}
-                      onChange={(e) => setSelections({ ...selections, [it.id]: e.target.value })}
-                    >
-                      <option value="">请选择 PR</option>
-                      {rec && rec.recommended.length > 0 && (
-                        <optgroup label="推荐（有该款式合作历史）">
-                          {rec.recommended.map((r) => (
-                            <option key={r.prId} value={r.prId}>
-                              {r.prName}（最近合作：{new Date(r.lastCoopAt).toLocaleDateString("zh-CN")}）
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {rec && rec.uncooperated.length > 0 && (
-                        <optgroup label="未合作">
-                          {rec.uncooperated.map((r) => (
-                            <option key={r.prId} value={r.prId}>{r.prName}（未合作）</option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {(!rec || (rec.recommended.length === 0 && rec.uncooperated.length === 0)) && (
-                        <option value="" disabled>暂无可选 PR</option>
-                      )}
-                    </select>
-                  </Field>
+              {showAllocate && it.status === "APPROVED" && (
+                <div className="mt-3 rounded-lg bg-muted/30 p-3">
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="font-medium">拆分分配（可分给多人）</span>
+                    <span className="text-muted-foreground">已通过 {it.approvedQty ?? it.quantity}，已分配 {(it.allocations ?? []).reduce((sum, a) => sum + a.quantity, 0)}</span>
+                  </div>
+                  {(allocationDrafts[it.id] ?? []).map((row, rowIndex) => (
+                    <div key={`${it.id}-${rowIndex}`} className="mb-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_auto]">
+                      <select className={inputCls} value={row.prId} onChange={(e) => updateAllocation(it.id, rowIndex, { prId: e.target.value })}>
+                        <option value="">请选择 PR</option>
+                        {rec?.recommended.map((r) => <option key={`r-${r.prId}`} value={r.prId}>{r.prName}（推荐）</option>)}
+                        {rec?.uncooperated.map((r) => <option key={`u-${r.prId}`} value={r.prId}>{r.prName}（未合作）</option>)}
+                      </select>
+                      <input inputMode="numeric" className={inputCls} placeholder="分配数量" value={row.quantity} onChange={(e) => updateAllocation(it.id, rowIndex, { quantity: e.target.value.replace(/[^\d]/g, "") })} />
+                      <button className={btnSecondary} type="button" onClick={() => removeAllocation(it.id, rowIndex)}>移除</button>
+                    </div>
+                  ))}
+                  <button className={btnSecondary} type="button" onClick={() => addAllocation(it.id)}>＋增加分配人</button>
                 </div>
               )}
             </div>

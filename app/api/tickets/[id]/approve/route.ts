@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
 import { writeLog } from "@/lib/approval-log";
 import { notifyUser, notifyApprovers } from "@/lib/feishu-notify";
+import { ensureTicketSample } from "@/lib/ticket-sample";
 
 // 工单审批（或签）：任一审批人通过即通过；驳回需理由。
 // 审批人 = 提交时多选的 PR负责人/管理员；ADMIN 可兜底审批。
@@ -27,6 +28,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (ticket.status !== pendingStatus) {
     return NextResponse.json({ error: "仅待审批的工单可审批" }, { status: 400 });
   }
+  if (!isProcurement && action === "APPROVE") {
+    if (!ticket.assigneeId) {
+      return NextResponse.json({ error: "请先指定归属 PR，再审批通过" }, { status: 400 });
+    }
+    const owner = await prisma.user.findUnique({ where: { id: ticket.assigneeId }, select: { role: true } });
+    if (!owner || !["PR", "PR_MANAGER"].includes(owner.role)) {
+      return NextResponse.json({ error: "工单归属人必须是 PR 或 PR负责人" }, { status: 400 });
+    }
+  }
 
   if (auth.role !== "ADMIN") {
     const assigned = await prisma.requestApprover.findUnique({
@@ -43,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // 采买工单：通过 → APPROVED（采买通过，可一键转合作工单）；维护工单：通过 → APPROVED（可转为合作工单）；合作工单：通过 → IN_PROGRESS
   const toStatus = action === "APPROVE" ? (isProcurement || isMaintenance ? "APPROVED" : "IN_PROGRESS") : "REJECTED";
-  const updated = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const u = await tx.cooperationTicket.update({
       where: { id: params.id },
       data: {
@@ -91,8 +101,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         note: "审批通过，自动开始执行",
       });
     }
-    return u;
+    // 审批通过后立即建立寄品单，但保持 PENDING + infoConfirmed=false，
+    // 由提交人维护收件信息并确认后，才推送仓库接单。
+    const sample = action === "APPROVE" && !isProcurement
+      ? await ensureTicketSample(tx, params.id, auth.userId, "工单审批通过，系统自动创建寄品单，待维护寄件信息")
+      : null;
+    return { ticket: u, sample };
   });
+  const updated = result.ticket;
+  const sample = result.sample;
 
   await notifyUser(
     ticket.creatorId,
@@ -104,16 +121,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     { type: "TICKET", id: ticket.id, title: isProcurement ? "采买工单审批结果" : isMaintenance ? "维护工单审批结果" : "合作工单审批结果", kind: action === "APPROVE" ? "APPROVED" : "REJECTED" }
   );
 
-  // 审批通过且工单有寄品明细时，提醒提交人维护寄件信息并发起寄件请求（仅合作工单）
-  if (action === "APPROVE" && !isProcurement && !isMaintenance) {
-    const shipItems = ticket.shipItems as { style: string }[] | null;
-    if (Array.isArray(shipItems) && shipItems.length > 0) {
-      await notifyUser(
-        ticket.creatorId,
-        `工单「${ticket.title}」已通过审批，请维护寄件信息并发起寄件请求。`,
-        { type: "SAMPLE", id: "", title: "寄件信息待维护", kind: "SYSTEM" }
-      );
-    }
+  // 自动生成的寄品单先由提交人维护收件信息；确认后才推送仓库接单。
+  if (action === "APPROVE" && sample) {
+    await notifyUser(
+      ticket.creatorId,
+      `工单「${ticket.title}」已通过审批，已自动创建寄品单 ${sample.sampleNo}。请先维护收件人、电话和地址并确认，确认后才会推送给仓库。`,
+      { type: "SAMPLE", id: sample.id, title: "寄品信息待维护", kind: "APPROVED" }
+    );
+    const warehouses = await prisma.user.findMany({
+      where: { role: { in: ["WAREHOUSE", "ADMIN"] } },
+      select: { id: true },
+    });
+    await notifyApprovers(
+      warehouses.map((w) => w.id),
+      `工单「${ticket.title}」已审批通过，寄品单 ${sample.sampleNo} 已创建，当前等待业务补齐寄件信息后接单。`,
+      { type: "SAMPLE", id: sample.id, title: "寄品单已创建，待补齐信息", kind: "SYSTEM" },
+    );
   }
 
   // 采买工单审批通过：记录通过时间 + 广播给所有 PR（待接单）
@@ -133,5 +156,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, sampleShipmentId: sample?.id ?? null });
 }

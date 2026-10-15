@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { sampleStatusLabels, badgeClass, styleLabels } from "@/lib/labels";
+import { sampleStatusLabels, sampleStatusOptions, badgeClass, styleLabels } from "@/lib/labels";
 import { normalizeShipItem, shipItemSummary } from "@/lib/ship-items";
 import { logisticsStatusLabels, abnormalFlagLabels, logisticsBadgeClass, abnormalBadgeClass } from "@/lib/logistics";
 import SampleForm from "@/components/SampleForm";
@@ -39,7 +39,7 @@ export default async function SamplesPage({
   const canWrite = ["ADMIN", "PR", "PR_MANAGER"].includes(role);
   const canDelete = ["ADMIN", "PR_MANAGER"].includes(role);
   // 仓库维护寄件信息；ADMIN / PR_MANAGER 兜底
-  const canShip = ["ADMIN", "PR_MANAGER", "WAREHOUSE"].includes(role);
+  const canShip = ["ADMIN", "WAREHOUSE"].includes(role);
 
   const where: Prisma.SampleShipmentWhereInput = {
       ...(searchParams.q
@@ -47,6 +47,7 @@ export default async function SamplesPage({
             OR: [
               { productName: { contains: searchParams.q, mode: "insensitive" } },
               { trackingNo: { contains: searchParams.q, mode: "insensitive" } },
+              { influencer: { name: { contains: searchParams.q, mode: "insensitive" } } },
             ],
           }
         : {}),
@@ -88,13 +89,13 @@ export default async function SamplesPage({
       <form method="GET" className="mb-4 flex flex-wrap gap-2">
         <Input
           name="q"
-          placeholder="按产品/快递单号搜索"
+          placeholder="按产品/达人/快递单号搜索"
           defaultValue={searchParams.q ?? ""}
           className="w-56"
         />
         <select name="status" defaultValue={searchParams.status ?? ""} className={selectCls}>
           <option value="">全部状态</option>
-          {Object.entries(sampleStatusLabels).map(([k, v]) => (
+          {sampleStatusOptions.map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>

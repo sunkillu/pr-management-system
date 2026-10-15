@@ -56,10 +56,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!link) {
       return NextResponse.json({ error: "填写发布链接后才能标记已发布" }, { status: 400 });
     }
+    if (!ticket.materialApprovedAt) {
+      return NextResponse.json({ error: "合作素材尚未审批通过，不能发布" }, { status: 400 });
+    }
     data.publishLink = link;
     // 发布日期记为今天：数据回收定时任务按 publishDate + 7 天建任务
     data.publishDate = new Date();
     note = `填写发布链接，进入已发布`;
+  }
+  if (to === "REVIEWED") {
+    const materialCount = await prisma.materialRecord.count({ where: { ticketId: params.id } });
+    if (materialCount === 0) {
+      return NextResponse.json({ error: "请先回收合作素材，审批通过后才能进入已返稿" }, { status: 400 });
+    }
+    data.materialApprovedAt = new Date();
+    data.materialApprovedById = auth.userId;
+    note = `素材审批通过（${materialCount} 条），进入已返稿`;
   }
 
   const updated = await prisma.$transaction(async (tx) => {

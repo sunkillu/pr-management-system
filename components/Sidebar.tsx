@@ -97,13 +97,13 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       href={item.href}
       className={cn(
-        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
         active
-          ? "bg-accent font-medium text-accent-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          ? "bg-white/12 font-medium text-white shadow-sm ring-1 ring-white/10"
+          : "text-slate-400 hover:bg-white/8 hover:text-white"
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-cyan-300" : "text-slate-500 group-hover:text-slate-300")} />
       {item.label}
     </Link>
   );
@@ -128,13 +128,13 @@ export default function Sidebar({ role }: { role: Role }) {
   const toggle = (key: string) => setOpen((o) => ({ ...o, [key]: !o[key] }));
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r bg-white/90 backdrop-blur">
-      <div className="border-b px-5 py-5">
+    <aside className="sidebar-shell sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-white/10">
+      <div className="border-b border-white/10 px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">PR</div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-300 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/10">PR</div>
           <div>
-            <div className="text-sm font-semibold tracking-tight">PR媒体管理系统</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">合作与履约工作台</div>
+            <div className="text-sm font-semibold tracking-tight text-white">PR媒体管理系统</div>
+            <div className="mt-0.5 text-[11px] text-slate-500">合作与履约工作台</div>
           </div>
         </div>
       </div>
@@ -157,8 +157,8 @@ export default function Sidebar({ role }: { role: Role }) {
                 className={cn(
                   "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors",
                   hasActive
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "text-white"
+                    : "text-slate-500 hover:bg-white/8 hover:text-slate-200"
                 )}
               >
                 <span className="text-xs font-medium uppercase tracking-wider">{g.label}</span>

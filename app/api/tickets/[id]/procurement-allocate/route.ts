@@ -6,7 +6,7 @@ import { notifyUser } from "@/lib/feishu-notify";
 import { platformTagLabels } from "@/lib/labels";
 
 // 采买分配：按已通过的 ProcurementItem 批量生成合作工单（ADMIN / PR负责人）。
-// body: { allocations: [{ itemId, prId }] }
+// body: { allocations: [{ itemId, prId, quantity }] }
 // 要求：采买工单为 PENDING_PROCUREMENT / APPROVED；每条 item 已通过且未分配；
 // prId 必须是 PR 角色用户。分配完采买工单状态 → APPROVED。
 // 子工单：ticketKind=COOPERATION，status=DRAFT，品牌/平台/款式继承，
@@ -36,17 +36,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   // 校验每条分配：item 归属本单 + 已通过 + 未分配；prId 为 PR；itemId 不重复
-  const seen = new Set<string>();
-  const parsed: { itemId: string; prId: string }[] = [];
+  const parsed: { itemId: string; prId: string; quantity: number }[] = [];
   for (const raw of allocations) {
     const itemId = String((raw as { itemId?: unknown }).itemId ?? "").trim();
     const prId = String((raw as { prId?: unknown }).prId ?? "").trim();
-    if (!itemId || !prId) {
-      return NextResponse.json({ error: "每条分配必须包含 itemId 和 prId" }, { status: 400 });
+    const quantity = Number((raw as { quantity?: unknown }).quantity ?? 0);
+    if (!itemId || !prId || !Number.isInteger(quantity) || quantity <= 0) {
+      return NextResponse.json({ error: "每条分配必须包含有效的 itemId、PR 和正整数数量" }, { status: 400 });
     }
-    if (seen.has(itemId)) return NextResponse.json({ error: "同一采买请求不可重复分配" }, { status: 400 });
-    seen.add(itemId);
-    parsed.push({ itemId, prId });
+    parsed.push({ itemId, prId, quantity });
   }
   const items = await prisma.procurementItem.findMany({
     where: { id: { in: parsed.map((p) => p.itemId) } },
@@ -62,8 +60,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (item.status !== "APPROVED") {
       return NextResponse.json({ error: `款式 ${item.style} 尚未通过审批，不可分配` }, { status: 400 });
     }
-    if (item.allocatedTicketId) {
-      return NextResponse.json({ error: `款式 ${item.style} 已分配过，不可重复分配` }, { status: 400 });
+  }
+  for (const item of items) {
+    const requested = parsed.filter((p) => p.itemId === item.id).reduce((sum, p) => sum + p.quantity, 0);
+    const existing = await prisma.procurementAllocation.aggregate({ where: { itemId: item.id }, _sum: { quantity: true } });
+    const existingQty = existing._sum.quantity ?? 0;
+    if (requested + existingQty > (item.approvedQty ?? item.quantity)) {
+      return NextResponse.json({ error: `款式 ${item.style} 分配数量超出可分配数量，剩余 ${Math.max(0, (item.approvedQty ?? item.quantity) - existingQty)}` }, { status: 400 });
     }
   }
   const prIds = parsed.map((p) => p.prId).filter((v, i, a) => a.indexOf(v) === i);
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const platformLabel = platformTagLabels[ticket.platform[0]] ?? ticket.platform[0] ?? "";
     const out: { itemId: string; ticketId: string; ticketNo: string }[] = [];
     for (let i = 0; i < parsed.length; i++) {
-      const { itemId, prId } = parsed[i];
+      const { itemId, prId, quantity } = parsed[i];
       const item = items.find((it) => it.id === itemId)!;
       const ticketNo = `${ymd}${String(baseCount + i + 1).padStart(4, "0")}`;
       const child = await tx.cooperationTicket.create({
@@ -105,15 +108,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           style: [item.style],
           coopCategory: [],
           estimatedSchedule: "-",
-          note: `由采买工单 ${ticket.ticketNo} 分配（款式：${item.style}，数量：${item.approvedQty ?? item.quantity}）`,
+          note: `由采买工单 ${ticket.ticketNo} 分配（款式：${item.style}，数量：${quantity}）`,
           status: "DRAFT",
           assigneeId: prId,
           creatorId: auth.userId,
         },
       });
+      await tx.procurementAllocation.create({ data: { itemId, prId, quantity, ticketId: child.id } });
+      const allocatedTotal = await tx.procurementAllocation.aggregate({ where: { itemId }, _sum: { quantity: true } });
       await tx.procurementItem.update({
         where: { id: itemId },
-        data: { allocatedTicketId: child.id },
+        data: { allocatedTicketId: (allocatedTotal._sum.quantity ?? 0) >= (item.approvedQty ?? item.quantity) ? child.id : item.allocatedTicketId },
       });
       await tx.ticketAssigneeLog.create({
         data: {
@@ -129,7 +134,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
     await tx.cooperationTicket.update({
       where: { id: params.id },
-      data: { status: "APPROVED", procurementApprovedAt: new Date() },
+      data: { status: "PROCUREMENT_GENERATED", procurementApprovedAt: new Date() },
     });
     await writeLog(tx, {
       docType: "TICKET",
@@ -137,7 +142,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       action: "ASSIGN",
       actorId: auth.userId,
       fromStatus: ticket.status,
-      toStatus: "APPROVED",
+      toStatus: "PROCUREMENT_GENERATED",
       note: `采买分配：${out.length} 条请求已生成合作工单（${out.map((o) => o.ticketNo).join("、")}）`,
     });
     return out;
