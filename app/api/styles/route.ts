@@ -12,8 +12,9 @@ export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
   const activeOnly = params.get("active") === "1";
   const kind = params.get("kind") ?? "STYLE";
+  const brandId = params.get("brandId");
   const styles = await prisma.styleOption.findMany({
-    where: { kind, ...(activeOnly ? { isActive: true } : {}) },
+    where: { kind, ...(brandId ? { brandId } : {}), ...(activeOnly ? { isActive: true } : {}) },
     orderBy: [{ sort: "asc" }, { name: "asc" }],
   });
   return NextResponse.json(styles);
@@ -25,13 +26,15 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const name = String(body.name ?? "").trim();
+  const brandId = String(body.brandId ?? "").trim();
   if (!name) return NextResponse.json({ error: "款式名称不能为空" }, { status: 400 });
+  if (!brandId) return NextResponse.json({ error: "请选择所属品牌" }, { status: 400 });
   if (name.length > 50) return NextResponse.json({ error: "款式名称不能超过 50 个字" }, { status: 400 });
   try {
     const style = await prisma.$transaction(async (tx) => {
-      const last = await tx.styleOption.aggregate({ where: { kind: "STYLE" }, _max: { sort: true } });
+      const last = await tx.styleOption.aggregate({ where: { kind: "STYLE", brandId }, _max: { sort: true } });
       const created = await tx.styleOption.create({
-        data: { kind: "STYLE", name, sort: (last._max.sort ?? 0) + 1 },
+        data: { kind: "STYLE", brandId, name, sort: (last._max.sort ?? 0) + 1 },
       });
       await writeLog(tx, {
         docType: "STYLE",

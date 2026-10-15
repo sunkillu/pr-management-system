@@ -146,12 +146,19 @@ export default function TicketForm({
         .then((r) => r.json())
         .then((d) => setBrandOptions(Array.isArray(d) ? d : []))
         .catch(() => setBrandOptions([]));
-      fetch("/api/styles?active=1")
-        .then((r) => r.json())
-        .then((d) => setStyleOptions(Array.isArray(d) ? d : []))
-        .catch(() => setStyleOptions([]));
     }
   }, [open ]);
+
+  useEffect(() => {
+    if (!open || !brandId) {
+      setStyleOptions([]);
+      return;
+    }
+    fetch(`/api/styles?active=1&brandId=${encodeURIComponent(brandId)}`)
+      .then((r) => r.json())
+      .then((d) => setStyleOptions(Array.isArray(d) ? d : []))
+      .catch(() => setStyleOptions([]));
+  }, [open, brandId]);
 
   const partners = type === "MAKEUP" ? makeupArtists : influencers;
 
@@ -386,7 +393,11 @@ export default function TicketForm({
             <select
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               value={brandId}
-              onChange={(e) => setBrandId(e.target.value)}
+              onChange={(e) => {
+                setBrandId(e.target.value);
+                setStyles([]);
+                setProcurementItems([{ style: "", quantity: "" }]);
+              }}
             >
               <option value="">请选择品牌</option>
               {brandOptions.map((b) => (
@@ -659,7 +670,7 @@ export default function TicketForm({
           )}
           {ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (
           <Field label="寄品明细" hint="需要寄样时填写，可寄多个款式；与合作款式独立">
-            <ShipItemEditor value={shipItems} onChange={setShipItems} />
+            <ShipItemEditor value={shipItems} onChange={setShipItems} brandId={brandId} />
           </Field>
           )}
           {ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (

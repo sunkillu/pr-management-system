@@ -134,7 +134,7 @@ export default async function TicketsPage({
     select: { id: true, name: true },
   });
   const styleOptions = await prisma.styleOption.findMany({
-    where: { kind: "STYLE", isActive: true },
+    where: { kind: "STYLE", isActive: true, ...(searchParams.brandId ? { brandId: searchParams.brandId } : {}) },
     orderBy: [{ sort: "asc" }, { name: "asc" }],
     select: { name: true },
   });

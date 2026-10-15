@@ -7,6 +7,8 @@ import type { TimelineItem } from "@/components/ApprovalTimeline";
 
 type StyleRow = {
   id: string;
+  brandId: string;
+  brandName: string;
   name: string;
   isActive: boolean;
   usedCount: number;
@@ -21,14 +23,16 @@ type ImportPreview = {
   createCount: number;
   updateCount: number;
   errorCount: number;
-  preview: { row: number; name: string; action: string; errors: string[] }[];
+  preview: { row: number; brandName?: string; name: string; action: string; errors: string[] }[];
   errors: string[];
 };
 
-export default function StylesClient({ initialStyles }: { initialStyles: StyleRow[] }) {
+export default function StylesClient({ initialStyles, brands }: { initialStyles: StyleRow[]; brands: { id: string; name: string }[] }) {
   const router = useRouter();
   const [styles, setStyles] = useState(initialStyles);
   const [name, setName] = useState("");
+  const [brandId, setBrandId] = useState(brands[0]?.id ?? "");
+  const [brandFilter, setBrandFilter] = useState("");
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState("");
   const [editName, setEditName] = useState("");
@@ -61,7 +65,11 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
   async function add() {
     if (!name.trim()) return setError("款式名称不能为空");
     setBusy(true);
-    if (await request("/api/styles", "POST", { name: name.trim() })) setName("");
+    if (!brandId) {
+      setBusy(false);
+      return setError("请先选择所属品牌");
+    }
+    if (await request("/api/styles", "POST", { name: name.trim(), brandId })) setName("");
     setBusy(false);
   }
 
@@ -131,7 +139,7 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
     }
   }
 
-  const visible = styles.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const visible = styles.filter((s) => (!brandFilter || s.brandId === brandFilter) && s.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div className="space-y-6">
@@ -171,8 +179,8 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
             {importPreview.errors.length > 0 && <div className="mt-3 max-h-32 overflow-auto rounded-md bg-red-50 p-3 text-xs text-red-700">{importPreview.errors.map((item) => <p key={item}>{item}</p>)}</div>}
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[520px] text-sm">
-                <thead><tr className="border-b text-left text-xs text-muted-foreground"><th className="py-2">行号</th><th>款式</th><th>动作</th><th>校验</th></tr></thead>
-                <tbody>{importPreview.preview.map((row) => <tr key={row.row} className="border-b last:border-0"><td className="py-2">{row.row}</td><td>{row.name || "-"}</td><td>{row.action}</td><td className={row.errors.length ? "text-red-600" : "text-green-700"}>{row.errors.length ? row.errors.join("；") : "可导入"}</td></tr>)}</tbody>
+                <thead><tr className="border-b text-left text-xs text-muted-foreground"><th className="py-2">行号</th><th>品牌</th><th>款式</th><th>动作</th><th>校验</th></tr></thead>
+                <tbody>{importPreview.preview.map((row) => <tr key={row.row} className="border-b last:border-0"><td className="py-2">{row.row}</td><td>{row.brandName || "-"}</td><td>{row.name || "-"}</td><td>{row.action}</td><td className={row.errors.length ? "text-red-600" : "text-green-700"}>{row.errors.length ? row.errors.join("；") : "可导入"}</td></tr>)}</tbody>
               </table>
             </div>
           </div>
@@ -180,6 +188,10 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={brandId} onChange={(e) => setBrandId(e.target.value)}>
+          <option value="">选择品牌</option>
+          {brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+        </select>
         <input
           className="w-64 rounded-md border border-border bg-background px-3 py-2 text-sm"
           placeholder="新款式名称"
@@ -194,6 +206,10 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
         >
           {busy ? "添加中…" : "添加款式"}
         </button>
+        <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)}>
+          <option value="">全部品牌</option>
+          {brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+        </select>
         <input
           className="ml-auto w-56 rounded-md border border-border bg-background px-3 py-2 text-sm"
           placeholder="搜索款式"
@@ -207,6 +223,7 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-muted-foreground">
+              <th className="px-4 py-3 font-medium">品牌</th>
               <th className="px-4 py-3 font-medium">款式名称</th>
               <th className="px-4 py-3 font-medium">状态</th>
               <th className="px-4 py-3 font-medium">工单使用</th>
@@ -218,6 +235,7 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
           <tbody>
             {visible.map((s) => (
               <tr key={s.id} className="border-b border-border last:border-0">
+                <td className="px-4 py-3">{s.brandName}</td>
                 <td className="px-4 py-3 font-medium">
                   {editingId === s.id ? (
                     <input
@@ -268,7 +286,7 @@ export default function StylesClient({ initialStyles }: { initialStyles: StyleRo
               </tr>
             ))}
             {visible.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">暂无款式</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">暂无款式</td></tr>
             )}
           </tbody>
         </table>

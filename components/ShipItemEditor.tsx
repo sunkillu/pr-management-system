@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { inputCls } from "./ui";
-import { STYLE_OPTIONS } from "@/lib/labels";
+import SearchableSelect from "./SearchableSelect";
 import {
   DEGREE_OPTIONS,
   SHELF_LIFE_OPTIONS,
@@ -16,10 +16,23 @@ import {
 export default function ShipItemEditor({
   value,
   onChange,
+  brandId,
 }: {
   value: ShipItem[];
   onChange: (next: ShipItem[]) => void;
+  brandId?: string;
 }) {
+  const [styleOptions, setStyleOptions] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!brandId) {
+      setStyleOptions([]);
+      return;
+    }
+    fetch(`/api/styles?active=1&brandId=${encodeURIComponent(brandId)}`)
+      .then((r) => r.json())
+      .then((d) => setStyleOptions(Array.isArray(d) ? d : []))
+      .catch(() => setStyleOptions([]));
+  }, [brandId]);
   const [customDegreeRows, setCustomDegreeRows] = useState<Set<number>>(() => {
     const s = new Set<number>();
     value.forEach((it, i) => {
@@ -30,10 +43,19 @@ export default function ShipItemEditor({
   const [customStyleRows, setCustomStyleRows] = useState<Set<number>>(() => {
     const s = new Set<number>();
     value.forEach((it, i) => {
-      if (it.style && !STYLE_OPTIONS.some((o) => o.value === it.style || o.label === it.style)) s.add(i);
+      if (it.style && !styleOptions.some((o) => o.name === it.style)) s.add(i);
     });
     return s;
   });
+  useEffect(() => {
+    setCustomStyleRows((current) => {
+      const next = new Set(current);
+      value.forEach((item, index) => {
+        if (item.style && styleOptions.some((option) => option.name === item.style)) next.delete(index);
+      });
+      return next;
+    });
+  }, [styleOptions, value]);
 
   const update = (i: number, patch: Partial<ShipItem>) =>
     onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -74,26 +96,17 @@ export default function ShipItemEditor({
                   </button>
                 </div>
               ) : (
-                <select
-                  className={inputCls}
+                <SearchableSelect
+                  className="w-full"
+                  options={styleOptions.map((o) => ({ value: o.name, label: o.name }))}
                   value={s.style}
-                  onChange={(e) => {
-                    if (e.target.value === "__custom") {
-                      setCustomStyleRows(toggle(customStyleRows, i, true));
-                      update(i, { style: "" });
-                    } else {
-                      update(i, { style: e.target.value });
-                    }
+                  onChange={(next) => {
+                    setCustomStyleRows(toggle(customStyleRows, i, false));
+                    update(i, { style: next });
                   }}
-                >
-                  <option value="">请选择款式</option>
-                  {STYLE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                  <option value="__custom">自定义…</option>
-                </select>
+                  placeholder="请选择款式"
+                  searchPlaceholder="搜索款式"
+                />
               )}
             </div>
             <div className="w-28">

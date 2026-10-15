@@ -19,7 +19,7 @@ export async function GET() {
   if (!auth.ok) return auth.res;
   return csvResponse(
     "合作款式导入模板.csv",
-    toCSV(["款式名称", "状态", "排序"], [["春季新品", "启用", 1], ["清仓款", "停用", 2]])
+    toCSV(["品牌", "款式名称", "状态", "排序"], [["坚果力", "春季新品", "启用", 1], ["坚果力", "清仓款", "停用", 2]])
   );
 }
 
@@ -37,14 +37,19 @@ export async function POST(req: NextRequest) {
 
   const existing = await prisma.styleOption.findMany({
     where: { kind: "STYLE" },
-    select: { id: true, name: true, isActive: true, sort: true },
+    select: { id: true, brandId: true, name: true, isActive: true, sort: true },
   });
-  const existingByName = new Map(existing.map((style) => [style.name.toLowerCase(), style]));
+  const brands = await prisma.brand.findMany({ select: { id: true, name: true } });
+  const brandByName = new Map(brands.map((brand) => [brand.name.toLowerCase(), brand]));
+  const existingByKey = new Map(existing.map((style) => [`${style.brandId}:${style.name.toLowerCase()}`, style]));
   const seen = new Set<string>();
   const parsed = rows.map((row, index) => {
     const errors: string[] = [];
+    const brandName = (row["品牌"] ?? "").trim();
+    const brand = brandByName.get(brandName.toLowerCase());
     const name = (row["款式名称"] ?? row["款式"] ?? row["名称"] ?? "").trim();
-    const key = name.toLowerCase();
+    const key = `${brand?.id ?? ""}:${name.toLowerCase()}`;
+    if (!brand) errors.push("品牌必须填写且必须是启用品牌");
     if (!name) errors.push("款式名称必填");
     if (name.length > 50) errors.push("款式名称不能超过 50 个字");
     if (name && seen.has(key)) errors.push("文件内重复");
@@ -56,10 +61,12 @@ export async function POST(req: NextRequest) {
     if (sortRaw && (!Number.isInteger(sort) || (sort as number) < 0)) errors.push("排序必须是大于等于 0 的整数");
     return {
       row: index + 2,
+      brandId: brand?.id ?? "",
+      brandName,
       name,
       active: active ?? true,
       sort,
-      action: existingByName.has(key) ? "更新" : "新增",
+      action: existingByKey.has(key) ? "更新" : "新增",
       errors,
     };
   });
@@ -79,10 +86,11 @@ export async function POST(req: NextRequest) {
 
   let created = 0;
   let updated = 0;
-  let nextSort = Math.max(0, ...existing.map((style) => style.sort)) + 1;
+  const nextSortByBrand = new Map<string, number>();
+  for (const style of existing) nextSortByBrand.set(style.brandId ?? "", Math.max(nextSortByBrand.get(style.brandId ?? "") ?? 0, style.sort));
   await prisma.$transaction(async (tx) => {
     for (const row of valid) {
-      const current = existingByName.get(row.name.toLowerCase());
+      const current = existingByKey.get(`${row.brandId}:${row.name.toLowerCase()}`);
       if (current) {
         const style = await tx.styleOption.update({
           where: { id: current.id },
@@ -100,7 +108,7 @@ export async function POST(req: NextRequest) {
         updated++;
       } else {
         const style = await tx.styleOption.create({
-          data: { kind: "STYLE", name: row.name, isActive: row.active, sort: row.sort ?? nextSort++ },
+          data: { kind: "STYLE", brandId: row.brandId, name: row.name, isActive: row.active, sort: row.sort ?? ((nextSortByBrand.get(row.brandId) ?? 0) + 1) },
         });
         await writeLog(tx, {
           docType: "STYLE",

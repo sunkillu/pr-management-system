@@ -842,6 +842,7 @@ model Brand {
   payments  PaymentRequest[]
   materials MaterialRecord[]
   dataTasks DataCollectionTask[]
+  styles    StyleOption[]
   brandChangesOld BrandChangeLog[] @relation("BrandChangeOld")
   brandChangesNew BrandChangeLog[] @relation("BrandChangeNew")
 }
@@ -1031,13 +1032,16 @@ model PurchaseLine {
 model StyleOption {
   id        String   @id @default(cuid())
   kind      String   @default("STYLE")
+  brandId   String?
+  brand     Brand?   @relation(fields: [brandId], references: [id], onDelete: Cascade)
   name      String
   isActive  Boolean  @default(true)
   sort      Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([kind, name])
+  @@unique([kind, brandId, name])
+  @@index([brandId, kind, isActive, sort])
   @@index([kind, isActive, sort])
 }
 

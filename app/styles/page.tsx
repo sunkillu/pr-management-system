@@ -9,7 +9,10 @@ export default async function StylesPage() {
   const role = (session?.user as { role?: string } | undefined)?.role;
   if (!role || !["ADMIN", "PR_MANAGER"].includes(role)) redirect("/");
 
-  const styles = await prisma.styleOption.findMany({ where: { kind: "STYLE" }, orderBy: [{ sort: "asc" }, { name: "asc" }] });
+  const [styles, brands] = await Promise.all([
+    prisma.styleOption.findMany({ where: { kind: "STYLE" }, include: { brand: { select: { name: true } } }, orderBy: [{ sort: "asc" }, { name: "asc" }] }),
+    prisma.brand.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
   const names = styles.map((s) => s.name);
   const [logs, usage] = await Promise.all([
     styles.length
@@ -37,8 +40,11 @@ export default async function StylesPage() {
 
   return (
     <StylesClient
+      brands={brands}
       initialStyles={styles.map((s) => ({
         id: s.id,
+        brandId: s.brandId ?? "",
+        brandName: s.brand?.name ?? "未分配",
         name: s.name,
         isActive: s.isActive,
         usedCount: usageByName.get(s.name) ?? 0,
