@@ -785,6 +785,7 @@ enum TicketSubType {
 // ---------- v2: 提醒任务 ----------
 enum ReminderType {
   PUBLISH_7D    // 发布档期前7天：提醒PR催返稿
+  PUBLISH_3D    // 发布档期前3天：提醒PR确认返稿/发布安排
   REVIEW_3D     // 返稿未确认：每3天提醒
   PUBLISH_1D    // 发布前1天提醒
   OVERDUE_7D    // 超确认档期7天未发布：逾期预警

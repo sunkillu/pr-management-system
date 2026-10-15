@@ -121,15 +121,25 @@ checked++;
 return checked;
 }
 
-/** 寄品超 7 天预警：状态持续（updatedAt）超过 7 天仍在非终态。 */
+/**
+ * 寄品超 7 天预警：非终态停留超过 7 天。
+ * 基准时间不取 updatedAt —— 任何字段更新（包括 T+1 检测自身写入 logisticsStatus）
+ * 都会刷新 updatedAt，导致"已寄出 8 天"的记录因 T+1 刚跑过而永远不预警。
+ * 基准：SHIPPED 按发货时间（shippedAt / shippedDate，取"7 天未签收"本意）；
+ * PENDING / PREPARING 按创建时间（无独立的状态停留时间字段，createdAt 为最接近的口径）。
+ */
 export async function checkSampleOverdue(): Promise<number> {
 const ACTIVE: Array<"PENDING" | "PREPARING" | "SHIPPED"> = ["PENDING", "PREPARING", "SHIPPED"];
 const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 let warned = 0;
 try {
 const actives = await prisma.sampleShipment.findMany({
-where: { status: { in: ACTIVE}, overdueWarnedAt: null, updatedAt: { lt: cutoff}},
-select: { id: true, productName: true, status: true, createdById: true},
+where: { status: { in: ACTIVE}, overdueWarnedAt: null },
+select: { id: true, productName: true, status: true, createdById: true, createdAt: true, shippedAt: true, shippedDate: true },
+});
+const overdue = actives.filter((s) => {
+const base = s.status === "SHIPPED" ? s.shippedAt ?? s.shippedDate ?? s.createdAt : s.createdAt;
+return base.getTime() < cutoff.getTime();
 });
 const ownerIds = await getOwnerIds();
 const statusNames: Record<string, string> = {
@@ -137,7 +147,7 @@ PENDING: "待处理",
 PREPARING: "备货中",
 SHIPPED: "已寄出",
 };
-for (const s of actives) {
+for (const s of overdue) {
 try {
 await prisma.sampleShipment.update({
 where: { id: s.id},

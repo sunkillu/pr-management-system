@@ -12,7 +12,7 @@ const DAY_MS = 24 * 3600 * 1000;
 const TERMINAL_STATUSES = ["COMPLETED", "SETTLED", "VOIDED"] as const;
 
 /** 档期变更时要重算的档期提醒 */
-const SCHEDULE_BOUND_TYPES: ReminderType[] = ["PUBLISH_7D", "PUBLISH_1D", "OVERDUE_7D"];
+const SCHEDULE_BOUND_TYPES: ReminderType[] = ["PUBLISH_7D", "PUBLISH_3D", "PUBLISH_1D", "OVERDUE_7D"];
 
 /** 幂等 key：ticketId + type + scheduledAt（schema 已建唯一索引） */
 function idempotencyKey(ticketId: string, type: ReminderType, scheduledAt: Date): string {
@@ -52,22 +52,20 @@ export async function ensureReminder(
   });
 }
 
-/** 自动规则写操作日志 */
+/** 自动规则写操作日志：actor 默认为工单创建人，note 标注"系统自动" */
 async function logAutoOp(
   ticketId: string,
   action: "CREATE" | "VOID",
-  actorId: string | null,
-  note: string,
-  actorLabel?: string
+  actorId: string,
+  note: string
 ) {
   try {
-    const actor = actorId ? { actorId } : { actorId: null, actorLabel: actorLabel ?? "系统定时任务" };
     await writeLog(prisma, {
       docType: "TICKET",
       docId: ticketId,
       action,
-      ...actor,
-      note: actorId ? note : `【系统自动】${note}`,
+      actorId,
+      note: `【系统自动】${note}`,
     });
   } catch (e) {
     console.error("提醒操作日志写入失败:", e);
@@ -106,6 +104,7 @@ export async function recalculateReminders(
   const confirmed = new Date(ticket.confirmedDate).getTime();
   const plans: Array<[ReminderType, Date, string]> = [
     ["PUBLISH_7D", new Date(confirmed - 7 * DAY_MS), "确定档期前7天：提醒PR催返稿"],
+    ["PUBLISH_3D", new Date(confirmed - 3 * DAY_MS), "确定档期前3天：确认返稿/发布安排"],
     ["PUBLISH_1D", new Date(confirmed - 1 * DAY_MS), "确定档期前1天：确认返稿/发布安排"],
     ["OVERDUE_7D", new Date(confirmed + 7 * DAY_MS), "确定档期后7天：逾期未发布预警"],
   ];
@@ -167,6 +166,11 @@ function reminderText(
       return {
         title: "发布档期临近提醒",
         text: `合作工单「${title}」的确定档期为 ${d}（7天后），请提醒达人及时返稿。`,
+      };
+    case "PUBLISH_3D":
+      return {
+        title: "发布档期临近提醒",
+        text: `合作工单「${title}」的确定档期为 ${d}（3天后），请确认返稿与发布安排。`,
       };
     case "PUBLISH_1D":
       return {
@@ -234,28 +238,14 @@ export async function sendDueReminders(): Promise<{ sent: number; cancelled: num
   for (const r of due) {
     try {
       if ((TERMINAL_STATUSES as readonly string[]).includes(r.ticket.status)) {
-        const changed = await prisma.$transaction(async (tx) => {
-          const result = await tx.reminderTask.updateMany({
-            where: { id: r.id, status: "PENDING" },
-            data: { status: "CANCELLED", sentAt: new Date(), note: "工单已完结，未发送自动取消" },
-          });
-          if (result.count === 0) return false;
-          await writeLog(tx, {
-            docType: "REMINDER_TASK",
-            docId: r.id,
-            action: "VOID",
-            actorLabel: "系统定时任务",
-            fromStatus: "PENDING",
-            toStatus: "CANCELLED",
-            note: "工单已完结，未发送自动取消",
-          });
-          return true;
+        await prisma.reminderTask.update({
+          where: { id: r.id },
+          data: { status: "CANCELLED", sentAt: new Date(), note: "工单已完结，未发送自动取消" },
         });
-        if (!changed) continue;
         await logAutoOp(
           r.ticket.id,
           "VOID",
-          null,
+          r.ticket.creatorId,
           `工单状态为${r.ticket.status}，取消未发送的 ${r.type} 提醒`
         );
         cancelled++;
@@ -274,23 +264,11 @@ export async function sendDueReminders(): Promise<{ sent: number; cancelled: num
           kind: "REMIND",
         });
       }
-      const changed = await prisma.$transaction(async (tx) => {
-        const result = await tx.reminderTask.updateMany({
-          where: { id: r.id, status: "PENDING" },
-          data: { status: "SENT", sentAt: new Date() },
-        });
-        if (result.count === 0) return false;
-        await writeLog(tx, {
-          docType: "REMINDER_TASK",
-          docId: r.id,
-          action: "EDIT",
-          actorLabel: "系统定时任务",
-          fromStatus: "PENDING",
-          toStatus: "SENT",
-        });
-        return true;
+      await prisma.reminderTask.update({
+        where: { id: r.id },
+        data: { status: "SENT", sentAt: new Date() },
       });
-      if (changed) sent++;
+      sent++;
     } catch (e) {
       console.error(`提醒 ${r.id} (${r.type}) 发送失败:`, e);
     }

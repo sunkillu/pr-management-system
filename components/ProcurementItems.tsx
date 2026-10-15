@@ -171,7 +171,8 @@ export default function ProcurementItems({
 
   const pendingCount = items.filter((it) => it.status === "PENDING").length;
   const allocatable = items.filter((it) => it.status === "APPROVED" && !it.allocatedTicketId);
-  const showAllocate = isAdmin && pendingCount === 0 && allocatable.length > 0;
+  // 分配：管理员 / PR负责人均可（逐条审批仍仅管理员）
+  const showAllocate = (role === "ADMIN" || role === "PR_MANAGER") && pendingCount === 0 && allocatable.length > 0;
 
   return (
     <div className="mt-4">
@@ -273,7 +274,7 @@ export default function ProcurementItems({
           </button>
         </div>
       )}
-      {pendingCount > 0 && isAdmin && (
+      {pendingCount > 0 && (role === "ADMIN" || role === "PR_MANAGER") && (
         <p className="mt-2 text-xs text-muted-foreground">全部条目审批完成（无待审批）后可分配。</p>
       )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
