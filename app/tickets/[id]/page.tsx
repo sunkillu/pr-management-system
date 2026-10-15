@@ -40,6 +40,7 @@ import ProcurementAssignee from "@/components/ProcurementAssignee";
 import ProcurementItems from "@/components/ProcurementItems";
 import MaintenanceConvert from "@/components/MaintenanceConvert";
 import TicketForm from "@/components/TicketForm";
+import TicketChildren from "@/components/TicketChildren";
 import ScheduleChangeTimeline from "@/components/ScheduleChangeTimeline";
 
 export default async function TicketDetailPage({ params }: { params: { id: string } }) {
@@ -158,6 +159,34 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     orderBy: { name: "asc" },
   });
 
+  // 子工单（v2 父子工单模型）：仅父工单拉取其子工单；子工单则拉取父工单入口
+  const childTicketsRaw = ticket.parentId
+    ? []
+    : await prisma.cooperationTicket.findMany({
+        where: { parentId: ticket.id },
+        include: {
+          influencer: { select: { name: true } },
+          assignee: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+  const childTickets = childTicketsRaw.map((c) => ({
+    id: c.id,
+    ticketNo: c.ticketNo,
+    title: c.title,
+    subType: c.subType,
+    status: c.status,
+    influencer: c.influencer,
+    assignee: c.assignee,
+    createdAt: c.createdAt.toISOString(),
+  }));
+  const parentTicket = ticket.parentId
+    ? await prisma.cooperationTicket.findUnique({
+        where: { id: ticket.parentId },
+        select: { id: true, ticketNo: true, title: true },
+      })
+    : null;
+
   // v2: 档期修改审计
   const scheduleLogsRaw = await prisma.scheduleChangeLog.findMany({
     where: { ticketId: ticket.id },
@@ -176,7 +205,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   const timeline: TimelineItem[] = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    actorName: l.actor?.name ?? l.actorLabel ?? "系统任务",
+    actorName: l.actor?.name ?? "系统任务",
     createdAt: l.createdAt,
     note: l.note,
     fromStatusLabel: l.fromStatus ? ticketStatusLabels[l.fromStatus] ?? l.fromStatus : null,
@@ -224,9 +253,9 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     [
       "APPROVED",
       "IN_PROGRESS",
-      "AWAITING_DRAFT",
       "PENDING_REVIEW",
-      "DRAFT_RETURNED",
+      "PENDING_REVIEW",
+      "REVIEWED",
       "REVIEWED",
       "PUBLISHED",
     ].includes(ticket.status);
@@ -240,7 +269,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     canOperate &&
     !["VOIDED", "MATERIAL_REVIEW"].includes(ticket.status);
   const canManageMaterials =
-    canOperate && ["IN_PROGRESS", "AWAITING_DRAFT"].includes(ticket.status);
+    canOperate && ["IN_PROGRESS", "PENDING_REVIEW"].includes(ticket.status);
   const incompleteSubtasks = ticket.subtasks.filter((s) => s.status !== "DONE").length;
 
   return (
@@ -562,7 +591,8 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 blockedReason: s.blockedReason,
                 blockedAt: s.blockedAt ? s.blockedAt.toISOString() : null,
                 createdAt: s.createdAt.toISOString(),
-                updatedAt: s.updatedAt ? s.updatedAt.toISOString() : null,
+                // 子任务表无 updatedAt，用创建时间兜底
+                updatedAt: s.createdAt ? s.createdAt.toISOString() : null,
                 stateHistory: [],
               }))}
               users={users}
@@ -659,7 +689,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
               <TicketAssigneeEditor ticketId={ticket.id} currentId={ticket.assigneeId} users={users} />
             )}
             {/* 维护工单转为合作工单（审批通过或寄品签收后可转，转化后回草稿补合作信息） */}
-            {ticket.ticketKind === "MAINTENANCE" && ["DRAFT", "APPROVED", "AWAITING_DRAFT"].includes(ticket.status) && (
+            {ticket.ticketKind === "MAINTENANCE" && ["DRAFT", "APPROVED", "PENDING_REVIEW"].includes(ticket.status) && (
               <MaintenanceConvert
                 ticketId={ticket.id}
                 ticketTitle={ticket.title}
@@ -784,6 +814,25 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
             />
           </Section>
 
+          {/* 子工单（v2 父子工单模型） */}
+          <Section title={ticket.parentId ? "父工单" : `子工单（${childTickets.length}）`}>
+            <TicketChildren
+              ticketId={ticket.id}
+              isParent={!ticket.parentId}
+              parentTicket={parentTicket}
+              initial={childTickets}
+              users={users}
+              canCreate={canOperate}
+              context={{
+                influencerId: ticket.influencerId,
+                influencerName: partnerName,
+                styles: ticket.style,
+                platforms: ticket.platform as string[],
+                confirmedDate: ticket.confirmedDate ? new Date(ticket.confirmedDate).toISOString().slice(0, 10) : null,
+                publishDate: ticket.publishDate ? new Date(ticket.publishDate).toISOString().slice(0, 10) : null,
+              }}
+            />
+          </Section>
           {/* v2: 档期修改记录 */}
           {scheduleLogs.length > 0 && (
             <Section title={`档期修改记录（${scheduleLogs.length}）`}>

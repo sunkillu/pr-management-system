@@ -6,7 +6,7 @@ import { notifyUser } from "@/lib/feishu-notify";
 
 // 维护工单转为合作工单：同单翻转 ticketKind，状态回到 DRAFT，
 // 由归属 PR 补充合作信息（合作类目/档期/预算）后提交审批，走完整合作流程。
-// 条件：ticketKind=MAINTENANCE、status=DRAFT/APPROVED/AWAITING_DRAFT
+// 条件：ticketKind=MAINTENANCE、status=DRAFT/APPROVED/PENDING_REVIEW
 // 权限：ADMIN / PR_MANAGER / 归属 PR（有 assignee 时为 assignee，未分配时为创建人）
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireRoles(["ADMIN", "PR_MANAGER", "PR"]);
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (ticket.ticketKind !== "MAINTENANCE") {
     return NextResponse.json({ error: "仅维护工单可转为合作工单" }, { status: 400 });
   }
-  if (!["DRAFT", "APPROVED", "AWAITING_DRAFT"].includes(ticket.status)) {
+  if (!["DRAFT", "APPROVED", "PENDING_REVIEW"].includes(ticket.status)) {
     return NextResponse.json({ error: "仅草稿、已通过或寄品已签收的维护工单可转为合作工单" }, { status: 400 });
   }
   const isOwner = ticket.assigneeId ? ticket.assigneeId === auth.userId : ticket.creatorId === auth.userId;

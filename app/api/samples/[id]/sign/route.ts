@@ -38,8 +38,8 @@ if (sample.ticketId) {
   await prisma.$transaction(async (tx) => {
     const ticket = await tx.cooperationTicket.findUnique({ where: { id: sample.ticketId as string }, select: { status: true, title: true, creatorId: true } });
     if (ticket && ["IN_PROGRESS", "APPROVED"].includes(ticket.status)) {
-      await tx.cooperationTicket.update({ where: { id: sample.ticketId as string }, data: { status: "AWAITING_DRAFT" } });
-      await writeLog(tx, { docType: "TICKET", docId: sample.ticketId as string, action: "EDIT", actorId: auth.userId, fromStatus: ticket.status, toStatus: "AWAITING_DRAFT", note: "寄品签收，进入待返稿" });
+      await tx.cooperationTicket.update({ where: { id: sample.ticketId as string }, data: { status: "PENDING_REVIEW" } });
+      await writeLog(tx, { docType: "TICKET", docId: sample.ticketId as string, action: "EDIT", actorId: auth.userId, fromStatus: ticket.status, toStatus: "PENDING_REVIEW", note: "寄品签收，进入待返稿" });
       await notifyUser(ticket.creatorId, `工单「${ticket.title}」寄品已签收，请补充确定档期并等待返稿。`, { type: "TICKET", id: sample.ticketId as string, title: "工单待返稿", kind: "SYSTEM" });
     }
   });

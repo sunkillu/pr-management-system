@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
   if (!auth.ok) return auth.res;
   const ticket = await prisma.cooperationTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "工单不存在" }, { status: 404 });
-  if (!["APPROVED", "IN_PROGRESS", "AWAITING_DRAFT", "PENDING_REVIEW", "DRAFT_RETURNED", "REVIEWED", "PUBLISHED"].includes(ticket.status)) {
+  if (!["APPROVED", "IN_PROGRESS", "PENDING_REVIEW", "REVIEWED", "PUBLISHED"].includes(ticket.status)) {
     return NextResponse.json({ error: "当前工单状态不可更新节点" }, { status: 400 });
   }
   if (!(await canOperateTicket(params.id, auth.userId, auth.role))) {
