@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoles } from "@/lib/api-auth";
-import { LOGISTICS_STATUSES, ABNORMAL_FLAGS } from "@/lib/logistics";
 import { writeLog } from "@/lib/approval-log";
+import { LOGISTICS_STATUSES, ABNORMAL_FLAGS } from "@/lib/logistics";
 
 const WRITE = ["ADMIN", "PR", "PR_MANAGER"] as const;
 
@@ -64,9 +64,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         influencerId: body.influencerId !== undefined ? body.influencerId || null : undefined,
         productName: body.productName?.trim() || undefined,
         quantity: body.quantity !== undefined ? Number(body.quantity) || 1 : undefined,
-        receiverName: body.receiverName !== undefined ? body.receiverName?.trim() || null : undefined,
-        receiverPhone: body.receiverPhone !== undefined ? body.receiverPhone?.trim() || null : undefined,
-        receiverAddress: body.receiverAddress !== undefined ? body.receiverAddress?.trim() || null : undefined,
         courier: body.courier !== undefined ? body.courier?.trim() || null : undefined,
         trackingNo: body.trackingNo !== undefined ? body.trackingNo || null : undefined,
         shippedDate:
@@ -79,38 +76,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         status: body.status ?? undefined,
         ...logisticsData,
       };
-  const updated = await prisma.$transaction(async (tx) => {
-    const record = await tx.sampleShipment.update({
-      where: { id: params.id },
-      data,
-    });
-    if (body.status !== undefined && body.status !== existing.status) {
-      await writeLog(tx, {
-        docType: "SAMPLE",
-        docId: record.id,
-        action: "EDIT",
-        actorId: auth.userId,
-        fromStatus: existing.status,
-        toStatus: record.status,
-        note: "通过寄品维护操作更新状态",
-      });
-    }
-    if (
-      logisticsData.logisticsStatus !== undefined &&
-      logisticsData.logisticsStatus !== existing.logisticsStatus
-    ) {
-      await writeLog(tx, {
-        docType: "SAMPLE",
-        docId: record.id,
-        action: "EDIT",
-        actorId: auth.userId,
-        fromStatus: existing.logisticsStatus,
-        toStatus: record.logisticsStatus,
-        note: "物流状态变更",
-      });
-    }
-    return record;
+  const updated = await prisma.sampleShipment.update({
+    where: { id: params.id },
+    data,
   });
+  // 异常标记变更留痕：标记拒收 / 退回 / 异常（或清除标记）时记一条操作日志，
+  // 否则异常记录只落在字段上、无人何时因何标记可查
+  if (
+    body.abnormalFlag !== undefined &&
+    String(body.abnormalFlag ?? "").trim() !== (existing.abnormalFlag ?? "")
+  ) {
+    const flag = String(body.abnormalFlag ?? "").trim();
+    await writeLog(prisma, {
+      docType: "SAMPLE",
+      docId: params.id,
+      action: "EDIT",
+      actorId: auth.userId,
+      fromStatus: existing.status,
+      toStatus: existing.status,
+      note: flag ? `标记异常：${flag}` : `清除异常标记（原：${existing.abnormalFlag ?? "-"}）`,
+    });
+  }
   return NextResponse.json(updated);
 }
 

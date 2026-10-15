@@ -595,7 +595,9 @@ occData.resourceOccupiedAt = new Date();
 }
 await tx.cooperationTicket.update({ where: { id: created.id }, data: occData });
 }
-return created;
+// 返回最新记录：占用信息（quoteAmount/confirmedDate/occupiesResource）在创建后才写入，
+// 直接返回 create 结果会是旧值
+return (await tx.cooperationTicket.findUnique({ where: { id: created.id } })) ?? created;
 });
 } catch (e) {
 const err = e as Error & { status?: number; occupancy?: unknown };

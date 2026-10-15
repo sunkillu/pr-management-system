@@ -71,7 +71,7 @@ const brands: string[] = Array.isArray(body.brands)
   : [];
 
 const influencer = await prisma.$transaction(async (tx) => {
-const created = await tx.influencer.create({
+let created = await tx.influencer.create({
 data: {
 name: body.name.trim(),
 influencerType,
@@ -107,8 +107,9 @@ id: { not: created.id },
 select: { id: true, name: true },
 });
 if (existing) {
-// 标记待去重确认 + 写提交记录
-await tx.influencer.update({
+// 标记待去重确认 + 写提交记录（返回更新后记录，避免响应里的 dupStatus 仍是旧值、
+// 导致下方的去重通知判断失效）
+created = await tx.influencer.update({
 where: { id: created.id },
 data: { dupStatus: "PENDING_DEDUP" },
 });

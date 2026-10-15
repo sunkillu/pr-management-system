@@ -5,14 +5,14 @@ import { writeLog } from "@/lib/approval-log";
 import { notifyUser } from "@/lib/feishu-notify";
 import { platformTagLabels } from "@/lib/labels";
 
-// 采买分配：按已通过的 ProcurementItem 批量生成合作工单（仅 ADMIN）。
+// 采买分配：按已通过的 ProcurementItem 批量生成合作工单（ADMIN / PR负责人）。
 // body: { allocations: [{ itemId, prId }] }
 // 要求：采买工单为 PENDING_PROCUREMENT / APPROVED；每条 item 已通过且未分配；
 // prId 必须是 PR 角色用户。分配完采买工单状态 → APPROVED。
 // 子工单：ticketKind=COOPERATION，status=DRAFT，品牌/平台/款式继承，
 // assigneeId=prId，parentId 指向采买工单，note 注明来源采买工单。
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireRoles(["ADMIN"]);
+  const auth = await requireRoles(["ADMIN", "PR_MANAGER"]);
   if (!auth.ok) return auth.res;
   const body = await req.json();
   const allocations: unknown[] = Array.isArray(body.allocations) ? body.allocations : [];
