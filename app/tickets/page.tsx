@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatusBadge from "@/components/StatusBadge";
-import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTagLabels, ticketKindLabels, procurementSubTypeLabels, STYLE_OPTIONS } from "@/lib/labels";
+import { ticketStatusLabels, coopTypeLabels, formatMoney, formatDate, platformTagLabels, ticketKindLabels, procurementSubTypeLabels } from "@/lib/labels";
 import { APPROVAL_TIMEOUT_HOURS } from "@/lib/constants";
 import Link from "next/link";
 import TicketForm from "@/components/TicketForm";
@@ -132,6 +132,11 @@ export default async function TicketsPage({
     where: { role: "PR" },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
+  });
+  const styleOptions = await prisma.styleOption.findMany({
+    where: { kind: "STYLE", isActive: true },
+    orderBy: [{ sort: "asc" }, { name: "asc" }],
+    select: { name: true },
   });
   let tagTicketIds: string[] | null = null;
   if (searchParams.tagId) {
@@ -250,8 +255,8 @@ export default async function TicketsPage({
         </select>
         <select name="style" defaultValue={searchParams.style ?? ""} className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="">全部款式</option>
-          {STYLE_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+          {styleOptions.map((s) => (
+            <option key={s.name} value={s.name}>{s.name}</option>
           ))}
         </select>
         <Button type="submit">筛选</Button>

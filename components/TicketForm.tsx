@@ -2,9 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels } from "@/lib/labels";
+import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels } from "@/lib/labels";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
+import SearchableSelect from "./SearchableSelect";
+import SearchableMultiSelect from "./SearchableMultiSelect";
 import { OccupancyWarning } from "./OccupancyWarning";
 import ShipItemEditor from "./ShipItemEditor";
 import type { ShipItem } from "@/lib/ship-items";
@@ -83,6 +85,7 @@ export default function TicketForm({
   const [endDate, setEndDate] = useState(editTicket?.endDate ?? "");
   const [tagOptions, setTagOptions] = useState<{ id: string; name: string }[]>([]);
   const [tagIds, setTagIds] = useState<string[]>([]);
+  const [styleOptions, setStyleOptions] = useState<{ id: string; name: string }[]>([]);
   // 品牌：单选必填
   const [brandId, setBrandId] = useState(editTicket?.brandId ?? "");
   const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
@@ -143,6 +146,10 @@ export default function TicketForm({
         .then((r) => r.json())
         .then((d) => setBrandOptions(Array.isArray(d) ? d : []))
         .catch(() => setBrandOptions([]));
+      fetch("/api/styles?active=1")
+        .then((r) => r.json())
+        .then((d) => setStyleOptions(Array.isArray(d) ? d : []))
+        .catch(() => setStyleOptions([]));
     }
   }, [open ]);
 
@@ -414,18 +421,16 @@ export default function TicketForm({
                 <div className="space-y-2">
                   {procurementItems.map((row, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <select
-                        className={inputCls}
+                      <SearchableSelect
+                        className="min-w-0 flex-1"
+                        options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
                         value={row.style}
-                        onChange={(e) =>
-                          setProcurementItems(procurementItems.map((r, j) => (j === i ? { ...r, style: e.target.value } : r)))
+                        onChange={(value) =>
+                          setProcurementItems(procurementItems.map((r, j) => (j === i ? { ...r, style: value } : r)))
                         }
-                      >
-                        <option value="">请选择款式</option>
-                        {STYLE_OPTIONS.map((s) => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
+                        placeholder="请选择款式"
+                        searchPlaceholder="搜索款式"
+                      />
                       <input
                         inputMode="numeric"
                         className={inputCls}
@@ -493,20 +498,13 @@ export default function TicketForm({
             </div>
           </Field>
           <Field label="款式（可多选）" required>
-            <div className="flex flex-wrap gap-3">
-              {STYLE_OPTIONS.map((s) => (
-                <label key={s.value} className="flex items-center gap-1 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={styles.includes(s.value)}
-                    onChange={() =>
-                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
-                    }
-                  />
-                  {s.label}
-                </label>
-              ))}
-            </div>
+            <SearchableMultiSelect
+              options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
+              value={styles}
+              onChange={setStyles}
+              placeholder="请选择合作款式（可多选）"
+              searchPlaceholder="搜索合作款式"
+            />
           </Field>
           <Field label="内容方向">
             <textarea className={inputCls} rows={2} value={contentDirection} onChange={(e) => setContentDirection(e.target.value)} />
@@ -562,20 +560,13 @@ export default function TicketForm({
             </Field>
           </div>
           <Field label="款式（可多选）" required>
-            <div className="flex flex-wrap gap-3">
-              {STYLE_OPTIONS.map((s) => (
-                <label key={s.value} className="flex items-center gap-1 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={styles.includes(s.value)}
-                    onChange={() =>
-                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
-                    }
-                  />
-                  {s.label}
-                </label>
-              ))}
-            </div>
+            <SearchableMultiSelect
+              options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
+              value={styles}
+              onChange={setStyles}
+              placeholder="请选择合作款式（可多选）"
+              searchPlaceholder="搜索合作款式"
+            />
           </Field>
           <Field label="合作类目（可多选）" required>
             <div className="flex flex-wrap gap-3">
@@ -756,7 +747,7 @@ export default function TicketForm({
         <ConfirmDialog
           title="确认提交审批"
           message={ticketKind === "PROCUREMENT"
-            ? `采买请求：\n${procurementItems.map((it, i) => `${i + 1}. ${STYLE_OPTIONS.find((o) => o.value === it.style)?.label ?? it.style} × ${it.quantity}`).join("\n")}${procurementLink.trim() ? `\n参考链接：${procurementLink.trim()}` : ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
+            ? `采买请求：\n${procurementItems.map((it, i) => `${i + 1}. ${it.style} × ${it.quantity}`).join("\n")}${procurementLink.trim() ? `\n参考链接：${procurementLink.trim()}` : ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
             : ticketKind === "MAINTENANCE"
             ? `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
             : `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n预算费用：¥${budgetFee}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`}
