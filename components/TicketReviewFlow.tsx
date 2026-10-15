@@ -69,6 +69,15 @@ export default function TicketReviewFlow({
     }
   }
 
+  // 已返稿 / 已发布走专用入口（advance-status 只负责进待返稿）
+  async function markReviewed() {
+    if (await call(`/api/tickets/${ticketId}/return-draft`, {})) router.refresh();
+  }
+
+  async function markPublished(publishLink: string) {
+    if (await call(`/api/tickets/${ticketId}/publish`, { publishLink })) router.refresh();
+  }
+
   // 寄品签收后引导：填写确定档期 → 待返稿
   const showScheduleBanner =
     canOperate && (status === "IN_PROGRESS" || status === "COMPLETED") && hasSignedSample;
@@ -118,7 +127,7 @@ export default function TicketReviewFlow({
       {showReviewed &&
         (materialsCount > 0 ? (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
-            <p className="text-sm text-amber-900">已回收 {materialsCount} 条返稿素材，请审批通过后再推送已返稿。</p>
+            <p className="text-sm text-amber-900">已回收 {materialsCount} 条返稿素材，可标记已返稿。</p>
             <button
               className={btnPrimary}
               disabled={busy}
@@ -128,12 +137,12 @@ export default function TicketReviewFlow({
                   message: `确认工单「${ticketTitle}」已返稿吗？状态将变为「已返稿」。`,
                   onOk: async () => {
                     setConfirm(null);
-                    await advance("REVIEWED");
+                    await markReviewed();
                   },
                 })
               }
             >
-              审批通过并推送已返稿
+              标记已返稿
             </button>
           </div>
         ) : (
@@ -162,7 +171,7 @@ export default function TicketReviewFlow({
                   message: `发布链接：${link.trim() || "（未填）"}\n保存后工单进入「已发布」，确认吗？`,
                   onOk: async () => {
                     setConfirm(null);
-                    await advance("PUBLISHED", { publishLink: link.trim() });
+                    await markPublished(link.trim());
                   },
                 })
               }
@@ -193,7 +202,7 @@ export default function TicketReviewFlow({
                     className={btnPrimary}
                     disabled={busy}
                     onClick={async () => {
-                      if (await call(`/api/tickets/${ticketId}/settle-request`, { action: "APPROVE", paymentId: settlement.id, comment: settleComment.trim() })) router.refresh();
+                      if (await call(`/api/tickets/${ticketId}/settlement-request`, { action: "APPROVE", paymentId: settlement.id, comment: settleComment.trim() })) router.refresh();
                     }}
                   >
                     结算审批通过
@@ -206,7 +215,7 @@ export default function TicketReviewFlow({
                         setError("驳回必须填写理由");
                         return;
                       }
-                      if (await call(`/api/tickets/${ticketId}/settle-request`, { action: "REJECT", paymentId: settlement.id, comment: settleComment.trim() })) router.refresh();
+                      if (await call(`/api/tickets/${ticketId}/settlement-request`, { action: "REJECT", paymentId: settlement.id, comment: settleComment.trim() })) router.refresh();
                     }}
                   >
                     驳回结算
@@ -271,7 +280,7 @@ export default function TicketReviewFlow({
                   setError("实际价格必须为大于 0 的数字");
                   return;
                 }
-                if (await call(`/api/tickets/${ticketId}/settle-request`, { actualFee: fee, note: settleNote.trim() })) {
+                if (await call(`/api/tickets/${ticketId}/settlement-request`, { actualFee: fee, note: settleNote.trim() })) {
                   setSettleOpen(false);
                   router.refresh();
                 }

@@ -2,11 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputCls, btnPrimary, btnSecondary, Field } from "./ui";
-import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels } from "@/lib/labels";
+import { roleLabels, coopTypeLabels, PLATFORM_TAG_OPTIONS, STYLE_OPTIONS, COOP_CATEGORY_OPTIONS, ticketKindLabels } from "@/lib/labels";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
-import SearchableSelect from "./SearchableSelect";
-import SearchableMultiSelect from "./SearchableMultiSelect";
 import { OccupancyWarning } from "./OccupancyWarning";
 import ShipItemEditor from "./ShipItemEditor";
 import type { ShipItem } from "@/lib/ship-items";
@@ -14,14 +12,14 @@ import { InfluencerHistory } from "./InfluencerHistory";
 import type { OccupancyInfo } from "@/lib/occupancy";
 
 type Approver = { id: string; name: string; email: string; role: string };
-type Partner = { id: string; name: string; homepageId?: string | null; xhsUrl?: string | null; douyinUrl?: string | null; platforms?: string[] };
+type Partner = { id: string; name: string; homepageId?: string | null };
 type Attachment = { fileUrl: string; fileName: string };
 
 const isImage = (name: string) => /\.(jpe?g|png|webp|gif)$/i.test(name);
 
 export type EditTicketData = {
   id: string;
-  ticketKind: "COOPERATION" | "MAINTENANCE" | "PROCUREMENT";
+  ticketKind?: "COOPERATION" | "MAINTENANCE" | "PROCUREMENT";
   title: string;
   type: string;
   brandId: string;
@@ -39,14 +37,14 @@ export type EditTicketData = {
   coopCategory: string[];
   homepageId: string;
   homepageLinks?: Record<string, string>;
-  attachments?: Attachment[];
+  attachments?: { fileUrl: string; fileName: string }[];
   scriptRequired?: boolean;
   sampleRequired?: boolean;
+  shipItems?: Array<{ style?: string; degree?: string; shelfLife?: string; boxCount?: string; note?: string }>;
   startDate: string;
   endDate: string;
   influencerId: string | null;
   makeupArtistId: string | null;
-  shipItems?: ShipItem[];
 };
 
 export default function TicketForm({
@@ -75,7 +73,7 @@ export default function TicketForm({
   // 工单类型：运营只能发起采买工单；从采买工单转来时固定为合作工单
   const isOperator = userRole === "OPERATOR";
   const [ticketKind, setTicketKind] = useState<"COOPERATION" | "PROCUREMENT" | "MAINTENANCE">(
-    editTicket?.ticketKind ?? (isOperator ? "PROCUREMENT" : "COOPERATION")
+    isOperator ? "PROCUREMENT" : "COOPERATION"
   );
   // 采买请求：动态行列表，每行 = 款式 + 数量；参考链接全局一个（选填）
   const [procurementItems, setProcurementItems] = useState<{ style: string; quantity: string }[]>([{ style: "", quantity: "" }]);
@@ -91,14 +89,11 @@ export default function TicketForm({
   const [endDate, setEndDate] = useState(editTicket?.endDate ?? "");
   const [tagOptions, setTagOptions] = useState<{ id: string; name: string }[]>([]);
   const [tagIds, setTagIds] = useState<string[]>([]);
-  const [styleOptions, setStyleOptions] = useState<{ id: string; name: string }[]>([]);
   // 品牌：单选必填
   const [brandId, setBrandId] = useState(editTicket?.brandId ?? "");
   const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
   const [platforms, setPlatforms] = useState<string[]>(editTicket?.platform ?? []);
   const [homepageId, setHomepageId] = useState(editTicket?.homepageId ?? "");
-  const [homepageLinks, setHomepageLinks] = useState<Record<string, string>>(editTicket?.homepageLinks ?? {});
-  const [sampleRequired, setSampleRequired] = useState(editTicket?.sampleRequired ?? false);
   const [coopCategories, setCoopCategories] = useState<string[]>(editTicket?.coopCategory ?? []);
   const [priceNote, setPriceNote] = useState(editTicket?.priceNote ?? "");
   const [contentNote, setContentNote] = useState(editTicket?.contentNote ?? "");
@@ -106,10 +101,9 @@ export default function TicketForm({
   const [confirmSchedule, setConfirmSchedule] = useState(!!editTicket?.confirmedDate);
   const [confirmedDate, setConfirmedDate] = useState(editTicket?.confirmedDate ?? "");
   const [selected, setSelected] = useState<string[]>([]);
-  const [attachments, setAttachments] = useState<Attachment[]>(editTicket?.attachments ?? []);
-  const [scriptRequired, setScriptRequired] = useState(editTicket?.scriptRequired ?? false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   // 寄品明细：可寄多个款式，每行 {款式、度数、抛期、盒数、寄品备注}
-  const [shipItems, setShipItems] = useState<ShipItem[]>(editTicket?.shipItems ?? []);
+  const [shipItems, setShipItems] = useState<ShipItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -158,58 +152,27 @@ export default function TicketForm({
     }
   }, [open ]);
 
-  useEffect(() => {
-    if (!open || !brandId) {
-      setStyleOptions([]);
-      return;
-    }
-    fetch(`/api/styles?active=1&brandId=${encodeURIComponent(brandId)}`)
-      .then((r) => r.json())
-      .then((d) => setStyleOptions(Array.isArray(d) ? d : []))
-      .catch(() => setStyleOptions([]));
-  }, [open, brandId]);
-
   const partners = type === "MAKEUP" ? makeupArtists : influencers;
 
-  // 从合作资源发起时，同步平台主页链接
+  // 从需求跳转带入达人时，自动带入主页ID
   useEffect(() => {
     if (initialInfluencerId) {
       const p = influencers.find((x) => x.id === initialInfluencerId);
-      if (p?.xhsUrl || p?.douyinUrl) setHomepageLinks((current) => ({ ...current, XIAOHONGSHU: p.xhsUrl ?? current.XIAOHONGSHU ?? "", DOUYIN: p.douyinUrl ?? current.DOUYIN ?? "" }));
+      if (p?.homepageId) setHomepageId(p.homepageId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function onPartnerChange(id: string) {
     setPartnerId(id);
-    // 选达人时从达人库同步主页链接
+    // 选达人时从达人库自动带入主页ID，可手动改
     if (type !== "MAKEUP") {
       const p = influencers.find((x) => x.id === id);
-      if (p?.xhsUrl || p?.douyinUrl) setHomepageLinks((current) => ({ ...current, XIAOHONGSHU: p.xhsUrl ?? current.XIAOHONGSHU ?? "", DOUYIN: p.douyinUrl ?? current.DOUYIN ?? "" }));
+      if (p?.homepageId) setHomepageId(p.homepageId);
     }
   }
 
-  function selectSinglePlatform(value: string) {
-    setPlatforms(value ? [value] : []);
-    setHomepageId(homepageLinks[value] ?? "");
-  }
-
-  function toggleMaintenancePlatform(value: string) {
-    setPlatforms((current) => {
-      const next = current.includes(value) ? current.filter((x) => x !== value) : [...current, value];
-      setHomepageId(next.length > 0 ? (homepageLinks[next[0]] ?? "") : "");
-      return next;
-    });
-  }
-
-  function updatePlatformLink(value: string) {
-    const platform = platforms[0];
-    if (!platform) return;
-    setHomepageLinks((current) => ({ ...current, [platform]: value }));
-    setHomepageId(value);
-  }
-
-  async function validate(submitForApproval = false): Promise<string | null> {
+  async function validate(): Promise<string | null> {
     if (!brandId) return "请选择所属品牌";
     // 采买工单：只保留品牌 / 平台 / 参考链接 / 采买请求列表（标题走 __AUTO__，无预算/素材类型/子类型）
     if (ticketKind === "PROCUREMENT" && !isEdit) {
@@ -222,28 +185,20 @@ export default function TicketForm({
       return null;
     }
     // 维护工单：只校验品牌、合作对象、平台、款式（无预算/档期/报价/采买字段）
-    if (ticketKind === "MAINTENANCE") {
+    if (ticketKind === "MAINTENANCE" && !isEdit) {
       if (!partnerId) return "请选择合作对象";
-      if (platforms.length === 0) return "请至少选择一个合作平台";
-      const missingPlatform = platforms.find((platform) => !homepageLinks[platform]?.trim());
-      if (missingPlatform) {
-        const label = PLATFORM_TAG_OPTIONS.find((p) => p.value === missingPlatform)?.label ?? missingPlatform;
-        return `请填写${label}达人主页链接`;
-      }
+      if (platforms.length === 0) return "请选择合作平台（可多选）";
       if (styles.length === 0) return "请选择款式（可多选）";
       return null;
     }
     if (!budgetFee || Number(budgetFee) <= 0) return "预算费用必须大于 0";
     // 合作工单：原有校验
     if (!partnerId) return "请选择合作对象";
-    if (platforms.length !== 1) return "合作工单只能选择一个合作平台；不同平台请分别创建工单";
-    if (!homepageLinks[platforms[0]]?.trim()) return "请填写对应平台的达人主页链接";
+    if (platforms.length === 0) return "请选择合作平台（可多选）";
     if (styles.length === 0) return "请选择款式（可多选）";
     if (coopCategories.length === 0) return "请选择合作类目（可多选）";
-    if (scriptRequired && attachments.length === 0) return "已选择需要脚本，请至少上传一个脚本附件";
     // 时间段选填；确定档期确认时必填
     if (confirmSchedule && !/^\d{4}-\d{2}-\d{2}$/.test(confirmedDate)) return "请使用日期选择器填写确定档期";
-    if (submitForApproval && !confirmedDate) return "提交审批前请填写确定档期";
     return null;
   }
 
@@ -261,7 +216,7 @@ export default function TicketForm({
 
   async function submit(submitForApproval: boolean) {
     setError("");
-    const err = await validate(submitForApproval);
+    const err = await validate();
     if (err) return setError(err);
     // 寄品明细：填了行则款式名必填
     for (const s of cleanShipItems()) {
@@ -290,7 +245,6 @@ export default function TicketForm({
           budgetFee,
           platform: platforms,
           homepageId: homepageId.trim() || null,
-          homepageLinks,
           style: styles,
           coopCategory: coopCategories,
           contentDirection: contentDirection.trim() || null,
@@ -301,11 +255,6 @@ export default function TicketForm({
           startDate: startDate || null,
           endDate: endDate || null,
           note: note.trim() || null,
-          sampleRequired,
-          scriptRequired,
-          attachments,
-          submitForApproval,
-          shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -367,7 +316,6 @@ export default function TicketForm({
         makeupArtistId: type === "MAKEUP" ? partnerId : null,
         budgetFee,
         platform: platforms,
-        homepageLinks,
         homepageId: homepageId.trim() || null,
         style: styles,
         coopCategory: coopCategories,
@@ -382,9 +330,7 @@ export default function TicketForm({
         approverIds: selected,
         submit: submitForApproval,
         attachments,
-        scriptRequired,
         shipItems: (() => { const c = cleanShipItems(); return c.length > 0 ? c : null; })(),
-        sampleRequired,
         coopRequestId: initialCoopRequestId ?? null,
         tagIds,
       }),
@@ -439,11 +385,7 @@ export default function TicketForm({
             <select
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               value={brandId}
-              onChange={(e) => {
-                setBrandId(e.target.value);
-                setStyles([]);
-                setProcurementItems([{ style: "", quantity: "" }]);
-              }}
+              onChange={(e) => setBrandId(e.target.value)}
             >
               <option value="">请选择品牌</option>
               {brandOptions.map((b) => (
@@ -451,9 +393,7 @@ export default function TicketForm({
               ))}
             </select>
           </Field>
-          {!brandId ? (
-            <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-muted-foreground">请先选择品牌，后续填写项会按步骤展开。</p>
-          ) : ticketKind === "PROCUREMENT" && !isEdit ? (
+          {ticketKind === "PROCUREMENT" && !isEdit ? (
             <>
               {/* 采买请求：平台（上方品牌为共享字段）+ 参考链接 + 动态行列表 */}
               <Field label="合作平台（可多选）" required>
@@ -476,21 +416,22 @@ export default function TicketForm({
                 <input className={inputCls} value={procurementLink}
                   onChange={(e) => setProcurementLink(e.target.value)} placeholder="https://..." />
               </Field>
-              {brandId ? (
               <Field label="采买请求" required hint="每行一款式 + 数量，至少 1 行">
                 <div className="space-y-2">
                   {procurementItems.map((row, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <SearchableSelect
-                        className="min-w-0 flex-1"
-                        options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
+                      <select
+                        className={inputCls}
                         value={row.style}
-                        onChange={(value) =>
-                          setProcurementItems(procurementItems.map((r, j) => (j === i ? { ...r, style: value } : r)))
+                        onChange={(e) =>
+                          setProcurementItems(procurementItems.map((r, j) => (j === i ? { ...r, style: e.target.value } : r)))
                         }
-                        placeholder="请选择款式"
-                        searchPlaceholder="搜索款式"
-                      />
+                      >
+                        <option value="">请选择款式</option>
+                        {STYLE_OPTIONS.map((s) => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
                       <input
                         inputMode="numeric"
                         className={inputCls}
@@ -520,12 +461,9 @@ export default function TicketForm({
                   </button>
                 </div>
               </Field>
-              ) : (
-                <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">请先选择品牌，再选择该品牌的款式。</p>
-              )}
             </>
 
-          ) : ticketKind === "MAINTENANCE" ? (
+          ) : ticketKind === "MAINTENANCE" && !isEdit ? (
             <>
           {/* 维护工单：只显示品牌（上方共享）/合作对象/平台/款式/内容方向/备注；无档期/时间段、报价、采买字段 */}
           <Field label="合作类型" required>
@@ -537,48 +475,43 @@ export default function TicketForm({
           </Field>
           <Field label={type === "MAKEUP" ? "合作化妆师" : "合作达人"} required
             hint={type === "MAKEUP" ? "" : "仅可选择已通过审核的达人"}>
-            <SearchableSelect
-              options={partners.map((p) => ({ value: p.id, label: p.name }))}
-              value={partnerId}
-              onChange={onPartnerChange}
-              placeholder="请选择"
-              searchPlaceholder={type === "MAKEUP" ? "搜索化妆师" : "搜索合作达人"}
-            />
+            <select className={inputCls} value={partnerId} onChange={(e) => onPartnerChange(e.target.value)}>
+              <option value="">请选择</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </Field>
-          <Field label="合作平台（可多选）" required hint="选择的平台必须分别填写对应达人主页链接">
+          <Field label="合作平台（可多选）" required>
             <div className="flex flex-wrap gap-3">
               {PLATFORM_TAG_OPTIONS.map((p) => (
                 <label key={p.value} className="flex items-center gap-1 text-sm">
-                  <input type="checkbox" checked={platforms.includes(p.value)} onChange={() => toggleMaintenancePlatform(p.value)} />
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes(p.value)}
+                    onChange={() =>
+                      setPlatforms(platforms.includes(p.value) ? platforms.filter((x) => x !== p.value) : [...platforms, p.value])
+                    }
+                  />
                   {p.label}
                 </label>
               ))}
             </div>
-            <div className="mt-2 space-y-2">
-              {platforms.map((platform) => (
-                <input
-                  key={platform}
-                  className={inputCls}
-                  value={homepageLinks[platform] ?? ""}
-                  onChange={(e) => setHomepageLinks((current) => ({ ...current, [platform]: e.target.value }))}
-                  placeholder={`${PLATFORM_TAG_OPTIONS.find((p) => p.value === platform)?.label ?? "平台"}达人主页链接（必填）`}
-                />
-              ))}
-            </div>
           </Field>
-          {brandId ? <Field label="款式（可多选）" required>
-            <SearchableMultiSelect
-              options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
-              value={styles}
-              onChange={setStyles}
-              placeholder="请选择合作款式（可多选）"
-              searchPlaceholder="搜索合作款式"
-            />
-          </Field> : <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">请先选择品牌，再选择该品牌的款式。</p>}
-          <Field label="是否需要寄品" hint="维护工单可按需选择；选择后填写寄品明细">
-            <div className="flex gap-2">
-              <button type="button" className={`${sampleRequired ? btnSecondary : btnPrimary}`} onClick={() => setSampleRequired(false)}>不寄品</button>
-              <button type="button" className={`${sampleRequired ? btnPrimary : btnSecondary}`} onClick={() => setSampleRequired(true)}>需要寄品</button>
+          <Field label="款式（可多选）" required>
+            <div className="flex flex-wrap gap-3">
+              {STYLE_OPTIONS.map((s) => (
+                <label key={s.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={styles.includes(s.value)}
+                    onChange={() =>
+                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
+                    }
+                  />
+                  {s.label}
+                </label>
+              ))}
             </div>
           </Field>
           <Field label="内容方向">
@@ -599,53 +532,72 @@ export default function TicketForm({
           </Field>
           <Field label={type === "MAKEUP" ? "合作化妆师" : "合作达人"} required
             hint={type === "MAKEUP" ? "" : "仅可选择已通过审核的达人"}>
-            <SearchableSelect
-              options={partners.map((p) => ({ value: p.id, label: p.name }))}
-              value={partnerId}
-              onChange={onPartnerChange}
-              placeholder="请选择"
-              searchPlaceholder={type === "MAKEUP" ? "搜索化妆师" : "搜索合作达人"}
-            />
+            <select className={inputCls} value={partnerId} onChange={(e) => onPartnerChange(e.target.value)}>
+              <option value="">请选择</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </Field>
           {occupancy && occupancy.occupied && (
             <OccupancyWarning occupancy={occupancy} />
           )}
-          {brandId && <p className="mb-3 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">品牌已确定，请继续按顺序填写合作类型、合作对象、平台和款式。</p>}
           {ticketKind === "COOPERATION" && type !== "MAKEUP" && partnerId && (
             <InfluencerHistory influencerId={partnerId} />
           )}
           <div className="grid grid-cols-2 gap-3">
-          <Field label="合作平台（单选）" required hint="不同平台需要分别创建工单">
+            <Field label="合作平台（可多选）" required>
+              <div className="flex flex-wrap gap-3">
+                {PLATFORM_TAG_OPTIONS.map((p) => (
+                  <label key={p.value} className="flex items-center gap-1 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={platforms.includes(p.value)}
+                      onChange={() =>
+                        setPlatforms(platforms.includes(p.value) ? platforms.filter((x) => x !== p.value) : [...platforms, p.value])
+                      }
+                    />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+            <Field label="达人主页ID" hint="选达人自动带入，可手动修改">
+              <input className={inputCls} value={homepageId} onChange={(e) => setHomepageId(e.target.value)}
+                placeholder="如小红书号/抖音号" />
+            </Field>
+          </div>
+          <Field label="款式（可多选）" required>
             <div className="flex flex-wrap gap-3">
-              {PLATFORM_TAG_OPTIONS.map((p) => (
-                <label key={p.value} className="flex items-center gap-1 text-sm">
-                  <input type="radio" name="cooperation-platform" checked={platforms[0] === p.value} onChange={() => selectSinglePlatform(p.value)} />
-                  {p.label}
+              {STYLE_OPTIONS.map((s) => (
+                <label key={s.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={styles.includes(s.value)}
+                    onChange={() =>
+                      setStyles(styles.includes(s.value) ? styles.filter((x) => x !== s.value) : [...styles, s.value])
+                    }
+                  />
+                  {s.label}
                 </label>
               ))}
             </div>
-            {platforms[0] && (
-              <input className={`${inputCls} mt-2`} value={homepageLinks[platforms[0]] ?? ""} onChange={(e) => updatePlatformLink(e.target.value)} placeholder={`${PLATFORM_TAG_OPTIONS.find((p) => p.value === platforms[0])?.label ?? "平台"}达人主页链接`} />
-            )}
           </Field>
-          </div>
-          {brandId ? <Field label="款式（可多选）" required>
-            <SearchableMultiSelect
-              options={styleOptions.map((s) => ({ value: s.name, label: s.name }))}
-              value={styles}
-              onChange={setStyles}
-              placeholder="请选择合作款式（可多选）"
-              searchPlaceholder="搜索合作款式"
-            />
-          </Field> : <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">请先选择品牌，再选择该品牌的款式。</p>}
           <Field label="合作类目（可多选）" required>
-            <SearchableMultiSelect
-              options={COOP_CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
-              value={coopCategories}
-              onChange={setCoopCategories}
-              placeholder="请选择合作类目（可多选）"
-              searchPlaceholder="搜索合作类目"
-            />
+            <div className="flex flex-wrap gap-3">
+              {COOP_CATEGORY_OPTIONS.map((c) => (
+                <label key={c.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={coopCategories.includes(c.value)}
+                    onChange={() =>
+                      setCoopCategories(coopCategories.includes(c.value) ? coopCategories.filter((x) => x !== c.value) : [...coopCategories, c.value])
+                    }
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
           </Field>
           <Field label="时间段" hint="可选，如 2026-11-01 ~ 2026-11-15">
             <input className={inputCls} value={estimatedSchedule}
@@ -720,25 +672,16 @@ export default function TicketForm({
               </div>
             </Field>
           )}
-          {brandId && (ticketKind !== "MAINTENANCE" || sampleRequired) && !(ticketKind === "PROCUREMENT" && !isEdit) && (
+          {ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (
           <Field label="寄品明细" hint="需要寄样时填写，可寄多个款式；与合作款式独立">
-            <ShipItemEditor value={shipItems} onChange={setShipItems} brandId={brandId} />
+            <ShipItemEditor value={shipItems} onChange={setShipItems} />
           </Field>
           )}
           {ticketKind !== "MAINTENANCE" && !(ticketKind === "PROCUREMENT" && !isEdit) && (
-          <>
-          {ticketKind === "COOPERATION" && (
-          <Field label="是否需要脚本" hint="没有脚本的达人合作可选择不需要；需要脚本时必须上传脚本附件">
-            <div className="flex gap-2">
-              <button type="button" className={scriptRequired ? btnSecondary : btnPrimary} onClick={() => setScriptRequired(false)}>不需要脚本</button>
-              <button type="button" className={scriptRequired ? btnPrimary : btnSecondary} onClick={() => setScriptRequired(true)}>需要脚本</button>
-            </div>
-          </Field>
-          )}
-          <Field label={scriptRequired ? "脚本附件（必填）" : "插图 / 附件"} hint={scriptRequired ? "请上传脚本文件；提交审批前必须至少上传一个" : "可上传产品图、参考图或脚本附件"}>
+          <Field label="插图 / 附件" hint="可上传产品图、参考图等，图片会显示缩略图">
             <input
               type="file"
-              accept="image/*,.pdf,.doc,.docx,.txt"
+              accept="image/*,.pdf"
               multiple
               disabled={uploading}
               onChange={(e) => {
@@ -776,9 +719,7 @@ export default function TicketForm({
               </div>
             )}
           </Field>
-          </>
           )}
-          {brandId && <p className="mb-3 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">品牌已确定，请继续按顺序填写合作类型、合作对象、平台和款式。</p>}
           <Field label="审批人（可多选，或签）" hint="提交审批时必填">
             <div className="max-h-36 space-y-1 overflow-y-auto rounded border border-border p-2">
               {approvers.map((a) => (
@@ -821,10 +762,10 @@ export default function TicketForm({
         <ConfirmDialog
           title="确认提交审批"
           message={ticketKind === "PROCUREMENT"
-            ? `采买请求：\n${procurementItems.map((it, i) => `${i + 1}. ${it.style} × ${it.quantity}`).join("\n")}${procurementLink.trim() ? `\n参考链接：${procurementLink.trim()}` : ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
+            ? `采买请求：\n${procurementItems.map((it, i) => `${i + 1}. ${STYLE_OPTIONS.find((o) => o.value === it.style)?.label ?? it.style} × ${it.quantity}`).join("\n")}${procurementLink.trim() ? `\n参考链接：${procurementLink.trim()}` : ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
             : ticketKind === "MAINTENANCE"
-            ? `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}${cleanShipItems().length > 0 ? `\n\n寄品确认：本工单包含 ${cleanShipItems().length} 条寄品明细，审批通过后会自动创建寄品单。寄品单还需要维护收件人、电话和地址，确认后才会推送给仓库。请确认寄品明细无误。` : ""}\n\n提交后将通知审批人，确认提交吗？`
-            : `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n预算费用：¥${budgetFee}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}${cleanShipItems().length > 0 ? `\n\n寄品确认：本工单包含 ${cleanShipItems().length} 条寄品明细，审批通过后会自动创建寄品单。寄品单还需要维护收件人、电话和地址，确认后才会推送给仓库。请确认寄品明细无误。` : ""}\n\n提交后将通知审批人，确认提交吗？`}
+            ? `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`
+            : `标题：${autoTitlePreview}（自动生成）\n合作对象：${partners.find((p) => p.id === partnerId)?.name ?? ""}\n预算费用：¥${budgetFee}\n审批人：${approvers.filter((a) => selected.includes(a.id)).map((a) => a.name).join("、")}\n\n提交后将通知审批人，确认提交吗？`}
           confirmText="确认提交"
           busy={saving}
           onClose={() => setShowSubmitConfirm(false)}

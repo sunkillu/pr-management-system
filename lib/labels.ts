@@ -264,15 +264,11 @@ export const procurementSubTypeLabels: Record<string, string> = {
 export const ticketStatusLabels: Record<string, string> = {  DRAFT: "草稿",
   PENDING_APPROVAL: "待审批",
   PENDING_PROCUREMENT: "待采买审批",
-  PROCUREMENT_GENERATED: "已生成合作工单",
-  PROCUREMENT_CLOSED: "采买已关闭",
   APPROVED: "已通过（待执行）",
   IN_PROGRESS: "执行中",
-  AWAITING_DRAFT: "待返稿",
   MATERIAL_REVIEW: "待素材审批",
   COMPLETED: "已完成",
   PENDING_REVIEW: "待返稿",
-  DRAFT_RETURNED: "已返稿",
   REVIEWED: "已返稿",
   PUBLISHED: "已发布",
   SETTLING: "结算中",
@@ -309,21 +305,17 @@ export const approverStatusLabels: Record<string, string> = {
 };
 
 export const sampleStatusLabels: Record<string, string> = {
-  PENDING: "待寄出",
-  SHIPPED: "待签收",
+  PENDING: "待处理",
+  PREPARING: "备货中",
+  SHIPPED: "已寄出",
   SIGNED: "已签收",
-  // 历史状态仅用于老记录/操作日志展示，不再作为可选业务状态
-  PREPARING: "待寄出",
-  WRITTEN_OFF: "已签收",
-  RETURNED: "已签收",
+  RETURNED: "已归还",
+  WRITTEN_OFF: "已核销",
   CANCELLED: "已取消",
 };
 
-export const sampleStatusOptions = [
-  ["PENDING", "待寄出"],
-  ["SHIPPED", "待签收"],
-  ["SIGNED", "已签收"],
-] as const;
+// 寄品状态下拉选项 [key, label][]
+export const sampleStatusOptions: [string, string][] = Object.entries(sampleStatusLabels);
 
 export const notifyTypeLabels: Record<string, string> = {
   FEISHU: "飞书已发送",
