@@ -1,5 +1,5 @@
 -- 采买逐条审批：ProcurementItem 表（采买工单每行款式请求，逐条审批 + 分配建单）
-CREATE TABLE "ProcurementItem" (
+CREATE TABLE IF NOT EXISTS "ProcurementItem" (
     "id" TEXT NOT NULL,
     "ticketId" TEXT NOT NULL,
     "style" TEXT NOT NULL,
@@ -13,5 +13,8 @@ CREATE TABLE "ProcurementItem" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "ProcurementItem_pkey" PRIMARY KEY ("id")
 );
-CREATE INDEX "ProcurementItem_ticketId_idx" ON "ProcurementItem"("ticketId");
-ALTER TABLE "ProcurementItem" ADD CONSTRAINT "ProcurementItem_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "CooperationTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE INDEX IF NOT EXISTS "ProcurementItem_ticketId_idx" ON "ProcurementItem"("ticketId");
+DO $$ BEGIN
+  ALTER TABLE "ProcurementItem" ADD CONSTRAINT "ProcurementItem_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "CooperationTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

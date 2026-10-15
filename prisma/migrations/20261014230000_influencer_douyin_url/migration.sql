@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "Influencer" ADD COLUMN "douyinUrl" TEXT;
+ALTER TABLE "Influencer" ADD COLUMN IF NOT EXISTS "douyinUrl" TEXT;
