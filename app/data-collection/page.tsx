@@ -33,6 +33,8 @@ export default async function DataCollectionPage({
     status: t.status,
     dueAt: t.dueAt ? t.dueAt.toISOString() : null,
     createdAt: t.createdAt.toISOString(),
+    updatedAt: t.updatedAt?.toISOString() ?? null,
+    stateHistory: [],
     ticket: {
       id: t.ticket.id,
       ticketNo: t.ticket.ticketNo,

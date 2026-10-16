@@ -179,7 +179,7 @@ export default async function DashboardPage({
   const brandStats = brandGroups
     .map((g) => ({
       brandId: g.brandId,
-      name: brandNameMap.get(g.brandId) ?? "未知品牌",
+      name: brandNameMap.get(g.brandId ?? "") ?? "未知品牌",
       count: g._count,
       published: publishedByBrand.get(g.brandId) ?? 0,
       spend: Number(g._sum.actualFee ?? 0),
