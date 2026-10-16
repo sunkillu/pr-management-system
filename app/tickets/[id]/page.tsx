@@ -223,7 +223,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
   });
   // 草稿可编辑：创建人 / 接单人 / 管理员（采买转入的合作工单由接单PR补充合作信息）
   const canEdit =
-    ticket.status === "DRAFT" &&
+    ["DRAFT", "REJECTED"].includes(ticket.status) &&
     (role === "ADMIN" || ticket.creator.id === me.id || ticket.assigneeId === me.id);
 
   const cutoff = new Date(Date.now() - APPROVAL_TIMEOUT_HOURS * 3600 * 1000);

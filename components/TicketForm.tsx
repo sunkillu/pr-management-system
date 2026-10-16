@@ -94,6 +94,11 @@ export default function TicketForm({
   const [brandOptions, setBrandOptions] = useState<{ id: string; name: string }[]>([]);
   const [platforms, setPlatforms] = useState<string[]>(editTicket?.platform ?? []);
   const [homepageId, setHomepageId] = useState(editTicket?.homepageId ?? "");
+  const [homepageLinks, setHomepageLinks] = useState<Record<string, string>>(() => {
+    if (editTicket?.homepageLinks) return { ...editTicket.homepageLinks };
+    const firstPlatform = editTicket?.platform?.[0];
+    return firstPlatform && editTicket?.homepageId ? { [firstPlatform]: editTicket.homepageId } : {};
+  });
   const [coopCategories, setCoopCategories] = useState<string[]>(editTicket?.coopCategory ?? []);
   const [priceNote, setPriceNote] = useState(editTicket?.priceNote ?? "");
   const [contentNote, setContentNote] = useState(editTicket?.contentNote ?? "");
@@ -158,7 +163,10 @@ export default function TicketForm({
   useEffect(() => {
     if (initialInfluencerId) {
       const p = influencers.find((x) => x.id === initialInfluencerId);
-      if (p?.homepageId) setHomepageId(p.homepageId);
+      if (p?.homepageId) {
+        setHomepageId(p.homepageId);
+        setHomepageLinks((current) => ({ ...current, [platforms[0] ?? "XIAOHONGSHU"]: p.homepageId! }));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -168,8 +176,42 @@ export default function TicketForm({
     // 选达人时从达人库自动带入主页ID，可手动改
     if (type !== "MAKEUP") {
       const p = influencers.find((x) => x.id === id);
-      if (p?.homepageId) setHomepageId(p.homepageId);
+      if (p?.homepageId) {
+        setHomepageId(p.homepageId);
+        setHomepageLinks((current) => ({ ...current, [platforms[0] ?? "XIAOHONGSHU"]: p.homepageId! }));
+      }
     }
+  }
+
+  function togglePlatform(platform: string) {
+    setPlatforms((current) => {
+      if (ticketKind === "COOPERATION") {
+        return current.includes(platform) ? [] : [platform];
+      }
+      return current.includes(platform) ? current.filter((item) => item !== platform) : [...current, platform];
+    });
+  }
+
+  function renderHomepageFields() {
+    const selectedPlatforms = PLATFORM_TAG_OPTIONS.filter((platform) => platforms.includes(platform.value));
+    if (selectedPlatforms.length === 0 || ticketKind === "PROCUREMENT") return null;
+    return (
+      <Field label="平台达人主页 ID / 链接" required hint="勾选平台后填写对应平台主页信息">
+        <div className="space-y-2">
+          {selectedPlatforms.map((platform) => (
+            <div key={platform.value}>
+              <label className="mb-1 block text-xs text-muted-foreground">{platform.label}主页 ID / 链接</label>
+              <input
+                className={inputCls}
+                value={homepageLinks[platform.value] ?? ""}
+                onChange={(event) => setHomepageLinks((current) => ({ ...current, [platform.value]: event.target.value }))}
+                placeholder={`填写${platform.label}主页 ID 或链接`}
+              />
+            </div>
+          ))}
+        </div>
+      </Field>
+    );
   }
 
   async function validate(): Promise<string | null> {
@@ -188,13 +230,17 @@ export default function TicketForm({
     if (ticketKind === "MAINTENANCE" && !isEdit) {
       if (!partnerId) return "请选择合作对象";
       if (platforms.length === 0) return "请选择合作平台（可多选）";
+      const missingHomepage = platforms.find((platform) => !homepageLinks[platform]?.trim());
+      if (missingHomepage) return `请填写${PLATFORM_TAG_OPTIONS.find((item) => item.value === missingHomepage)?.label ?? missingHomepage}主页 ID / 链接`;
       if (styles.length === 0) return "请选择款式（可多选）";
       return null;
     }
     if (!budgetFee || Number(budgetFee) <= 0) return "预算费用必须大于 0";
     // 合作工单：原有校验
     if (!partnerId) return "请选择合作对象";
-    if (platforms.length === 0) return "请选择合作平台（可多选）";
+    if (platforms.length !== 1) return "合作工单请选择一个合作平台";
+    const missingHomepage = platforms.find((platform) => !homepageLinks[platform]?.trim());
+    if (missingHomepage) return `请填写${PLATFORM_TAG_OPTIONS.find((item) => item.value === missingHomepage)?.label ?? missingHomepage}主页 ID / 链接`;
     if (styles.length === 0) return "请选择款式（可多选）";
     if (coopCategories.length === 0) return "请选择合作类目（可多选）";
     // 时间段选填；确定档期确认时必填
@@ -231,6 +277,7 @@ export default function TicketForm({
   async function doSubmit(submitForApproval: boolean) {
     setSaving(true);
     const isProcurement = ticketKind === "PROCUREMENT" && !isEdit;
+    const primaryHomepageId = homepageLinks[platforms[0] ?? ""]?.trim() || homepageId.trim() || null;
 
     // 编辑模式：PATCH 更新
     if (isEdit && editTicket) {
@@ -244,7 +291,8 @@ export default function TicketForm({
           makeupArtistId: type === "MAKEUP" ? partnerId || null : null,
           budgetFee,
           platform: platforms,
-          homepageId: homepageId.trim() || null,
+          homepageId: primaryHomepageId,
+          homepageLinks,
           style: styles,
           coopCategory: coopCategories,
           contentDirection: contentDirection.trim() || null,
@@ -316,7 +364,8 @@ export default function TicketForm({
         makeupArtistId: type === "MAKEUP" ? partnerId : null,
         budgetFee,
         platform: platforms,
-        homepageId: homepageId.trim() || null,
+        homepageId: primaryHomepageId,
+        homepageLinks,
         style: styles,
         coopCategory: coopCategories,
         contentDirection: finalContentDirection,
@@ -403,9 +452,7 @@ export default function TicketForm({
                       <input
                         type="checkbox"
                         checked={platforms.includes(p.value)}
-                        onChange={() =>
-                          setPlatforms(platforms.includes(p.value) ? platforms.filter((x) => x !== p.value) : [...platforms, p.value])
-                        }
+                        onChange={() => togglePlatform(p.value)}
                       />
                       {p.label}
                     </label>
@@ -482,22 +529,21 @@ export default function TicketForm({
               ))}
             </select>
           </Field>
-          <Field label="合作平台（可多选）" required>
+          <Field label={ticketKind === "MAINTENANCE" ? "合作平台（可多选）" : "合作平台（单选）"} required>
             <div className="flex flex-wrap gap-3">
               {PLATFORM_TAG_OPTIONS.map((p) => (
                 <label key={p.value} className="flex items-center gap-1 text-sm">
                   <input
                     type="checkbox"
                     checked={platforms.includes(p.value)}
-                    onChange={() =>
-                      setPlatforms(platforms.includes(p.value) ? platforms.filter((x) => x !== p.value) : [...platforms, p.value])
-                    }
+                    onChange={() => togglePlatform(p.value)}
                   />
                   {p.label}
                 </label>
               ))}
             </div>
           </Field>
+          {renderHomepageFields()}
           <Field label="款式（可多选）" required>
             <div className="flex flex-wrap gap-3">
               {STYLE_OPTIONS.map((s) => (
@@ -545,28 +591,21 @@ export default function TicketForm({
           {ticketKind === "COOPERATION" && type !== "MAKEUP" && partnerId && (
             <InfluencerHistory influencerId={partnerId} />
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="合作平台（可多选）" required>
-              <div className="flex flex-wrap gap-3">
-                {PLATFORM_TAG_OPTIONS.map((p) => (
-                  <label key={p.value} className="flex items-center gap-1 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={platforms.includes(p.value)}
-                      onChange={() =>
-                        setPlatforms(platforms.includes(p.value) ? platforms.filter((x) => x !== p.value) : [...platforms, p.value])
-                      }
-                    />
-                    {p.label}
-                  </label>
-                ))}
-              </div>
-            </Field>
-            <Field label="达人主页ID" hint="选达人自动带入，可手动修改">
-              <input className={inputCls} value={homepageId} onChange={(e) => setHomepageId(e.target.value)}
-                placeholder="如小红书号/抖音号" />
-            </Field>
-          </div>
+          <Field label="合作平台（可多选）" required>
+            <div className="flex flex-wrap gap-3">
+              {PLATFORM_TAG_OPTIONS.map((p) => (
+                <label key={p.value} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes(p.value)}
+                    onChange={() => togglePlatform(p.value)}
+                  />
+                  {p.label}
+                </label>
+              ))}
+            </div>
+          </Field>
+          {renderHomepageFields()}
           <Field label="款式（可多选）" required>
             <div className="flex flex-wrap gap-3">
               {STYLE_OPTIONS.map((s) => (
