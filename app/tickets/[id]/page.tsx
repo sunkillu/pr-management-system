@@ -500,7 +500,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                     ticketTitle={ticket.title}
                     ticketStatus={ticket.status}
                     shipItems={(Array.isArray(ticket.shipItems) ? ticket.shipItems : []).map((raw) => normalizeShipItem(raw))}
-                    samples={ticket.samples.map((sample) => ({ ...sample, sampleNo: sample.sampleNo ?? sample.id }))}
+                    samples={ticket.samples}
                     influencerName={ticket.influencer?.name ?? ticket.makeupArtist?.name ?? ""}
                     canCreate={["ADMIN", "PR", "PR_MANAGER"].includes(role)}
                   />
@@ -698,7 +698,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
                 assigneeId={ticket.assigneeId}
               />
             )}
-            {/* 采买工单接单后同单转入合作工单流程（accept 接口直接翻转 ticketKind），无需转工单按钮 */}
+            {/* 采买工单接单 / 人工分配（旧同单翻转流程已废弃：新单必有逐条明细，走下方逐条审批 + 分配建单） */}
             {/* 采买工单逐条审批 + 分配（有 ProcurementItem 的新单；老单返回 null） */}
             {ticket.ticketKind === "PROCUREMENT" && (
               <ProcurementItems
